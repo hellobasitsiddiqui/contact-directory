@@ -12,6 +12,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * Application service encapsulating the business logic for managing
  * {@link Contact} entities in the Contact Directory.
@@ -36,22 +38,46 @@ public class ContactService {
     }
 
     /**
-     * Returns a page of contacts, optionally filtered by a free-text search term.
+     * Returns a page of contacts, optionally filtered by a free-text search term
+     * and/or a tag.
      *
-     * <p>When {@code search} is {@code null} or blank, all contacts are returned;
-     * otherwise the trimmed term is matched against first name, last name, email
-     * and company.
+     * <ul>
+     *   <li>No search and no tag: all contacts.</li>
+     *   <li>Search only: matched against first name, last name, email, company and phone.</li>
+     *   <li>Tag (with or without search): only contacts carrying the tag, further
+     *       narrowed by the search term when present.</li>
+     * </ul>
      *
      * @param search   optional free-text search term
+     * @param tag      optional tag to filter by
      * @param pageable pagination and sorting information
      * @return a page of {@link ContactResponse} projections
      */
     @Transactional(readOnly = true)
-    public Page<ContactResponse> list(String search, Pageable pageable) {
-        Page<Contact> contacts = (search == null || search.isBlank())
-                ? repository.findAll(pageable)
-                : repository.search(search.trim(), pageable);
+    public Page<ContactResponse> list(String search, String tag, Pageable pageable) {
+        String q = (search == null) ? "" : search.trim();
+        boolean hasTag = tag != null && !tag.isBlank();
+
+        Page<Contact> contacts;
+        if (hasTag) {
+            contacts = repository.searchAndFilterByTag(q, tag.trim(), pageable);
+        } else if (q.isEmpty()) {
+            contacts = repository.findAll(pageable);
+        } else {
+            contacts = repository.search(q, pageable);
+        }
         return contacts.map(ContactResponse::from);
+    }
+
+    /**
+     * Returns the distinct set of tags currently in use across all contacts,
+     * sorted case-insensitively. Used to populate the tag filter control.
+     *
+     * @return the sorted list of distinct tags
+     */
+    @Transactional(readOnly = true)
+    public List<String> listTags() {
+        return repository.findDistinctTags();
     }
 
     /**
@@ -137,6 +163,9 @@ public class ContactService {
         }
         if (req.company() != null) {
             contact.setCompany(req.company());
+        }
+        if (req.tags() != null) {
+            contact.setTags(req.tags());
         }
         return ContactResponse.from(repository.save(contact));
     }
@@ -230,5 +259,6 @@ public class ContactService {
         contact.setEmail(req.email());
         contact.setPhone(req.phone());
         contact.setCompany(req.company());
+        contact.setTags(req.tags());
     }
 }

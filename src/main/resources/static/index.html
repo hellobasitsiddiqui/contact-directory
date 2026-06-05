@@ -35,6 +35,13 @@
 
         <div class="toolbar__controls">
           <div class="toolbar__control">
+            <label for="tag-filter">Tag</label>
+            <select id="tag-filter" class="select">
+              <option value="">All tags</option>
+            </select>
+          </div>
+
+          <div class="toolbar__control">
             <label for="sort-select">Sort</label>
             <select id="sort-select" class="select">
               <option value="lastName,asc">Last name (A–Z)</option>
@@ -71,6 +78,7 @@
               <th scope="col">Email</th>
               <th scope="col">Phone</th>
               <th scope="col">Company</th>
+              <th scope="col">Tags</th>
               <th scope="col" class="col-actions">Actions</th>
             </tr>
           </thead>
@@ -131,6 +139,24 @@
         <div class="field">
           <label for="field-company">Company</label>
           <input type="text" id="field-company" class="input" autocomplete="organization" />
+        </div>
+
+        <div class="field field--full">
+          <label for="field-tag-input">Tags</label>
+          <div id="tag-chips" class="tag-chips" aria-live="polite"></div>
+          <input
+            type="text"
+            id="field-tag-input"
+            class="input"
+            placeholder="Type a tag and press Enter"
+            autocomplete="off"
+          />
+          <div class="tag-presets" aria-label="Suggested tags">
+            <button type="button" class="btn btn--ghost btn--sm tag-preset" data-tag="Friend">+ Friend</button>
+            <button type="button" class="btn btn--ghost btn--sm tag-preset" data-tag="Work">+ Work</button>
+            <button type="button" class="btn btn--ghost btn--sm tag-preset" data-tag="Client">+ Client</button>
+            <button type="button" class="btn btn--ghost btn--sm tag-preset" data-tag="Family">+ Family</button>
+          </div>
         </div>
 
         <div class="field field--full">

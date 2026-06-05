@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Base64;
+import java.util.Set;
 import java.util.UUID;
 
 import org.hamcrest.Matchers;
@@ -63,7 +64,7 @@ class ContactApiIntegrationTest {
     void fullCrudLifecycle_withUniqueEmail() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Grace", "Hopper", email,
-                "+1 (555) 000-1111", "US Navy");
+                "+1 (555) 000-1111", "US Navy", null);
 
         // POST -> 201
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
@@ -84,7 +85,7 @@ class ContactApiIntegrationTest {
 
         // PUT (full replace) -> 200
         ContactRequest replace = new ContactRequest("Grace", "Murray Hopper", email,
-                "+1 (555) 222-3333", "USN");
+                "+1 (555) 222-3333", "USN", null);
         mockMvc.perform(put("/api/v1/contacts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(replace)))
@@ -93,7 +94,7 @@ class ContactApiIntegrationTest {
                 .andExpect(jsonPath("$.company").value("USN"));
 
         // PATCH (partial) -> 200
-        ContactPatchRequest patch = new ContactPatchRequest(null, null, null, null, "Yale");
+        ContactPatchRequest patch = new ContactPatchRequest(null, null, null, null, "Yale", null);
         mockMvc.perform(patch("/api/v1/contacts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(patch)))
@@ -114,7 +115,7 @@ class ContactApiIntegrationTest {
     @Test
     void post_duplicateSeededEmail_returns409() throws Exception {
         ContactRequest duplicate = new ContactRequest("Janet", "Doe", "jane.doe@example.com",
-                null, null);
+                null, null, null);
 
         mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -152,7 +153,7 @@ class ContactApiIntegrationTest {
     void photoLifecycle_uploadServeAndDelete() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Photo", "Subject", email,
-                null, null);
+                null, null, null);
 
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -204,7 +205,7 @@ class ContactApiIntegrationTest {
     @Test
     void getPhoto_contactWithNoPhoto_returns404() throws Exception {
         String email = uniqueEmail();
-        ContactRequest create = new ContactRequest("No", "Photo", email, null, null);
+        ContactRequest create = new ContactRequest("No", "Photo", email, null, null, null);
 
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -217,6 +218,42 @@ class ContactApiIntegrationTest {
         mockMvc.perform(get("/api/v1/contacts/{id}/photo", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message", Matchers.containsString("No photo")));
+    }
+
+    @Test
+    void tags_assignFilterAndList() throws Exception {
+        String email = uniqueEmail();
+        ContactRequest create = new ContactRequest("Linus", "Torvalds", email,
+                null, "Linux Foundation", Set.of("Work", "Open Source"));
+
+        // Create with tags -> the response echoes them back.
+        mockMvc.perform(post("/api/v1/contacts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(create)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags", Matchers.hasItem("Work")))
+                .andExpect(jsonPath("$.tags", Matchers.hasItem("Open Source")));
+
+        // The new tag appears in the distinct tags listing.
+        mockMvc.perform(get("/api/v1/contacts/tags"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", Matchers.hasItem("Open Source")));
+
+        // Filtering by the (unique) tag returns this contact.
+        mockMvc.perform(get("/api/v1/contacts").param("tag", "Open Source"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.content[0].email").value(email));
+
+        // Combined tag + search: a matching term keeps it; a non-matching term drops it.
+        mockMvc.perform(get("/api/v1/contacts")
+                        .param("tag", "Open Source").param("search", "Torvalds"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(1)));
+        mockMvc.perform(get("/api/v1/contacts")
+                        .param("tag", "Open Source").param("search", "zzz-no-match"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     /** Extracts the {@code id} from a JSON response body. */

@@ -25,14 +25,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
-          description: Contact not found
         "200":
           description: Contact found
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "404":
+          description: Contact not found
     put:
       tags:
       - Contacts
@@ -54,18 +54,18 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
-        "400":
-          description: Validation failed
-        "404":
-          description: Contact not found
+        "409":
+          description: Email already exists
         "200":
           description: Contact updated
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "409":
-          description: Email already exists
+        "400":
+          description: Validation failed
+        "404":
+          description: Contact not found
     delete:
       tags:
       - Contacts
@@ -105,30 +105,37 @@ paths:
               $ref: "#/components/schemas/ContactPatchRequest"
         required: true
       responses:
-        "400":
-          description: Validation failed
-        "404":
-          description: Contact not found
+        "409":
+          description: Email already exists
         "200":
           description: Contact updated
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "409":
-          description: Email already exists
+        "400":
+          description: Validation failed
+        "404":
+          description: Contact not found
   /api/v1/contacts:
     get:
       tags:
       - Contacts
       summary: List contacts
       description: "Returns a paginated list of contacts, optionally filtered by a\
-        \ search term."
+        \ search term and/or a tag."
       operationId: list
       parameters:
       - name: search
         in: query
-        description: "Free-text search across first name, last name, email and company"
+        description: "Free-text search across first name, last name, email, company\
+          \ and phone"
+        required: false
+        schema:
+          type: string
+      - name: tag
+        in: query
+        description: Restrict results to contacts carrying this tag (case-insensitive)
         required: false
         schema:
           type: string
@@ -179,6 +186,8 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
+        "409":
+          description: Email already exists
         "400":
           description: Validation failed
         "201":
@@ -187,8 +196,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "409":
-          description: Email already exists
   /api/v1/contacts/{id}/photo:
     get:
       tags:
@@ -205,6 +212,8 @@ paths:
           type: integer
           format: int64
       responses:
+        "404":
+          description: Contact or photo not found
         "200":
           description: Photo found
           content:
@@ -212,8 +221,6 @@ paths:
               schema:
                 type: string
                 format: byte
-        "404":
-          description: Contact or photo not found
     post:
       tags:
       - Contacts
@@ -242,18 +249,18 @@ paths:
                   description: Image file to upload
                   format: binary
       responses:
-        "413":
-          description: File too large
-        "400":
-          description: Invalid image
-        "404":
-          description: Contact not found
         "200":
           description: Photo uploaded
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "413":
+          description: File too large
+        "400":
+          description: Invalid image
+        "404":
+          description: Contact not found
     delete:
       tags:
       - Contacts
@@ -268,10 +275,26 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
-          description: Contact not found
         "204":
           description: Photo deleted
+        "404":
+          description: Contact not found
+  /api/v1/contacts/tags:
+    get:
+      tags:
+      - Contacts
+      summary: List all tags in use
+      description: "Returns the distinct, sorted set of tags assigned to any contact."
+      operationId: listTags
+      responses:
+        "200":
+          description: List of tags
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: string
 components:
   schemas:
     ContactRequest:
@@ -292,6 +315,11 @@ components:
           type: string
         company:
           type: string
+        tags:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
     ContactResponse:
       type: object
       properties:
@@ -316,6 +344,11 @@ components:
           format: date-time
         photoUrl:
           type: string
+        tags:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
     ContactPatchRequest:
       type: object
       properties:
@@ -329,6 +362,11 @@ components:
           type: string
         company:
           type: string
+        tags:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
     PageContactResponse:
       type: object
       properties:
@@ -366,8 +404,6 @@ components:
     PageableObject:
       type: object
       properties:
-        unpaged:
-          type: boolean
         paged:
           type: boolean
         pageNumber:
@@ -376,6 +412,8 @@ components:
         pageSize:
           type: integer
           format: int32
+        unpaged:
+          type: boolean
         offset:
           type: integer
           format: int64

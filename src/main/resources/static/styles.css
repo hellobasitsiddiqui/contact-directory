@@ -954,3 +954,79 @@ dialog[open] {
     width: calc(100vw - 2 * var(--space-4));
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Tags & categories
+ * ------------------------------------------------------------------ */
+
+/* Chip container: modal editor (editable) and table rows (read-only). */
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.tag-chips--row {
+  margin-bottom: 0;
+  gap: var(--space-1);
+}
+
+.tag-chips:empty {
+  display: none;
+}
+
+/* A single tag chip. */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  color: var(--color-primary);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+/* Removable chip (modal editor) carries a × button. */
+.tag-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.tag-chip__remove:hover {
+  background: #dbeafe;
+  color: var(--color-primary-hover);
+}
+
+.tag-chip__remove:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Preset "+ Tag" suggestion buttons under the tag input. */
+.tag-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Read-only tags cell in the table. */
+.cell-tags {
+  color: var(--color-text-muted);
+}

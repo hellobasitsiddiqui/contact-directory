@@ -46,7 +46,11 @@ const state = {
   size: 20,
   sort: 'lastName,asc',
   search: '',
+  tag: '',
 };
+
+/** Preset tag suggestions offered in the modal (free-form tags also allowed). */
+const PRESET_TAGS = ['Friend', 'Work', 'Client', 'Family'];
 
 /* ------------------------------------------------------------------ *
  * 2. Element references
@@ -62,6 +66,7 @@ const el = {
   btnClearSearch: $('btn-clear-search'),
   pageSize: $('page-size'),
   sortSelect: $('sort-select'),
+  tagFilter: $('tag-filter'),
   // List
   contactsBody: $('contacts-body'),
   // States
@@ -83,6 +88,8 @@ const el = {
   fieldEmail: $('field-email'),
   fieldPhone: $('field-phone'),
   fieldCompany: $('field-company'),
+  fieldTagInput: $('field-tag-input'),
+  tagChips: $('tag-chips'),
   fieldPhoto: $('field-photo'),
   photoPreview: $('photo-preview'),
   btnRemovePhoto: $('btn-remove-photo'),
@@ -171,6 +178,7 @@ async function request(url, options = {}) {
 function buildListUrl(s) {
   const params = new URLSearchParams();
   if (s.search) params.set('search', s.search);
+  if (s.tag) params.set('tag', s.tag);
   params.set('page', String(s.page));
   params.set('size', String(s.size));
   params.set('sort', s.sort);
@@ -219,6 +227,11 @@ function deletePhoto(id) {
   return request(`${API_BASE}/${encodeURIComponent(id)}/photo`, {
     method: 'DELETE',
   });
+}
+
+/** Fetch the distinct, sorted set of tags in use (for the filter dropdown). */
+function listTags() {
+  return request(`${API_BASE}/tags`, { method: 'GET' });
 }
 
 /* ------------------------------------------------------------------ *
@@ -311,6 +324,34 @@ function makeActionsCell(contact) {
   return td;
 }
 
+/**
+ * Cell rendering the contact's tags as small chips. Each chip's label is set
+ * via textContent so tag values can never inject markup. Shows an em dash when
+ * the contact has no tags.
+ */
+function makeTagsCell(contact) {
+  const td = document.createElement('td');
+  td.className = 'cell-tags';
+  td.setAttribute('data-label', 'Tags');
+
+  const tags = Array.isArray(contact.tags) ? contact.tags : [];
+  if (tags.length === 0) {
+    td.textContent = '—';
+    return td;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tag-chips tag-chips--row';
+  for (const tag of tags) {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.textContent = tag;
+    wrap.appendChild(chip);
+  }
+  td.appendChild(wrap);
+  return td;
+}
+
 function makeRow(contact) {
   const tr = document.createElement('tr');
   tr.dataset.id = String(contact.id);
@@ -320,6 +361,7 @@ function makeRow(contact) {
     makeCell('Email', display(contact.email)),
     makeCell('Phone', display(contact.phone)),
     makeCell('Company', display(contact.company)),
+    makeTagsCell(contact),
     makeActionsCell(contact)
   );
   return tr;
@@ -484,6 +526,93 @@ function showExistingPhoto(url) {
   if (el.btnRemovePhoto) el.btnRemovePhoto.hidden = false;
 }
 
+/* --- Tag editing state (modal) ------------------------------------- *
+ * selectedTags : tags currently staged in the form (insertion order kept).
+ * tagsTouched  : true once the user adds/removes a tag, so the in-flight edit
+ *                refresh (openEdit's fresh fetch) won't clobber their edits.
+ */
+let selectedTags = [];
+let tagsTouched = false;
+
+/** Render the staged tags as removable chips inside #tag-chips (XSS-safe). */
+function renderTagChips() {
+  const wrap = el.tagChips;
+  if (!wrap) return;
+  wrap.replaceChildren();
+  for (const tag of selectedTags) {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip tag-chip--removable';
+
+    const label = document.createElement('span');
+    label.textContent = tag;
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'tag-chip__remove';
+    remove.dataset.tag = tag;
+    remove.setAttribute('aria-label', `Remove tag ${tag}`);
+    remove.textContent = '×';
+
+    chip.append(label, remove);
+    wrap.appendChild(chip);
+  }
+}
+
+/** Add a tag (trimmed; deduped case-insensitively). */
+function addTag(raw) {
+  const tag = String(raw || '').trim();
+  if (!tag) return;
+  const exists = selectedTags.some((t) => t.toLowerCase() === tag.toLowerCase());
+  if (!exists) {
+    selectedTags.push(tag);
+    tagsTouched = true;
+    renderTagChips();
+  }
+}
+
+/** Remove a tag (case-insensitive match). */
+function removeTag(tag) {
+  const before = selectedTags.length;
+  selectedTags = selectedTags.filter(
+    (t) => t.toLowerCase() !== String(tag).toLowerCase()
+  );
+  if (selectedTags.length !== before) {
+    tagsTouched = true;
+    renderTagChips();
+  }
+}
+
+/**
+ * Rebuild the tag filter <select> from the tags currently in use, preserving
+ * the active selection when it still exists.
+ */
+async function populateTagFilter() {
+  if (!el.tagFilter) return;
+  let tags = [];
+  try {
+    const result = await listTags();
+    if (Array.isArray(result)) tags = result;
+  } catch (_) {
+    tags = [];
+  }
+  el.tagFilter.replaceChildren();
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'All tags';
+  el.tagFilter.appendChild(all);
+  for (const tag of tags) {
+    const opt = document.createElement('option');
+    opt.value = tag;
+    opt.textContent = tag;
+    el.tagFilter.appendChild(opt);
+  }
+  // Restore selection; if the active tag is gone, fall back to "All tags".
+  el.tagFilter.value = state.tag || '';
+  if (el.tagFilter.value !== (state.tag || '')) {
+    state.tag = '';
+  }
+}
+
 function restoreTriggerFocus() {
   const target =
     lastTrigger && document.body.contains(lastTrigger) ? lastTrigger : el.btnNew;
@@ -528,6 +657,10 @@ function resetForm() {
   el.fieldId.value = '';
   clearFieldErrors();
   resetPhotoState();
+  selectedTags = [];
+  tagsTouched = false;
+  if (el.fieldTagInput) el.fieldTagInput.value = '';
+  renderTagChips();
 }
 
 function fillForm(contact) {
@@ -537,6 +670,13 @@ function fillForm(contact) {
   el.fieldEmail.value = contact.email || '';
   el.fieldPhone.value = contact.phone || '';
   el.fieldCompany.value = contact.company || '';
+
+  // Reflect saved tags — but don't clobber edits the user already made (e.g.
+  // the openEdit fresh-fetch landing after they started changing tags).
+  if (!tagsTouched) {
+    selectedTags = Array.isArray(contact.tags) ? contact.tags.slice() : [];
+    renderTagChips();
+  }
 
   // Reflect the saved photo in the preview — but never stomp on a photo the
   // user just selected or a pending removal (these win until save).
@@ -621,6 +761,7 @@ function readForm() {
     email: el.fieldEmail.value.trim(),
     phone: optional(el.fieldPhone.value),
     company: optional(el.fieldCompany.value),
+    tags: selectedTags.slice(),
   };
 }
 
@@ -632,6 +773,7 @@ function setSaving(isSaving) {
   }
   if (el.fieldPhoto) el.fieldPhoto.disabled = isSaving;
   if (el.btnRemovePhoto) el.btnRemovePhoto.disabled = isSaving;
+  if (el.fieldTagInput) el.fieldTagInput.disabled = isSaving;
 }
 
 /**
@@ -698,6 +840,7 @@ async function submitForm(event) {
     closeContactModal();
     toast(isEdit ? 'Contact updated.' : 'Contact created.', 'success');
     load();
+    populateTagFilter();
   } catch (err) {
     if (err.status === 400 && err.body && err.body.errors) {
       applyValidationErrors(err.body.errors);
@@ -775,6 +918,7 @@ async function confirmDelete() {
       state.page -= 1;
     }
     load();
+    populateTagFilter();
   } catch (err) {
     closeConfirmModal();
     if (err.status === 404) {
@@ -891,6 +1035,15 @@ function wireEvents() {
     load();
   });
 
+  // Tag filter.
+  if (el.tagFilter) {
+    el.tagFilter.addEventListener('change', () => {
+      state.tag = el.tagFilter.value;
+      state.page = 0;
+      load();
+    });
+  }
+
   // Pagination.
   el.btnPrev.addEventListener('click', () => {
     if (state.page > 0) {
@@ -928,6 +1081,28 @@ function wireEvents() {
   if (el.fieldPhoto) el.fieldPhoto.addEventListener('change', onPhotoChange);
   if (el.btnRemovePhoto)
     el.btnRemovePhoto.addEventListener('click', onRemovePhoto);
+
+  // Tags: type + Enter/comma to add; preset buttons add a suggested tag;
+  // delegated × on a chip removes it. Enter must not submit the form.
+  if (el.fieldTagInput) {
+    el.fieldTagInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ',') {
+        event.preventDefault();
+        addTag(el.fieldTagInput.value);
+        el.fieldTagInput.value = '';
+      }
+    });
+  }
+  document.querySelectorAll('.tag-preset').forEach((btn) => {
+    btn.addEventListener('click', () => addTag(btn.dataset.tag));
+  });
+  if (el.tagChips) {
+    el.tagChips.addEventListener('click', (event) => {
+      const btn = event.target.closest('button[data-tag]');
+      if (!btn || !el.tagChips.contains(btn)) return;
+      removeTag(btn.dataset.tag);
+    });
+  }
 
   // Clear a field's inline error as the user edits it.
   for (const name of ERROR_FIELDS) {
@@ -991,6 +1166,8 @@ function init() {
   }
 
   wireEvents();
+  renderTagChips();
+  populateTagFilter();
   load();
 }
 

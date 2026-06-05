@@ -2,6 +2,8 @@ package com.example.contacts.dto;
 
 import jakarta.validation.constraints.Email;
 
+import java.util.Set;
+
 /**
  * Request body for partially updating (PATCH) a contact.
  *
@@ -14,6 +16,7 @@ import jakarta.validation.constraints.Email;
  * @param email     new email address, or {@code null} to leave unchanged; must be well-formed if present
  * @param phone     new phone number, or {@code null} to leave unchanged
  * @param company   new company, or {@code null} to leave unchanged
+ * @param tags      new set of tags, or {@code null} to leave unchanged
  */
 public record ContactPatchRequest(
 
@@ -26,5 +29,7 @@ public record ContactPatchRequest(
 
         String phone,
 
-        String company) {
+        String company,
+
+        Set<String> tags) {
 }

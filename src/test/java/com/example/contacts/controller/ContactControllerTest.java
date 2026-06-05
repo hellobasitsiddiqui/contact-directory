@@ -61,13 +61,13 @@ class ContactControllerTest {
     private ContactResponse sampleResponse() {
         Instant now = Instant.now();
         return new ContactResponse(1L, "Ada", "Lovelace", "ada@example.com",
-                "+44 20 7946 0958", "Analytical Engines", now, now, null);
+                "+44 20 7946 0958", "Analytical Engines", now, now, null, java.util.Set.of());
     }
 
     @Test
     void post_validBody_returns201WithLocationHeaderAndBody() throws Exception {
         ContactRequest req = new ContactRequest("Ada", "Lovelace", "ada@example.com",
-                "+44 20 7946 0958", "Analytical Engines");
+                "+44 20 7946 0958", "Analytical Engines", null);
         when(contactService.create(any(ContactRequest.class))).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/api/v1/contacts")
@@ -81,7 +81,7 @@ class ContactControllerTest {
 
     @Test
     void post_blankFirstName_returns400WithFieldError() throws Exception {
-        ContactRequest req = new ContactRequest("", "Lovelace", "ada@example.com", null, null);
+        ContactRequest req = new ContactRequest("", "Lovelace", "ada@example.com", null, null, null);
 
         mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +93,7 @@ class ContactControllerTest {
 
     @Test
     void post_invalidEmail_returns400WithFieldError() throws Exception {
-        ContactRequest req = new ContactRequest("Ada", "Lovelace", "not-an-email", null, null);
+        ContactRequest req = new ContactRequest("Ada", "Lovelace", "not-an-email", null, null, null);
 
         mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -128,7 +128,7 @@ class ContactControllerTest {
     void get_list_returns200WithPagedContent() throws Exception {
         ContactResponse resp = sampleResponse();
         Page<ContactResponse> page = new PageImpl<>(List.of(resp));
-        when(contactService.list(any(), any(Pageable.class))).thenReturn(page);
+        when(contactService.list(any(), any(), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/contacts"))
                 .andExpect(status().isOk())

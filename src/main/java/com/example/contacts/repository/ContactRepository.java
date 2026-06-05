@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 /**
  * Spring Data JPA repository for {@link Contact} entities.
  */
@@ -50,4 +52,35 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
            OR LOWER(COALESCE(c.phone, ''))   LIKE LOWER(CONCAT('%', :q, '%'))
         """)
     Page<Contact> search(@Param("q") String q, Pageable pageable);
+
+    /**
+     * Returns contacts carrying the given tag (case-insensitive), optionally
+     * further narrowed by a free-text term. Pass an empty string for {@code q}
+     * to filter by tag alone.
+     *
+     * @param q        the free-text term, or {@code ""} to match all
+     * @param tag      the tag to require (case-insensitive)
+     * @param pageable pagination and sorting information
+     * @return a page of contacts that have the tag and match the term
+     */
+    @Query("""
+        SELECT c FROM Contact c
+        WHERE EXISTS (SELECT t FROM c.tags t WHERE LOWER(t) = LOWER(:tag))
+          AND (:q = ''
+               OR LOWER(c.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(c.lastName)  LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(c.email)     LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(c.company, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(c.phone, ''))   LIKE LOWER(CONCAT('%', :q, '%')))
+        """)
+    Page<Contact> searchAndFilterByTag(@Param("q") String q, @Param("tag") String tag, Pageable pageable);
+
+    /**
+     * Returns all distinct tags currently in use, sorted case-insensitively.
+     * Used to populate the tag filter control.
+     *
+     * @return the sorted list of distinct tag labels
+     */
+    @Query("SELECT DISTINCT t FROM Contact c JOIN c.tags t ORDER BY LOWER(t)")
+    List<String> findDistinctTags();
 }

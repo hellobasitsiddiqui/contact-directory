@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
+import java.util.Set;
+
 /**
  * Request body for creating (POST) or fully replacing (PUT) a contact.
  *
@@ -15,6 +17,7 @@ import jakarta.validation.constraints.Pattern;
  * @param email     the contact's email address; must not be blank and must be well-formed
  * @param phone     the contact's phone number; optional, but if present must match the allowed format
  * @param company   the contact's company; optional
+ * @param tags      the set of labels to assign; optional ({@code null} is treated as no tags)
  */
 public record ContactRequest(
 
@@ -31,5 +34,7 @@ public record ContactRequest(
         @Pattern(regexp = "^[+0-9 ()\\-]{7,20}$", message = "must be a valid phone number")
         String phone,
 
-        String company) {
+        String company,
+
+        Set<String> tags) {
 }

@@ -37,6 +37,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -95,14 +96,31 @@ public class ContactController {
      */
     @GetMapping
     @Operation(summary = "List contacts",
-            description = "Returns a paginated list of contacts, optionally filtered by a search term.")
+            description = "Returns a paginated list of contacts, optionally filtered by a search term and/or a tag.")
     @ApiResponse(responseCode = "200", description = "Page of contacts")
     public ResponseEntity<Page<ContactResponse>> list(
             @RequestParam(required = false)
-            @Parameter(description = "Free-text search across first name, last name, email and company")
+            @Parameter(description = "Free-text search across first name, last name, email, company and phone")
             String search,
+            @RequestParam(required = false)
+            @Parameter(description = "Restrict results to contacts carrying this tag (case-insensitive)")
+            String tag,
             @ParameterObject @PageableDefault(size = 20, sort = "lastName") Pageable pageable) {
-        return ResponseEntity.ok(contactService.list(search, pageable));
+        return ResponseEntity.ok(contactService.list(search, tag, pageable));
+    }
+
+    /**
+     * Returns the distinct set of tags currently in use, sorted, for populating
+     * the tag filter control.
+     *
+     * @return {@code 200 OK} with the list of distinct tags
+     */
+    @GetMapping("/tags")
+    @Operation(summary = "List all tags in use",
+            description = "Returns the distinct, sorted set of tags assigned to any contact.")
+    @ApiResponse(responseCode = "200", description = "List of tags")
+    public ResponseEntity<List<String>> listTags() {
+        return ResponseEntity.ok(contactService.listTags());
     }
 
     /**

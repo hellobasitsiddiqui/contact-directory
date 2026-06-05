@@ -3,6 +3,8 @@ package com.example.contacts.dto;
 import com.example.contacts.model.Contact;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * Response representation of a contact returned to API clients.
@@ -20,6 +22,8 @@ import java.time.Instant;
  * @param updatedAt the instant the contact was last updated
  * @param photoUrl  the URL to fetch the contact's photo, or {@code null} when
  *                  the contact has no photo
+ * @param tags      the set of labels assigned to the contact (never {@code null};
+ *                  empty when the contact has no tags)
  */
 public record ContactResponse(
         Long id,
@@ -30,7 +34,8 @@ public record ContactResponse(
         String company,
         Instant createdAt,
         Instant updatedAt,
-        String photoUrl) {
+        String photoUrl,
+        Set<String> tags) {
 
     /**
      * Maps a {@link Contact} entity to a {@link ContactResponse} DTO,
@@ -48,6 +53,9 @@ public record ContactResponse(
         String photoUrl = (c.getPhotoContentType() != null)
                 ? "/api/v1/contacts/" + c.getId() + "/photo"
                 : null;
+        // Copy into a new set so the DTO never holds a reference to the managed
+        // (lazy) persistent collection.
+        Set<String> tags = new LinkedHashSet<>(c.getTags());
         return new ContactResponse(
                 c.getId(),
                 c.getFirstName(),
@@ -57,6 +65,7 @@ public record ContactResponse(
                 c.getCompany(),
                 c.getCreatedAt(),
                 c.getUpdatedAt(),
-                photoUrl);
+                photoUrl,
+                tags);
     }
 }
