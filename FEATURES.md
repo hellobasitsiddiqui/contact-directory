@@ -6,7 +6,7 @@ Rolling out one feature at a time, committing each. Status updated as work lands
 |---|---------|--------|
 | 1 | Search & filter — live search by name, company, phone, email | ✅ done |
 | 2 | Tags / categories — label contacts (Friend, Work, Client, Family) + filter | ✅ done |
-| 3 | Favourite / star — pin important contacts to the top | ⬜ pending |
+| 3 | Favourite / star — pin important contacts to the top | ✅ done |
 | 4 | Import / export — CSV import (bulk add), export CSV/JSON | ⬜ pending |
 | 5 | Avatar / initials — auto coloured initials circle, or photo upload | ⬜ pending |
 | 6 | Sort controls — name A–Z, recently added, last contacted | ⬜ pending |

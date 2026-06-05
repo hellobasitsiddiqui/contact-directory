@@ -18,6 +18,7 @@ import java.util.Set;
  * @param phone     the contact's phone number; optional, but if present must match the allowed format
  * @param company   the contact's company; optional
  * @param tags      the set of labels to assign; optional ({@code null} is treated as no tags)
+ * @param favorite  whether the contact is a favourite; defaults to {@code false}
  */
 public record ContactRequest(
 
@@ -36,5 +37,7 @@ public record ContactRequest(
 
         String company,
 
-        Set<String> tags) {
+        Set<String> tags,
+
+        boolean favorite) {
 }

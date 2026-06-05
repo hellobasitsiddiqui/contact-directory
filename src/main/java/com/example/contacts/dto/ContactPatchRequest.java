@@ -17,6 +17,7 @@ import java.util.Set;
  * @param phone     new phone number, or {@code null} to leave unchanged
  * @param company   new company, or {@code null} to leave unchanged
  * @param tags      new set of tags, or {@code null} to leave unchanged
+ * @param favorite  new favourite flag, or {@code null} to leave unchanged
  */
 public record ContactPatchRequest(
 
@@ -31,5 +32,7 @@ public record ContactPatchRequest(
 
         String company,
 
-        Set<String> tags) {
+        Set<String> tags,
+
+        Boolean favorite) {
 }

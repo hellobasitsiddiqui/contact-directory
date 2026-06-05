@@ -24,6 +24,7 @@ import java.util.Set;
  *                  the contact has no photo
  * @param tags      the set of labels assigned to the contact (never {@code null};
  *                  empty when the contact has no tags)
+ * @param favorite  whether the contact is marked as a favourite
  */
 public record ContactResponse(
         Long id,
@@ -35,7 +36,8 @@ public record ContactResponse(
         Instant createdAt,
         Instant updatedAt,
         String photoUrl,
-        Set<String> tags) {
+        Set<String> tags,
+        boolean favorite) {
 
     /**
      * Maps a {@link Contact} entity to a {@link ContactResponse} DTO,
@@ -66,6 +68,7 @@ public record ContactResponse(
                 c.getCreatedAt(),
                 c.getUpdatedAt(),
                 photoUrl,
-                tags);
+                tags,
+                c.isFavorite());
     }
 }

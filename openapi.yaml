@@ -25,14 +25,14 @@ paths:
           type: integer
           format: int64
       responses:
+        "404":
+          description: Contact not found
         "200":
           description: Contact found
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "404":
-          description: Contact not found
     put:
       tags:
       - Contacts
@@ -54,6 +54,10 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
+        "404":
+          description: Contact not found
+        "400":
+          description: Validation failed
         "409":
           description: Email already exists
         "200":
@@ -62,10 +66,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "400":
-          description: Validation failed
-        "404":
-          description: Contact not found
     delete:
       tags:
       - Contacts
@@ -80,10 +80,10 @@ paths:
           type: integer
           format: int64
       responses:
-        "204":
-          description: Contact deleted
         "404":
           description: Contact not found
+        "204":
+          description: Contact deleted
     patch:
       tags:
       - Contacts
@@ -105,6 +105,10 @@ paths:
               $ref: "#/components/schemas/ContactPatchRequest"
         required: true
       responses:
+        "404":
+          description: Contact not found
+        "400":
+          description: Validation failed
         "409":
           description: Email already exists
         "200":
@@ -113,10 +117,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "400":
-          description: Validation failed
-        "404":
-          description: Contact not found
   /api/v1/contacts:
     get:
       tags:
@@ -186,10 +186,10 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
-        "409":
-          description: Email already exists
         "400":
           description: Validation failed
+        "409":
+          description: Email already exists
         "201":
           description: Contact created
           content:
@@ -212,8 +212,6 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
-          description: Contact or photo not found
         "200":
           description: Photo found
           content:
@@ -221,6 +219,8 @@ paths:
               schema:
                 type: string
                 format: byte
+        "404":
+          description: Contact or photo not found
     post:
       tags:
       - Contacts
@@ -249,6 +249,8 @@ paths:
                   description: Image file to upload
                   format: binary
       responses:
+        "404":
+          description: Contact not found
         "200":
           description: Photo uploaded
           content:
@@ -259,8 +261,6 @@ paths:
           description: File too large
         "400":
           description: Invalid image
-        "404":
-          description: Contact not found
     delete:
       tags:
       - Contacts
@@ -275,10 +275,10 @@ paths:
           type: integer
           format: int64
       responses:
-        "204":
-          description: Photo deleted
         "404":
           description: Contact not found
+        "204":
+          description: Photo deleted
   /api/v1/contacts/tags:
     get:
       tags:
@@ -320,6 +320,8 @@ components:
           type: array
           items:
             type: string
+        favorite:
+          type: boolean
     ContactResponse:
       type: object
       properties:
@@ -349,6 +351,8 @@ components:
           type: array
           items:
             type: string
+        favorite:
+          type: boolean
     ContactPatchRequest:
       type: object
       properties:
@@ -367,15 +371,19 @@ components:
           type: array
           items:
             type: string
+        favorite:
+          type: boolean
     PageContactResponse:
       type: object
       properties:
-        totalElements:
-          type: integer
-          format: int64
         totalPages:
           type: integer
           format: int32
+        totalElements:
+          type: integer
+          format: int64
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
         numberOfElements:
           type: integer
           format: int32
@@ -383,8 +391,6 @@ components:
           type: boolean
         last:
           type: boolean
-        pageable:
-          $ref: "#/components/schemas/PageableObject"
         size:
           type: integer
           format: int32

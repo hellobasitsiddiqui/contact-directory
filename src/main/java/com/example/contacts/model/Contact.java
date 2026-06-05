@@ -14,6 +14,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -58,6 +59,10 @@ public class Contact {
     @CollectionTable(name = "contact_tags", joinColumns = @JoinColumn(name = "contact_id"))
     @Column(name = "tag")
     private Set<String> tags = new LinkedHashSet<>();
+
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean favorite;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -169,6 +174,14 @@ public class Contact {
         if (tags != null) {
             this.tags.addAll(tags);
         }
+    }
+
+    public boolean isFavorite() {
+        return favorite;
+    }
+
+    public void setFavorite(boolean favorite) {
+        this.favorite = favorite;
     }
 
     public Instant getCreatedAt() {

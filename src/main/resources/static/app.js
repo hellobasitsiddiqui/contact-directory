@@ -208,6 +208,14 @@ function deleteContact(id) {
   return request(`${API_BASE}/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+/** Partially update a contact (used by the favourite star toggle). */
+function patchContact(id, body) {
+  return request(`${API_BASE}/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body,
+  });
+}
+
 /**
  * Upload a contact's photo via multipart/form-data. The field name MUST be
  * "file" to match the server's @RequestParam. We deliberately do NOT set a
@@ -270,6 +278,35 @@ function initials(contact) {
   const last = (contact.lastName || '').trim();
   const text = (first.charAt(0) + last.charAt(0)).toUpperCase();
   return text || '?';
+}
+
+/**
+ * Leading cell with a star button that toggles the contact's favourite state.
+ * The glyph (★ filled / ☆ outline) is set via textContent; the action is wired
+ * through event delegation using data-action / data-id (no inline handlers).
+ */
+function makeStarCell(contact) {
+  const td = document.createElement('td');
+  td.className = 'cell-star';
+  td.setAttribute('data-label', 'Favourite');
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = contact.favorite ? 'btn-star btn-star--on' : 'btn-star';
+  btn.dataset.action = 'favorite';
+  btn.dataset.id = String(contact.id);
+  btn.textContent = contact.favorite ? '★' : '☆';
+  btn.setAttribute('aria-pressed', contact.favorite ? 'true' : 'false');
+  btn.setAttribute(
+    'aria-label',
+    contact.favorite
+      ? `Remove ${fullName(contact)} from favourites`
+      : `Add ${fullName(contact)} to favourites`
+  );
+  btn.title = contact.favorite ? 'Unfavourite' : 'Favourite';
+
+  td.appendChild(btn);
+  return td;
 }
 
 /**
@@ -356,6 +393,7 @@ function makeRow(contact) {
   const tr = document.createElement('tr');
   tr.dataset.id = String(contact.id);
   tr.append(
+    makeStarCell(contact),
     makeAvatarCell(contact),
     makeCell('Name', fullName(contact)),
     makeCell('Email', display(contact.email)),
@@ -534,6 +572,13 @@ function showExistingPhoto(url) {
 let selectedTags = [];
 let tagsTouched = false;
 
+/**
+ * The favourite flag of the contact being edited. The modal has no favourite
+ * control (favouriting happens via the row star), so we carry the current value
+ * through so a PUT (full replace) preserves it. false for a new contact.
+ */
+let currentFavorite = false;
+
 /** Render the staged tags as removable chips inside #tag-chips (XSS-safe). */
 function renderTagChips() {
   const wrap = el.tagChips;
@@ -659,6 +704,7 @@ function resetForm() {
   resetPhotoState();
   selectedTags = [];
   tagsTouched = false;
+  currentFavorite = false;
   if (el.fieldTagInput) el.fieldTagInput.value = '';
   renderTagChips();
 }
@@ -670,6 +716,9 @@ function fillForm(contact) {
   el.fieldEmail.value = contact.email || '';
   el.fieldPhone.value = contact.phone || '';
   el.fieldCompany.value = contact.company || '';
+
+  // Carry the favourite flag through so a PUT (full replace) preserves it.
+  currentFavorite = !!contact.favorite;
 
   // Reflect saved tags — but don't clobber edits the user already made (e.g.
   // the openEdit fresh-fetch landing after they started changing tags).
@@ -762,6 +811,7 @@ function readForm() {
     phone: optional(el.fieldPhone.value),
     company: optional(el.fieldCompany.value),
     tags: selectedTags.slice(),
+    favorite: currentFavorite,
   };
 }
 
@@ -935,6 +985,30 @@ async function confirmDelete() {
 }
 
 /* ------------------------------------------------------------------ *
+ * 8b. Favourite toggle
+ * ------------------------------------------------------------------ */
+
+/** Toggle a contact's favourite flag via PATCH, then reload the list. */
+async function toggleFavorite(id) {
+  const contact =
+    currentPage &&
+    Array.isArray(currentPage.content) &&
+    currentPage.content.find((c) => String(c.id) === String(id));
+  const next = contact ? !contact.favorite : true;
+  try {
+    await patchContact(id, { favorite: next });
+    await load();
+  } catch (err) {
+    if (err.status === 404) {
+      toast(err.message || 'Contact no longer exists.', 'error');
+      load();
+    } else {
+      toast(err.message || 'Failed to update favourite.', 'error');
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * 9. Event wiring
  * ------------------------------------------------------------------ */
 
@@ -1067,6 +1141,8 @@ function wireEvents() {
       openEdit(id);
     } else if (btn.dataset.action === 'delete') {
       openDelete(id);
+    } else if (btn.dataset.action === 'favorite') {
+      toggleFavorite(id);
     }
   });
 

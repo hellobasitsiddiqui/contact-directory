@@ -8,7 +8,9 @@ import com.example.contacts.exception.ResourceNotFoundException;
 import com.example.contacts.model.Contact;
 import com.example.contacts.repository.ContactRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,16 +59,31 @@ public class ContactService {
     public Page<ContactResponse> list(String search, String tag, Pageable pageable) {
         String q = (search == null) ? "" : search.trim();
         boolean hasTag = tag != null && !tag.isBlank();
+        // Favourites are always pinned to the top, before the caller's sort.
+        Pageable effective = withFavoritesFirst(pageable);
 
         Page<Contact> contacts;
         if (hasTag) {
-            contacts = repository.searchAndFilterByTag(q, tag.trim(), pageable);
+            contacts = repository.searchAndFilterByTag(q, tag.trim(), effective);
         } else if (q.isEmpty()) {
-            contacts = repository.findAll(pageable);
+            contacts = repository.findAll(effective);
         } else {
-            contacts = repository.search(q, pageable);
+            contacts = repository.search(q, effective);
         }
         return contacts.map(ContactResponse::from);
+    }
+
+    /**
+     * Returns a copy of the given pageable whose sort is prefixed with
+     * {@code favorite DESC}, so favourite contacts always appear first while the
+     * caller's requested sort still applies within each group.
+     *
+     * @param pageable the incoming pageable
+     * @return a pageable that pins favourites to the top
+     */
+    private Pageable withFavoritesFirst(Pageable pageable) {
+        Sort sort = Sort.by(Sort.Order.desc("favorite")).and(pageable.getSort());
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
     }
 
     /**
@@ -167,6 +184,9 @@ public class ContactService {
         if (req.tags() != null) {
             contact.setTags(req.tags());
         }
+        if (req.favorite() != null) {
+            contact.setFavorite(req.favorite());
+        }
         return ContactResponse.from(repository.save(contact));
     }
 
@@ -260,5 +280,6 @@ public class ContactService {
         contact.setPhone(req.phone());
         contact.setCompany(req.company());
         contact.setTags(req.tags());
+        contact.setFavorite(req.favorite());
     }
 }

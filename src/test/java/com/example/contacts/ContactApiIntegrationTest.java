@@ -64,7 +64,7 @@ class ContactApiIntegrationTest {
     void fullCrudLifecycle_withUniqueEmail() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Grace", "Hopper", email,
-                "+1 (555) 000-1111", "US Navy", null);
+                "+1 (555) 000-1111", "US Navy", null, false);
 
         // POST -> 201
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
@@ -85,7 +85,7 @@ class ContactApiIntegrationTest {
 
         // PUT (full replace) -> 200
         ContactRequest replace = new ContactRequest("Grace", "Murray Hopper", email,
-                "+1 (555) 222-3333", "USN", null);
+                "+1 (555) 222-3333", "USN", null, false);
         mockMvc.perform(put("/api/v1/contacts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(replace)))
@@ -94,7 +94,7 @@ class ContactApiIntegrationTest {
                 .andExpect(jsonPath("$.company").value("USN"));
 
         // PATCH (partial) -> 200
-        ContactPatchRequest patch = new ContactPatchRequest(null, null, null, null, "Yale", null);
+        ContactPatchRequest patch = new ContactPatchRequest(null, null, null, null, "Yale", null, null);
         mockMvc.perform(patch("/api/v1/contacts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(patch)))
@@ -115,7 +115,7 @@ class ContactApiIntegrationTest {
     @Test
     void post_duplicateSeededEmail_returns409() throws Exception {
         ContactRequest duplicate = new ContactRequest("Janet", "Doe", "jane.doe@example.com",
-                null, null, null);
+                null, null, null, false);
 
         mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -153,7 +153,7 @@ class ContactApiIntegrationTest {
     void photoLifecycle_uploadServeAndDelete() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Photo", "Subject", email,
-                null, null, null);
+                null, null, null, false);
 
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -205,7 +205,7 @@ class ContactApiIntegrationTest {
     @Test
     void getPhoto_contactWithNoPhoto_returns404() throws Exception {
         String email = uniqueEmail();
-        ContactRequest create = new ContactRequest("No", "Photo", email, null, null, null);
+        ContactRequest create = new ContactRequest("No", "Photo", email, null, null, null, false);
 
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -224,7 +224,7 @@ class ContactApiIntegrationTest {
     void tags_assignFilterAndList() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Linus", "Torvalds", email,
-                null, "Linux Foundation", Set.of("Work", "Open Source"));
+                null, "Linux Foundation", Set.of("Work", "Open Source"), false);
 
         // Create with tags -> the response echoes them back.
         mockMvc.perform(post("/api/v1/contacts")
@@ -254,6 +254,38 @@ class ContactApiIntegrationTest {
                         .param("tag", "Open Source").param("search", "zzz-no-match"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void favorite_pinsToTopAndTogglesViaPatch() throws Exception {
+        String email = uniqueEmail();
+        // lastName "AaaFav" sorts before the seeded favourite (Smith), so once
+        // favourites are pinned this contact must be the very first row.
+        ContactRequest create = new ContactRequest("Aaa", "AaaFav", email,
+                null, null, null, true);
+
+        MvcResult created = mockMvc.perform(post("/api/v1/contacts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(create)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.favorite").value(true))
+                .andReturn();
+        long id = readId(created);
+
+        // Default sort is lastName asc; a favourite is pinned above everyone else.
+        mockMvc.perform(get("/api/v1/contacts").param("size", "50"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].email").value(email))
+                .andExpect(jsonPath("$.content[0].favorite").value(true));
+
+        // Un-favourite via PATCH -> favorite=false.
+        ContactPatchRequest unfav =
+                new ContactPatchRequest(null, null, null, null, null, null, false);
+        mockMvc.perform(patch("/api/v1/contacts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(unfav)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.favorite").value(false));
     }
 
     /** Extracts the {@code id} from a JSON response body. */

@@ -1030,3 +1030,39 @@ dialog[open] {
 .cell-tags {
   color: var(--color-text-muted);
 }
+
+/* ------------------------------------------------------------------ *
+ * Favourite star
+ * ------------------------------------------------------------------ */
+
+.col-star,
+.cell-star {
+  width: 40px;
+  text-align: center;
+}
+
+.btn-star {
+  padding: 2px 4px;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--color-text-subtle);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn-star:hover {
+  color: #f59e0b;
+  transform: scale(1.15);
+}
+
+.btn-star--on {
+  color: #f59e0b; /* amber-500 — filled star */
+}
+
+.btn-star:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}

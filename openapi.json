@@ -38,6 +38,9 @@
                     }
                 ],
                 "responses": {
+                    "404": {
+                        "description": "Contact not found"
+                    },
                     "200": {
                         "description": "Contact found",
                         "content": {
@@ -47,9 +50,6 @@
                                 }
                             }
                         }
-                    },
-                    "404": {
-                        "description": "Contact not found"
                     }
                 }
             },
@@ -83,6 +83,12 @@
                     "required": true
                 },
                 "responses": {
+                    "404": {
+                        "description": "Contact not found"
+                    },
+                    "400": {
+                        "description": "Validation failed"
+                    },
                     "409": {
                         "description": "Email already exists"
                     },
@@ -95,12 +101,6 @@
                                 }
                             }
                         }
-                    },
-                    "400": {
-                        "description": "Validation failed"
-                    },
-                    "404": {
-                        "description": "Contact not found"
                     }
                 }
             },
@@ -123,11 +123,11 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "Contact deleted"
-                    },
                     "404": {
                         "description": "Contact not found"
+                    },
+                    "204": {
+                        "description": "Contact deleted"
                     }
                 }
             },
@@ -161,6 +161,12 @@
                     "required": true
                 },
                 "responses": {
+                    "404": {
+                        "description": "Contact not found"
+                    },
+                    "400": {
+                        "description": "Validation failed"
+                    },
                     "409": {
                         "description": "Email already exists"
                     },
@@ -173,12 +179,6 @@
                                 }
                             }
                         }
-                    },
-                    "400": {
-                        "description": "Validation failed"
-                    },
-                    "404": {
-                        "description": "Contact not found"
                     }
                 }
             }
@@ -279,11 +279,11 @@
                     "required": true
                 },
                 "responses": {
-                    "409": {
-                        "description": "Email already exists"
-                    },
                     "400": {
                         "description": "Validation failed"
+                    },
+                    "409": {
+                        "description": "Email already exists"
                     },
                     "201": {
                         "description": "Contact created",
@@ -319,9 +319,6 @@
                     }
                 ],
                 "responses": {
-                    "404": {
-                        "description": "Contact or photo not found"
-                    },
                     "200": {
                         "description": "Photo found",
                         "content": {
@@ -332,6 +329,9 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Contact or photo not found"
                     }
                 }
             },
@@ -374,6 +374,9 @@
                     }
                 },
                 "responses": {
+                    "404": {
+                        "description": "Contact not found"
+                    },
                     "200": {
                         "description": "Photo uploaded",
                         "content": {
@@ -389,9 +392,6 @@
                     },
                     "400": {
                         "description": "Invalid image"
-                    },
-                    "404": {
-                        "description": "Contact not found"
                     }
                 }
             },
@@ -414,11 +414,11 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "Photo deleted"
-                    },
                     "404": {
                         "description": "Contact not found"
+                    },
+                    "204": {
+                        "description": "Photo deleted"
                     }
                 }
             }
@@ -481,6 +481,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "favorite": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -523,6 +526,9 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "favorite": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -550,19 +556,25 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "favorite": {
+                        "type": "boolean"
                     }
                 }
             },
             "PageContactResponse": {
                 "type": "object",
                 "properties": {
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
                     },
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
+                    "pageable": {
+                        "$ref": "#/components/schemas/PageableObject"
                     },
                     "numberOfElements": {
                         "type": "integer",
@@ -573,9 +585,6 @@
                     },
                     "last": {
                         "type": "boolean"
-                    },
-                    "pageable": {
-                        "$ref": "#/components/schemas/PageableObject"
                     },
                     "size": {
                         "type": "integer",

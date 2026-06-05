@@ -40,7 +40,7 @@ class ContactServiceTest {
 
     private ContactRequest validRequest() {
         return new ContactRequest("Ada", "Lovelace", "ada@example.com",
-                "+44 20 7946 0958", "Analytical Engines", null);
+                "+44 20 7946 0958", "Analytical Engines", null, false);
     }
 
     @Test
