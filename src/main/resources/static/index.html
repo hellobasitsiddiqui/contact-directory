@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Directory</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1 class="app-header__title">Contact Directory</h1>
+      <button type="button" id="btn-new" class="btn btn--primary">
+        <span aria-hidden="true">+</span> New Contact
+      </button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="toolbar" aria-label="Search and filters">
+      <div class="toolbar__inner">
+        <div class="toolbar__search">
+          <label for="search-input" class="sr-only">Search contacts</label>
+          <input
+            type="search"
+            id="search-input"
+            class="input"
+            placeholder="Search by name, email, company…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button type="button" id="btn-clear-search" class="btn btn--secondary">Clear</button>
+        </div>
+
+        <div class="toolbar__controls">
+          <div class="toolbar__control">
+            <label for="sort-select">Sort</label>
+            <select id="sort-select" class="select">
+              <option value="lastName,asc">Last name (A–Z)</option>
+              <option value="lastName,desc">Last name (Z–A)</option>
+              <option value="firstName,asc">First name (A–Z)</option>
+              <option value="email,asc">Email (A–Z)</option>
+            </select>
+          </div>
+
+          <div class="toolbar__control">
+            <label for="page-size">Per page</label>
+            <select id="page-size" class="select">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="list-panel" aria-label="Contacts">
+      <div id="loading" class="loading" role="status" aria-live="polite" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <span>Loading contacts…</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th scope="col" class="col-avatar"><span class="sr-only">Photo</span></th>
+              <th scope="col">Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Phone</th>
+              <th scope="col">Company</th>
+              <th scope="col" class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-body"></tbody>
+        </table>
+      </div>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <p class="empty-state__title">No contacts found</p>
+        <p class="empty-state__hint">Try adjusting your search, or add a new contact.</p>
+      </div>
+
+      <nav class="pagination" aria-label="Pagination">
+        <button type="button" id="btn-prev" class="btn btn--secondary">Previous</button>
+        <span id="page-info" class="page-info" aria-live="polite"></span>
+        <button type="button" id="btn-next" class="btn btn--secondary">Next</button>
+      </nav>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Create / Edit contact modal -->
+  <dialog id="contact-modal" class="modal" aria-labelledby="modal-title">
+    <form id="contact-form" class="modal__form" novalidate>
+      <header class="modal__header">
+        <h2 id="modal-title" class="modal__title">New Contact</h2>
+      </header>
+
+      <input type="hidden" id="field-id" />
+
+      <div class="modal__body">
+        <div class="field">
+          <label for="field-firstName">First name</label>
+          <input type="text" id="field-firstName" class="input" autocomplete="given-name" />
+          <span id="err-firstName" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="field">
+          <label for="field-lastName">Last name</label>
+          <input type="text" id="field-lastName" class="input" autocomplete="family-name" />
+          <span id="err-lastName" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="field">
+          <label for="field-email">Email</label>
+          <input type="email" id="field-email" class="input" autocomplete="email" />
+          <span id="err-email" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="field">
+          <label for="field-phone">Phone</label>
+          <input type="tel" id="field-phone" class="input" autocomplete="tel" />
+          <span id="err-phone" class="field-error" aria-live="polite"></span>
+        </div>
+
+        <div class="field">
+          <label for="field-company">Company</label>
+          <input type="text" id="field-company" class="input" autocomplete="organization" />
+        </div>
+
+        <div class="field field--full">
+          <label for="field-photo">Photo</label>
+          <input
+            type="file"
+            id="field-photo"
+            class="input input--file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+          />
+          <div class="photo-controls">
+            <img id="photo-preview" class="photo-preview" alt="Photo preview" hidden />
+            <button type="button" id="btn-remove-photo" class="btn btn--ghost btn--sm" hidden>
+              Remove photo
+            </button>
+          </div>
+          <span id="err-photo" class="field-error" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <footer class="modal__footer">
+        <button type="button" id="btn-cancel" class="btn btn--secondary">Cancel</button>
+        <button type="submit" id="btn-save" class="btn btn--primary">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Delete confirmation modal -->
+  <dialog id="confirm-modal" class="modal modal--confirm" aria-labelledby="confirm-title">
+    <div class="modal__form">
+      <header class="modal__header">
+        <h2 id="confirm-title" class="modal__title">Delete contact</h2>
+      </header>
+
+      <div class="modal__body">
+        <p id="confirm-text" class="confirm-text"></p>
+      </div>
+
+      <footer class="modal__footer">
+        <button type="button" id="btn-cancel-delete" class="btn btn--secondary">Cancel</button>
+        <button type="button" id="btn-confirm-delete" class="btn btn--danger">Delete</button>
+      </footer>
+    </div>
+  </dialog>
+</body>
+</html>

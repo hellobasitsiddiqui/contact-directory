@@ -1,0 +1,19 @@
+# Build output
+target/
+*.class
+
+# Logs
+*.log
+
+# IDE — IntelliJ IDEA
+.idea/
+*.iml
+
+# OS
+.DS_Store
+
+# Local tooling / editor config
+.claude/
+
+# Keep the Maven Wrapper jar checked in (do not ignore it)
+!.mvn/wrapper/maven-wrapper.jar

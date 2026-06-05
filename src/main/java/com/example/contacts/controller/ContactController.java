@@ -1,0 +1,268 @@
+package com.example.contacts.controller;
+
+import com.example.contacts.dto.ContactPatchRequest;
+import com.example.contacts.dto.ContactRequest;
+import com.example.contacts.dto.ContactResponse;
+import com.example.contacts.exception.InvalidImageException;
+import com.example.contacts.service.ContactService;
+import com.example.contacts.service.PhotoData;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+import jakarta.validation.Valid;
+
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.Set;
+
+/**
+ * REST controller exposing CRUD and search operations for the Contact Directory.
+ *
+ * <p>All endpoints are rooted at {@code /api/v1/contacts} and delegate business logic to
+ * {@link ContactService}. Responses are wrapped in {@link ResponseEntity} so that status
+ * codes and headers (notably the {@code Location} header on creation) are set explicitly.
+ */
+@RestController
+@RequestMapping("/api/v1/contacts")
+@Tag(name = "Contacts", description = "Create, read, update, delete and search contacts")
+public class ContactController {
+
+    private final ContactService contactService;
+
+    /**
+     * Creates the controller with its required {@link ContactService} collaborator.
+     *
+     * @param contactService the service handling contact business logic
+     */
+    public ContactController(ContactService contactService) {
+        this.contactService = contactService;
+    }
+
+    /**
+     * Creates a new contact.
+     *
+     * @param request the contact payload to persist (validated)
+     * @return {@code 201 Created} with the created {@link ContactResponse} body and a
+     *         {@code Location} header pointing at the new resource
+     */
+    @PostMapping
+    @Operation(summary = "Create a contact",
+            description = "Creates a new contact and returns it with a Location header.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Contact created"),
+            @ApiResponse(responseCode = "400", description = "Validation failed", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content)
+    })
+    public ResponseEntity<ContactResponse> create(@Valid @RequestBody ContactRequest request) {
+        ContactResponse created = contactService.create(request);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(created.id())
+                .toUri();
+        return ResponseEntity.created(location).body(created);
+    }
+
+    /**
+     * Lists contacts, optionally filtered by a free-text search term.
+     *
+     * @param search   optional case-insensitive term matched against name, email and company
+     * @param pageable pagination and sorting (defaults to size 20, sorted by {@code lastName})
+     * @return {@code 200 OK} with a page of {@link ContactResponse}
+     */
+    @GetMapping
+    @Operation(summary = "List contacts",
+            description = "Returns a paginated list of contacts, optionally filtered by a search term.")
+    @ApiResponse(responseCode = "200", description = "Page of contacts")
+    public ResponseEntity<Page<ContactResponse>> list(
+            @RequestParam(required = false)
+            @Parameter(description = "Free-text search across first name, last name, email and company")
+            String search,
+            @ParameterObject @PageableDefault(size = 20, sort = "lastName") Pageable pageable) {
+        return ResponseEntity.ok(contactService.list(search, pageable));
+    }
+
+    /**
+     * Retrieves a single contact by id.
+     *
+     * @param id the contact identifier
+     * @return {@code 200 OK} with the matching {@link ContactResponse}
+     */
+    @GetMapping("/{id}")
+    @Operation(summary = "Get a contact by id")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Contact found"),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
+    })
+    public ResponseEntity<ContactResponse> get(
+            @PathVariable @Parameter(description = "Contact identifier") Long id) {
+        return ResponseEntity.ok(contactService.get(id));
+    }
+
+    /**
+     * Fully replaces an existing contact.
+     *
+     * @param id      the contact identifier
+     * @param request the replacement payload (validated)
+     * @return {@code 200 OK} with the updated {@link ContactResponse}
+     */
+    @PutMapping("/{id}")
+    @Operation(summary = "Replace a contact",
+            description = "Performs a full update of the contact with the given id.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Contact updated"),
+            @ApiResponse(responseCode = "400", description = "Validation failed", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content)
+    })
+    public ResponseEntity<ContactResponse> update(
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            @Valid @RequestBody ContactRequest request) {
+        return ResponseEntity.ok(contactService.update(id, request));
+    }
+
+    /**
+     * Partially updates an existing contact; only non-null fields are applied.
+     *
+     * @param id      the contact identifier
+     * @param request the partial payload (validated)
+     * @return {@code 200 OK} with the updated {@link ContactResponse}
+     */
+    @PatchMapping("/{id}")
+    @Operation(summary = "Partially update a contact",
+            description = "Updates only the supplied (non-null) fields of the contact.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Contact updated"),
+            @ApiResponse(responseCode = "400", description = "Validation failed", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content)
+    })
+    public ResponseEntity<ContactResponse> patch(
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            @Valid @RequestBody ContactPatchRequest request) {
+        return ResponseEntity.ok(contactService.patch(id, request));
+    }
+
+    /**
+     * Deletes a contact by id.
+     *
+     * @param id the contact identifier
+     * @return {@code 204 No Content}
+     */
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a contact")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Contact deleted"),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
+    })
+    public ResponseEntity<Void> delete(
+            @PathVariable @Parameter(description = "Contact identifier") Long id) {
+        contactService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Maximum allowed photo size in bytes (2MB). */
+    private static final long MAX_PHOTO_SIZE = 2L * 1024 * 1024;
+
+    /** Image content types accepted for contact photos (matched case-insensitively). */
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp");
+
+    /**
+     * Returns the photo bytes for a contact.
+     *
+     * @param id the contact identifier
+     * @return {@code 200 OK} with the image bytes and the stored content type
+     */
+    @GetMapping("/{id}/photo")
+    @Operation(summary = "Get a contact's photo",
+            description = "Returns the contact's photo bytes with the stored content type.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Photo found"),
+            @ApiResponse(responseCode = "404", description = "Contact or photo not found", content = @Content)
+    })
+    public ResponseEntity<byte[]> getPhoto(
+            @PathVariable @Parameter(description = "Contact identifier") Long id) {
+        PhotoData photo = contactService.getPhoto(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(photo.contentType()))
+                .body(photo.data());
+    }
+
+    /**
+     * Uploads (creates or replaces) the photo for a contact.
+     *
+     * @param id   the contact identifier
+     * @param file the multipart image file (field name {@code file})
+     * @return {@code 200 OK} with the updated {@link ContactResponse} (including its {@code photoUrl})
+     * @throws IOException if the uploaded file bytes cannot be read
+     */
+    @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload a contact's photo",
+            description = "Uploads an image (PNG, JPEG, GIF or WEBP, max 2MB) as the contact's photo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Photo uploaded"),
+            @ApiResponse(responseCode = "400", description = "Invalid image", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content),
+            @ApiResponse(responseCode = "413", description = "File too large", content = @Content)
+    })
+    public ResponseEntity<ContactResponse> uploadPhoto(
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            @RequestParam("file") @Parameter(description = "Image file to upload") MultipartFile file)
+            throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidImageException("No file provided");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
+            throw new InvalidImageException(
+                    "Unsupported image type: " + contentType + ". Allowed: PNG, JPEG, GIF, WEBP");
+        }
+        if (file.getSize() > MAX_PHOTO_SIZE) {
+            throw new InvalidImageException("Image too large (max 2MB)");
+        }
+        contactService.savePhoto(id, file.getBytes(), file.getContentType());
+        return ResponseEntity.ok(contactService.get(id));
+    }
+
+    /**
+     * Deletes the photo for a contact.
+     *
+     * @param id the contact identifier
+     * @return {@code 204 No Content}
+     */
+    @DeleteMapping("/{id}/photo")
+    @Operation(summary = "Delete a contact's photo")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Photo deleted"),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
+    })
+    public ResponseEntity<Void> deletePhoto(
+            @PathVariable @Parameter(description = "Contact identifier") Long id) {
+        contactService.deletePhoto(id);
+        return ResponseEntity.noContent().build();
+    }
+}
