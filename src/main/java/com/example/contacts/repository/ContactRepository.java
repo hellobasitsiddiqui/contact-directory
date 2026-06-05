@@ -33,9 +33,9 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
     boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
 
     /**
-     * Full-text style search across first name, last name, email and company.
-     * The match is case-insensitive and substring-based; a {@code null} company
-     * is treated as an empty string.
+     * Full-text style search across first name, last name, email, company and phone.
+     * The match is case-insensitive and substring-based; {@code null} company and
+     * phone values are treated as empty strings.
      *
      * @param q        the search term
      * @param pageable pagination and sorting information
@@ -47,6 +47,7 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
            OR LOWER(c.lastName)  LIKE LOWER(CONCAT('%', :q, '%'))
            OR LOWER(c.email)     LIKE LOWER(CONCAT('%', :q, '%'))
            OR LOWER(COALESCE(c.company, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(COALESCE(c.phone, ''))   LIKE LOWER(CONCAT('%', :q, '%'))
         """)
     Page<Contact> search(@Param("q") String q, Pageable pageable);
 }

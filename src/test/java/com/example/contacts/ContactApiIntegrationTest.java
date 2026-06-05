@@ -140,6 +140,15 @@ class ContactApiIntegrationTest {
     }
 
     @Test
+    void getList_searchByPhone_returnsMatchingContact() throws Exception {
+        // John Smith is seeded with phone '+44 20 7946 0958'; search spans the phone field.
+        mockMvc.perform(get("/api/v1/contacts").param("search", "7946"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.content[0].lastName").value("Smith"));
+    }
+
+    @Test
     void photoLifecycle_uploadServeAndDelete() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Photo", "Subject", email,
