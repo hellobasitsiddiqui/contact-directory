@@ -54,18 +54,18 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
-        "404":
-          description: Contact not found
         "400":
           description: Validation failed
-        "409":
-          description: Email already exists
+        "404":
+          description: Contact not found
         "200":
           description: Contact updated
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "409":
+          description: Email already exists
     delete:
       tags:
       - Contacts
@@ -80,10 +80,10 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
-          description: Contact not found
         "204":
           description: Contact deleted
+        "404":
+          description: Contact not found
     patch:
       tags:
       - Contacts
@@ -105,18 +105,18 @@ paths:
               $ref: "#/components/schemas/ContactPatchRequest"
         required: true
       responses:
-        "404":
-          description: Contact not found
         "400":
           description: Validation failed
-        "409":
-          description: Email already exists
+        "404":
+          description: Contact not found
         "200":
           description: Contact updated
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "409":
+          description: Email already exists
   /api/v1/contacts:
     get:
       tags:
@@ -249,18 +249,18 @@ paths:
                   description: Image file to upload
                   format: binary
       responses:
-        "404":
-          description: Contact not found
+        "400":
+          description: Invalid image
+        "413":
+          description: File too large
         "200":
           description: Photo uploaded
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "413":
-          description: File too large
-        "400":
-          description: Invalid image
+        "404":
+          description: Contact not found
     delete:
       tags:
       - Contacts
@@ -279,6 +279,37 @@ paths:
           description: Contact not found
         "204":
           description: Photo deleted
+  /api/v1/contacts/import:
+    post:
+      tags:
+      - Contacts
+      summary: Import contacts from a CSV file
+      description: "Uploads a CSV (optional header row) and creates contacts, skipping\
+        \ rows whose email already exists."
+      operationId: importCsv
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                file:
+                  type: string
+                  description: CSV file to import
+                  format: binary
+      responses:
+        "200":
+          description: Import summary
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ImportSummary"
+        "400":
+          description: Invalid file
+        "413":
+          description: File too large
   /api/v1/contacts/tags:
     get:
       tags:
@@ -295,6 +326,35 @@ paths:
                 type: array
                 items:
                   type: string
+  /api/v1/contacts/export.json:
+    get:
+      tags:
+      - Contacts
+      summary: Export all contacts as JSON
+      operationId: exportJson
+      responses:
+        "200":
+          description: JSON array of contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContactResponse"
+  /api/v1/contacts/export.csv:
+    get:
+      tags:
+      - Contacts
+      summary: Export all contacts as CSV
+      operationId: exportCsv
+      responses:
+        "200":
+          description: CSV document
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: byte
 components:
   schemas:
     ContactRequest:
@@ -353,6 +413,19 @@ components:
             type: string
         favorite:
           type: boolean
+    ImportSummary:
+      type: object
+      properties:
+        imported:
+          type: integer
+          format: int32
+        skipped:
+          type: integer
+          format: int32
+        errors:
+          type: array
+          items:
+            type: string
     ContactPatchRequest:
       type: object
       properties:
@@ -382,11 +455,11 @@ components:
         totalElements:
           type: integer
           format: int64
-        pageable:
-          $ref: "#/components/schemas/PageableObject"
         numberOfElements:
           type: integer
           format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
         first:
           type: boolean
         last:

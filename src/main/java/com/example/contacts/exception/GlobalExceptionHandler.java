@@ -86,6 +86,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles invalid uploaded files (e.g. a non-CSV or empty import file),
+     * returning {@code 400 Bad Request}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 400} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(InvalidFileException.class)
+    public ResponseEntity<ApiError> handleInvalidFile(
+            InvalidFileException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req);
+    }
+
+    /**
      * Handles uploads exceeding the configured multipart size limit, returning
      * {@code 413 Payload Too Large}.
      *

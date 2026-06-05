@@ -3,6 +3,8 @@ package com.example.contacts.controller;
 import com.example.contacts.dto.ContactPatchRequest;
 import com.example.contacts.dto.ContactRequest;
 import com.example.contacts.dto.ContactResponse;
+import com.example.contacts.dto.ImportSummary;
+import com.example.contacts.exception.InvalidFileException;
 import com.example.contacts.exception.InvalidImageException;
 import com.example.contacts.service.ContactService;
 import com.example.contacts.service.PhotoData;
@@ -20,6 +22,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,6 +40,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
@@ -282,5 +286,73 @@ public class ContactController {
             @PathVariable @Parameter(description = "Contact identifier") Long id) {
         contactService.deletePhoto(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Content types browsers commonly send for a .csv upload. */
+    private static final Set<String> CSV_CONTENT_TYPES = Set.of(
+            "text/csv", "application/csv", "application/vnd.ms-excel", "text/plain");
+
+    /**
+     * Exports all contacts as a downloadable CSV file.
+     *
+     * @return {@code 200 OK} with a {@code text/csv} body and an attachment disposition
+     */
+    @GetMapping(value = "/export.csv", produces = "text/csv")
+    @Operation(summary = "Export all contacts as CSV")
+    @ApiResponse(responseCode = "200", description = "CSV document")
+    public ResponseEntity<byte[]> exportCsv() {
+        byte[] body = contactService.exportCsv().getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"contacts.csv\"")
+                .body(body);
+    }
+
+    /**
+     * Exports all contacts as a downloadable JSON array.
+     *
+     * @return {@code 200 OK} with a JSON body and an attachment disposition
+     */
+    @GetMapping(value = "/export.json", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Export all contacts as JSON")
+    @ApiResponse(responseCode = "200", description = "JSON array of contacts")
+    public ResponseEntity<List<ContactResponse>> exportJson() {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"contacts.json\"")
+                .body(contactService.exportAll());
+    }
+
+    /**
+     * Bulk-imports contacts from an uploaded CSV file.
+     *
+     * @param file the multipart CSV file (field name {@code file})
+     * @return {@code 200 OK} with an {@link ImportSummary}
+     * @throws IOException if the uploaded bytes cannot be read
+     */
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Import contacts from a CSV file",
+            description = "Uploads a CSV (optional header row) and creates contacts, "
+                    + "skipping rows whose email already exists.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Import summary"),
+            @ApiResponse(responseCode = "400", description = "Invalid file", content = @Content),
+            @ApiResponse(responseCode = "413", description = "File too large", content = @Content)
+    })
+    public ResponseEntity<ImportSummary> importCsv(
+            @RequestParam("file") @Parameter(description = "CSV file to import") MultipartFile file)
+            throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidFileException("No file provided");
+        }
+        String name = file.getOriginalFilename();
+        String type = file.getContentType();
+        boolean isCsv = (type != null && CSV_CONTENT_TYPES.contains(type.toLowerCase()))
+                || (name != null && name.toLowerCase().endsWith(".csv"));
+        if (!isCsv) {
+            throw new InvalidFileException(
+                    "Unsupported file type: " + type + ". Please upload a .csv file.");
+        }
+        String content = new String(file.getBytes(), StandardCharsets.UTF_8);
+        return ResponseEntity.ok(contactService.importCsv(content));
     }
 }

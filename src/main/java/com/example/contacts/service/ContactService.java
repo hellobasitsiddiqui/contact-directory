@@ -3,6 +3,7 @@ package com.example.contacts.service;
 import com.example.contacts.dto.ContactPatchRequest;
 import com.example.contacts.dto.ContactRequest;
 import com.example.contacts.dto.ContactResponse;
+import com.example.contacts.dto.ImportSummary;
 import com.example.contacts.exception.DuplicateEmailException;
 import com.example.contacts.exception.ResourceNotFoundException;
 import com.example.contacts.model.Contact;
@@ -14,7 +15,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Application service encapsulating the business logic for managing
@@ -95,6 +103,177 @@ public class ContactService {
     @Transactional(readOnly = true)
     public List<String> listTags() {
         return repository.findDistinctTags();
+    }
+
+    /* ----------------------------- Import / export ----------------------------- */
+
+    /** CSV column order for export and the basis for header detection on import. */
+    private static final List<String> CSV_COLUMNS =
+            List.of("id", "firstName", "lastName", "email", "phone", "company", "tags", "favorite");
+
+    /**
+     * Returns every contact (unpaged), sorted by last then first name, for a
+     * full export.
+     *
+     * @return all contacts as {@link ContactResponse} projections
+     */
+    @Transactional(readOnly = true)
+    public List<ContactResponse> exportAll() {
+        return repository.findAll(Sort.by(Sort.Order.asc("lastName"), Sort.Order.asc("firstName")))
+                .stream()
+                .map(ContactResponse::from)
+                .toList();
+    }
+
+    /**
+     * Renders every contact as a CSV document (header row + one row per contact;
+     * tags joined with {@code ;}). Uses CRLF line endings.
+     *
+     * @return the CSV text
+     */
+    @Transactional(readOnly = true)
+    public String exportCsv() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(CsvSupport.toRow(CSV_COLUMNS)).append("\r\n");
+        for (ContactResponse c : exportAll()) {
+            sb.append(CsvSupport.toRow(Arrays.asList(
+                    String.valueOf(c.id()),
+                    c.firstName(),
+                    c.lastName(),
+                    c.email(),
+                    c.phone() == null ? "" : c.phone(),
+                    c.company() == null ? "" : c.company(),
+                    String.join(";", c.tags()),
+                    String.valueOf(c.favorite())
+            ))).append("\r\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Bulk-imports contacts from CSV text. Supports an optional header row
+     * (columns matched by name) and falls back to positional order
+     * {@code firstName,lastName,email,phone,company,tags,favorite}. Rows whose
+     * email already exists are skipped; invalid rows are reported in the summary.
+     *
+     * @param content the raw CSV text
+     * @return a summary of imported / skipped counts and per-row errors
+     */
+    @Transactional
+    public ImportSummary importCsv(String content) {
+        List<List<String>> rows = CsvSupport.parse(content);
+        List<String> errors = new ArrayList<>();
+        if (rows.isEmpty()) {
+            return new ImportSummary(0, 0, List.of());
+        }
+
+        Map<String, Integer> header = detectHeader(rows.get(0));
+        int start = header != null ? 1 : 0;
+        int imported = 0;
+        int skipped = 0;
+
+        for (int r = start; r < rows.size(); r++) {
+            List<String> row = rows.get(r);
+            int lineNo = r + 1;
+            if (row.stream().allMatch(s -> s == null || s.isBlank())) {
+                continue; // ignore blank lines
+            }
+
+            String firstName = trimToNull(field(row, header, "firstName", 0));
+            String lastName = trimToNull(field(row, header, "lastName", 1));
+            String email = trimToNull(field(row, header, "email", 2));
+            String phone = trimToNull(field(row, header, "phone", 3));
+            String company = trimToNull(field(row, header, "company", 4));
+            String tagsRaw = field(row, header, "tags", 5);
+            String favRaw = field(row, header, "favorite", 6);
+
+            if (firstName == null || lastName == null || email == null) {
+                errors.add("Row " + lineNo + ": firstName, lastName and email are required");
+                continue;
+            }
+            if (!email.contains("@")) {
+                errors.add("Row " + lineNo + ": invalid email '" + email + "'");
+                continue;
+            }
+            if (repository.existsByEmailIgnoreCase(email)) {
+                skipped++;
+                continue;
+            }
+
+            Contact contact = new Contact();
+            contact.setFirstName(firstName);
+            contact.setLastName(lastName);
+            contact.setEmail(email);
+            contact.setPhone(phone);
+            contact.setCompany(company);
+            contact.setTags(parseTags(tagsRaw));
+            contact.setFavorite(parseBoolean(favRaw));
+            repository.save(contact);
+            imported++;
+        }
+        return new ImportSummary(imported, skipped, errors);
+    }
+
+    /**
+     * Detects whether the first parsed row is a header (contains an "email"
+     * column), returning a lower-cased column-name to index map, or {@code null}
+     * when there is no header.
+     */
+    private Map<String, Integer> detectHeader(List<String> first) {
+        boolean looksLikeHeader = first.stream()
+                .map(s -> s == null ? "" : s.trim().toLowerCase(Locale.ROOT))
+                .anyMatch("email"::equals);
+        if (!looksLikeHeader) {
+            return null;
+        }
+        Map<String, Integer> map = new HashMap<>();
+        for (int i = 0; i < first.size(); i++) {
+            String key = first.get(i) == null ? "" : first.get(i).trim().toLowerCase(Locale.ROOT);
+            map.putIfAbsent(key, i);
+        }
+        return map;
+    }
+
+    /** Reads a field by header name when a header is present, else by position. */
+    private String field(List<String> row, Map<String, Integer> header, String name, int positional) {
+        int idx = header != null
+                ? header.getOrDefault(name.toLowerCase(Locale.ROOT), -1)
+                : positional;
+        if (idx < 0 || idx >= row.size()) {
+            return null;
+        }
+        return row.get(idx);
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null) {
+            return null;
+        }
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    /** Split a tag cell on ';' or ',' into a deduped, ordered set. */
+    private static Set<String> parseTags(String raw) {
+        Set<String> tags = new LinkedHashSet<>();
+        if (raw == null || raw.isBlank()) {
+            return tags;
+        }
+        for (String part : raw.split("[;,]")) {
+            String t = part.trim();
+            if (!t.isEmpty()) {
+                tags.add(t);
+            }
+        }
+        return tags;
+    }
+
+    private static boolean parseBoolean(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String v = raw.trim().toLowerCase(Locale.ROOT);
+        return v.equals("true") || v.equals("1") || v.equals("yes") || v.equals("y");
     }
 
     /**

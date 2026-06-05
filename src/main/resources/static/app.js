@@ -67,6 +67,8 @@ const el = {
   pageSize: $('page-size'),
   sortSelect: $('sort-select'),
   tagFilter: $('tag-filter'),
+  btnImport: $('btn-import'),
+  importFile: $('import-file'),
   // List
   contactsBody: $('contacts-body'),
   // States
@@ -240,6 +242,13 @@ function deletePhoto(id) {
 /** Fetch the distinct, sorted set of tags in use (for the filter dropdown). */
 function listTags() {
   return request(`${API_BASE}/tags`, { method: 'GET' });
+}
+
+/** Upload a CSV file for bulk import; returns the {imported, skipped, errors} summary. */
+function importContacts(file) {
+  const form = new FormData();
+  form.append('file', file);
+  return request(`${API_BASE}/import`, { method: 'POST', body: form });
 }
 
 /* ------------------------------------------------------------------ *
@@ -1009,6 +1018,31 @@ async function toggleFavorite(id) {
 }
 
 /* ------------------------------------------------------------------ *
+ * 8c. CSV import
+ * ------------------------------------------------------------------ */
+
+/** Handle a chosen CSV file: upload, toast the summary, reload + refresh tags. */
+async function onImportFile() {
+  const file = el.importFile && el.importFile.files && el.importFile.files[0];
+  if (!file) return;
+  try {
+    const summary = await importContacts(file);
+    const parts = [`Imported ${summary.imported || 0}`];
+    if (summary.skipped) parts.push(`skipped ${summary.skipped}`);
+    const errCount = summary.errors ? summary.errors.length : 0;
+    if (errCount) parts.push(`${errCount} error${errCount === 1 ? '' : 's'}`);
+    toast(parts.join(', ') + '.', errCount ? 'error' : 'success');
+    state.page = 0;
+    load();
+    populateTagFilter();
+  } catch (err) {
+    toast(err.message || 'Import failed.', 'error');
+  } finally {
+    if (el.importFile) el.importFile.value = '';
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * 9. Event wiring
  * ------------------------------------------------------------------ */
 
@@ -1116,6 +1150,13 @@ function wireEvents() {
       state.page = 0;
       load();
     });
+  }
+
+  // Import CSV: the button opens the hidden file input; choosing a file uploads it.
+  // (Export CSV/JSON are plain download anchors — no JS needed.)
+  if (el.btnImport && el.importFile) {
+    el.btnImport.addEventListener('click', () => el.importFile.click());
+    el.importFile.addEventListener('change', onImportFile);
   }
 
   // Pagination.

@@ -288,6 +288,58 @@ class ContactApiIntegrationTest {
                 .andExpect(jsonPath("$.favorite").value(false));
     }
 
+    @Test
+    void importCsv_createsNewRowsAndSkipsDuplicates() throws Exception {
+        String u1 = uniqueEmail();
+        String u2 = uniqueEmail();
+        String csv = "firstName,lastName,email,phone,company,tags,favorite\n"
+                + "Alan,Turing," + u1 + ",,Bletchley,Work;Friend,true\n"
+                + "Katherine,Johnson," + u2 + ",,NASA,,false\n"
+                + "Janet,Doe,jane.doe@example.com,,Acme,,false\n"; // seeded email -> skipped
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "contacts.csv", "text/csv",
+                csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/v1/contacts/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imported").value(2))
+                .andExpect(jsonPath("$.skipped").value(1));
+
+        // The imported contact is retrievable and kept its tags + favourite flag.
+        mockMvc.perform(get("/api/v1/contacts").param("search", u1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].firstName").value("Alan"))
+                .andExpect(jsonPath("$.content[0].favorite").value(true))
+                .andExpect(jsonPath("$.content[0].tags", Matchers.hasItem("Work")));
+    }
+
+    @Test
+    void importCsv_wrongFileType_returns400() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "notes.pdf", "application/pdf", "not a csv".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/contacts/import").file(file))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void exportCsv_returnsCsvWithHeader() throws Exception {
+        mockMvc.perform(get("/api/v1/contacts/export.csv"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/csv"))
+                .andExpect(content().string(Matchers.containsString("firstName,lastName,email")))
+                .andExpect(content().string(Matchers.containsString("jane.doe@example.com")));
+    }
+
+    @Test
+    void exportJson_returnsArrayOfContacts() throws Exception {
+        mockMvc.perform(get("/api/v1/contacts/export.json"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].email").exists());
+    }
+
     /** Extracts the {@code id} from a JSON response body. */
     private long readId(MvcResult result) throws Exception {
         JsonNode node = objectMapper.readTree(result.getResponse().getContentAsString());

@@ -60,6 +60,13 @@
             </select>
           </div>
         </div>
+
+        <div class="toolbar__io">
+          <input type="file" id="import-file" accept=".csv,text/csv" hidden />
+          <button type="button" id="btn-import" class="btn btn--secondary">Import CSV</button>
+          <a id="link-export-csv" class="btn btn--secondary" href="/api/v1/contacts/export.csv" download>Export CSV</a>
+          <a id="link-export-json" class="btn btn--secondary" href="/api/v1/contacts/export.json" download>Export JSON</a>
+        </div>
       </div>
     </section>
 

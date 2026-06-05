@@ -1066,3 +1066,20 @@ dialog[open] {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 1px;
 }
+
+/* ------------------------------------------------------------------ *
+ * Import / export toolbar group
+ * ------------------------------------------------------------------ */
+
+.toolbar__io {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* Export links are styled as buttons — strip the anchor underline. */
+a.btn {
+  text-decoration: none;
+}
