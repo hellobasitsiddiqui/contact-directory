@@ -12,7 +12,7 @@ Rolling out one feature at a time, committing each. Status updated as work lands
 | 6 | Sort controls — name A–Z, recently added, last contacted | ✅ done |
 | 7 | Contact detail modal — full profile card (details, notes, social links) | ✅ done |
 | 8 | Notes field — freetext notes per contact | ✅ done |
-| 9 | Click-to-action — tel:/mailto:/maps links | ⬜ pending |
+| 9 | Click-to-action — tel:/mailto:/maps links | ✅ done |
 | 10 | Dark / light mode toggle — saved to localStorage | ⬜ pending |
 
 Legend: ⬜ pending · 🔄 in progress · ✅ done · ⏭️ skipped (with reason)

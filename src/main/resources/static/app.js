@@ -297,6 +297,48 @@ function makeCell(label, text) {
   return td;
 }
 
+/** Build a click-to-action href. 'tel' keeps only + and digits; 'mailto' as-is. */
+function actionHref(value, scheme) {
+  const v = String(value).trim();
+  return scheme === 'tel' ? 'tel:' + v.replace(/[^+0-9]/g, '') : 'mailto:' + v;
+}
+
+/**
+ * A table cell rendering email/phone as a click-to-action link. The href is set
+ * via the .href PROPERTY (never an HTML string) so values can't inject markup.
+ * Clicking the link does not also open the row's detail modal.
+ */
+function makeContactLinkCell(label, value, scheme) {
+  const td = document.createElement('td');
+  td.setAttribute('data-label', label);
+  const v = value == null ? '' : String(value).trim();
+  if (v === '') {
+    td.textContent = '—';
+    return td;
+  }
+  const a = document.createElement('a');
+  a.className = 'link';
+  a.href = actionHref(v, scheme);
+  a.textContent = v;
+  a.addEventListener('click', (e) => e.stopPropagation());
+  td.appendChild(a);
+  return td;
+}
+
+/** Render a value into a node as a click-to-action link, or em dash if empty. */
+function setContactLink(node, value, scheme) {
+  const v = value == null ? '' : String(value).trim();
+  if (v === '') {
+    node.textContent = '—';
+    return;
+  }
+  const a = document.createElement('a');
+  a.className = 'link';
+  a.href = actionHref(v, scheme);
+  a.textContent = v;
+  node.replaceChildren(a);
+}
+
 /** Initials from first/last name (e.g. "Ada Lovelace" -> "AL"), uppercased. */
 function initials(contact) {
   const first = (contact.firstName || '').trim();
@@ -460,8 +502,8 @@ function makeRow(contact) {
     makeStarCell(contact),
     makeAvatarCell(contact),
     makeCell('Name', fullName(contact)),
-    makeCell('Email', display(contact.email)),
-    makeCell('Phone', display(contact.phone)),
+    makeContactLinkCell('Email', contact.email, 'mailto'),
+    makeContactLinkCell('Phone', contact.phone, 'tel'),
     makeCell('Company', display(contact.company)),
     makeTagsCell(contact),
     makeActionsCell(contact)
@@ -1132,8 +1174,8 @@ function renderDetail(contact) {
   el.detailAvatar.replaceChildren(avatarElement(contact, 'avatar--lg'));
   el.detailName.textContent = fullName(contact);
   el.detailFav.hidden = !contact.favorite;
-  el.detailEmail.textContent = display(contact.email);
-  el.detailPhone.textContent = display(contact.phone);
+  setContactLink(el.detailEmail, contact.email, 'mailto');
+  setContactLink(el.detailPhone, contact.phone, 'tel');
   el.detailCompany.textContent = display(contact.company);
 
   const tags = Array.isArray(contact.tags) ? contact.tags : [];

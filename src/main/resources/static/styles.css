@@ -1158,3 +1158,22 @@ a.btn {
   word-break: break-word;
   white-space: pre-wrap; /* preserve newlines in notes (Feature 8) */
 }
+
+/* ------------------------------------------------------------------ *
+ * Click-to-action links (email / phone)
+ * ------------------------------------------------------------------ */
+
+.link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
