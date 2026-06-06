@@ -54,18 +54,18 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
-        "400":
-          description: Validation failed
-        "404":
-          description: Contact not found
+        "409":
+          description: Email already exists
         "200":
           description: Contact updated
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "409":
-          description: Email already exists
+        "404":
+          description: Contact not found
+        "400":
+          description: Validation failed
     delete:
       tags:
       - Contacts
@@ -105,18 +105,18 @@ paths:
               $ref: "#/components/schemas/ContactPatchRequest"
         required: true
       responses:
-        "400":
-          description: Validation failed
-        "404":
-          description: Contact not found
+        "409":
+          description: Email already exists
         "200":
           description: Contact updated
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "409":
-          description: Email already exists
+        "404":
+          description: Contact not found
+        "400":
+          description: Validation failed
   /api/v1/contacts:
     get:
       tags:
@@ -186,8 +186,6 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
-        "400":
-          description: Validation failed
         "409":
           description: Email already exists
         "201":
@@ -196,6 +194,8 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "400":
+          description: Validation failed
   /api/v1/contacts/{id}/photo:
     get:
       tags:
@@ -249,16 +249,16 @@ paths:
                   description: Image file to upload
                   format: binary
       responses:
-        "400":
-          description: Invalid image
-        "413":
-          description: File too large
         "200":
           description: Photo uploaded
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "400":
+          description: Invalid image
+        "413":
+          description: File too large
         "404":
           description: Contact not found
     delete:
@@ -382,6 +382,8 @@ components:
             type: string
         favorite:
           type: boolean
+        notes:
+          type: string
     ContactResponse:
       type: object
       properties:
@@ -413,6 +415,8 @@ components:
             type: string
         favorite:
           type: boolean
+        notes:
+          type: string
     ImportSummary:
       type: object
       properties:
@@ -446,6 +450,8 @@ components:
             type: string
         favorite:
           type: boolean
+        notes:
+          type: string
     PageContactResponse:
       type: object
       properties:
@@ -455,11 +461,11 @@ components:
         totalElements:
           type: integer
           format: int64
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
         numberOfElements:
           type: integer
           format: int32
-        pageable:
-          $ref: "#/components/schemas/PageableObject"
         first:
           type: boolean
         last:

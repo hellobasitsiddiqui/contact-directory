@@ -19,6 +19,7 @@ import java.util.Set;
  * @param company   the contact's company; optional
  * @param tags      the set of labels to assign; optional ({@code null} is treated as no tags)
  * @param favorite  whether the contact is a favourite; defaults to {@code false}
+ * @param notes     freetext notes about the contact; optional
  */
 public record ContactRequest(
 
@@ -39,5 +40,7 @@ public record ContactRequest(
 
         Set<String> tags,
 
-        boolean favorite) {
+        boolean favorite,
+
+        String notes) {
 }

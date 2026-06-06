@@ -64,6 +64,9 @@ public class Contact {
     @ColumnDefault("false")
     private boolean favorite;
 
+    @Column(length = 4000)
+    private String notes;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -182,6 +185,14 @@ public class Contact {
 
     public void setFavorite(boolean favorite) {
         this.favorite = favorite;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public Instant getCreatedAt() {

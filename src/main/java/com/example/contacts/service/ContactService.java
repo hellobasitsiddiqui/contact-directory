@@ -109,7 +109,7 @@ public class ContactService {
 
     /** CSV column order for export and the basis for header detection on import. */
     private static final List<String> CSV_COLUMNS =
-            List.of("id", "firstName", "lastName", "email", "phone", "company", "tags", "favorite");
+            List.of("id", "firstName", "lastName", "email", "phone", "company", "tags", "favorite", "notes");
 
     /**
      * Returns every contact (unpaged), sorted by last then first name, for a
@@ -144,7 +144,8 @@ public class ContactService {
                     c.phone() == null ? "" : c.phone(),
                     c.company() == null ? "" : c.company(),
                     String.join(";", c.tags()),
-                    String.valueOf(c.favorite())
+                    String.valueOf(c.favorite()),
+                    c.notes() == null ? "" : c.notes()
             ))).append("\r\n");
         }
         return sb.toString();
@@ -186,6 +187,7 @@ public class ContactService {
             String company = trimToNull(field(row, header, "company", 4));
             String tagsRaw = field(row, header, "tags", 5);
             String favRaw = field(row, header, "favorite", 6);
+            String notes = trimToNull(field(row, header, "notes", 7));
 
             if (firstName == null || lastName == null || email == null) {
                 errors.add("Row " + lineNo + ": firstName, lastName and email are required");
@@ -208,6 +210,7 @@ public class ContactService {
             contact.setCompany(company);
             contact.setTags(parseTags(tagsRaw));
             contact.setFavorite(parseBoolean(favRaw));
+            contact.setNotes(notes);
             repository.save(contact);
             imported++;
         }
@@ -366,6 +369,9 @@ public class ContactService {
         if (req.favorite() != null) {
             contact.setFavorite(req.favorite());
         }
+        if (req.notes() != null) {
+            contact.setNotes(req.notes());
+        }
         return ContactResponse.from(repository.save(contact));
     }
 
@@ -460,5 +466,6 @@ public class ContactService {
         contact.setCompany(req.company());
         contact.setTags(req.tags());
         contact.setFavorite(req.favorite());
+        contact.setNotes(req.notes());
     }
 }

@@ -92,6 +92,7 @@ const el = {
   fieldCompany: $('field-company'),
   fieldTagInput: $('field-tag-input'),
   tagChips: $('tag-chips'),
+  fieldNotes: $('field-notes'),
   fieldPhoto: $('field-photo'),
   photoPreview: $('photo-preview'),
   btnRemovePhoto: $('btn-remove-photo'),
@@ -779,6 +780,7 @@ function fillForm(contact) {
   el.fieldEmail.value = contact.email || '';
   el.fieldPhone.value = contact.phone || '';
   el.fieldCompany.value = contact.company || '';
+  if (el.fieldNotes) el.fieldNotes.value = contact.notes || '';
 
   // Carry the favourite flag through so a PUT (full replace) preserves it.
   currentFavorite = !!contact.favorite;
@@ -875,6 +877,7 @@ function readForm() {
     company: optional(el.fieldCompany.value),
     tags: selectedTags.slice(),
     favorite: currentFavorite,
+    notes: el.fieldNotes ? optional(el.fieldNotes.value) : null,
   };
 }
 
@@ -887,6 +890,7 @@ function setSaving(isSaving) {
   if (el.fieldPhoto) el.fieldPhoto.disabled = isSaving;
   if (el.btnRemovePhoto) el.btnRemovePhoto.disabled = isSaving;
   if (el.fieldTagInput) el.fieldTagInput.disabled = isSaving;
+  if (el.fieldNotes) el.fieldNotes.disabled = isSaving;
 }
 
 /**

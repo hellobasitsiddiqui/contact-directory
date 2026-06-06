@@ -64,7 +64,7 @@ class ContactApiIntegrationTest {
     void fullCrudLifecycle_withUniqueEmail() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Grace", "Hopper", email,
-                "+1 (555) 000-1111", "US Navy", null, false);
+                "+1 (555) 000-1111", "US Navy", null, false, null);
 
         // POST -> 201
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
@@ -85,7 +85,7 @@ class ContactApiIntegrationTest {
 
         // PUT (full replace) -> 200
         ContactRequest replace = new ContactRequest("Grace", "Murray Hopper", email,
-                "+1 (555) 222-3333", "USN", null, false);
+                "+1 (555) 222-3333", "USN", null, false, null);
         mockMvc.perform(put("/api/v1/contacts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(replace)))
@@ -94,7 +94,7 @@ class ContactApiIntegrationTest {
                 .andExpect(jsonPath("$.company").value("USN"));
 
         // PATCH (partial) -> 200
-        ContactPatchRequest patch = new ContactPatchRequest(null, null, null, null, "Yale", null, null);
+        ContactPatchRequest patch = new ContactPatchRequest(null, null, null, null, "Yale", null, null, null);
         mockMvc.perform(patch("/api/v1/contacts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(patch)))
@@ -115,7 +115,7 @@ class ContactApiIntegrationTest {
     @Test
     void post_duplicateSeededEmail_returns409() throws Exception {
         ContactRequest duplicate = new ContactRequest("Janet", "Doe", "jane.doe@example.com",
-                null, null, null, false);
+                null, null, null, false, null);
 
         mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -153,7 +153,7 @@ class ContactApiIntegrationTest {
     void photoLifecycle_uploadServeAndDelete() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Photo", "Subject", email,
-                null, null, null, false);
+                null, null, null, false, null);
 
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -205,7 +205,7 @@ class ContactApiIntegrationTest {
     @Test
     void getPhoto_contactWithNoPhoto_returns404() throws Exception {
         String email = uniqueEmail();
-        ContactRequest create = new ContactRequest("No", "Photo", email, null, null, null, false);
+        ContactRequest create = new ContactRequest("No", "Photo", email, null, null, null, false, null);
 
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -224,7 +224,7 @@ class ContactApiIntegrationTest {
     void tags_assignFilterAndList() throws Exception {
         String email = uniqueEmail();
         ContactRequest create = new ContactRequest("Linus", "Torvalds", email,
-                null, "Linux Foundation", Set.of("Work", "Open Source"), false);
+                null, "Linux Foundation", Set.of("Work", "Open Source"), false, null);
 
         // Create with tags -> the response echoes them back.
         mockMvc.perform(post("/api/v1/contacts")
@@ -262,7 +262,7 @@ class ContactApiIntegrationTest {
         // lastName "AaaFav" sorts before the seeded favourite (Smith), so once
         // favourites are pinned this contact must be the very first row.
         ContactRequest create = new ContactRequest("Aaa", "AaaFav", email,
-                null, null, null, true);
+                null, null, null, true, null);
 
         MvcResult created = mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -280,7 +280,7 @@ class ContactApiIntegrationTest {
 
         // Un-favourite via PATCH -> favorite=false.
         ContactPatchRequest unfav =
-                new ContactPatchRequest(null, null, null, null, null, null, false);
+                new ContactPatchRequest(null, null, null, null, null, null, false, null);
         mockMvc.perform(patch("/api/v1/contacts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(unfav)))
@@ -338,6 +338,29 @@ class ContactApiIntegrationTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].email").exists());
+    }
+
+    @Test
+    void notes_persistOnCreateAndUpdateViaPatch() throws Exception {
+        String email = uniqueEmail();
+        ContactRequest create = new ContactRequest("Note", "Taker", email,
+                null, null, null, false, "met at Timeleft Coffee, into hiking");
+
+        MvcResult created = mockMvc.perform(post("/api/v1/contacts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(create)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.notes").value("met at Timeleft Coffee, into hiking"))
+                .andReturn();
+        long id = readId(created);
+
+        ContactPatchRequest patch =
+                new ContactPatchRequest(null, null, null, null, null, null, null, "updated note");
+        mockMvc.perform(patch("/api/v1/contacts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(patch)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notes").value("updated note"));
     }
 
     /** Extracts the {@code id} from a JSON response body. */
