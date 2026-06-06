@@ -290,6 +290,38 @@ function initials(contact) {
 }
 
 /**
+ * Curated palette for initials avatars — all dark/saturated enough to read
+ * with white text. The colour is chosen deterministically per contact.
+ */
+const AVATAR_COLORS = [
+  '#1d4ed8', // blue
+  '#4338ca', // indigo
+  '#6d28d9', // violet
+  '#7e22ce', // purple
+  '#a21caf', // fuchsia
+  '#be185d', // pink
+  '#be123c', // rose
+  '#b91c1c', // red
+  '#c2410c', // orange
+  '#15803d', // green
+  '#0f766e', // teal
+  '#0e7490', // cyan
+];
+
+/**
+ * Pick a stable background colour for a contact's initials placeholder. The
+ * same contact (by email, falling back to name) always maps to the same colour.
+ */
+function avatarColor(contact) {
+  const key = (contact.email || fullName(contact) || '').toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+/**
  * Leading cell with a star button that toggles the contact's favourite state.
  * The glyph (★ filled / ☆ outline) is set via textContent; the action is wired
  * through event delegation using data-action / data-id (no inline handlers).
@@ -337,6 +369,7 @@ function makeAvatarCell(contact) {
   } else {
     const span = document.createElement('span');
     span.className = 'avatar avatar--placeholder';
+    span.style.backgroundColor = avatarColor(contact);
     span.setAttribute('aria-hidden', 'true');
     span.textContent = initials(contact);
     td.appendChild(span);
