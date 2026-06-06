@@ -61,6 +61,7 @@ const $ = (id) => document.getElementById(id);
 const el = {
   // Header
   btnNew: $('btn-new'),
+  btnTheme: $('btn-theme'),
   // Toolbar
   searchInput: $('search-input'),
   btnClearSearch: $('btn-clear-search'),
@@ -1226,6 +1227,36 @@ async function openDetail(id) {
 }
 
 /* ------------------------------------------------------------------ *
+ * 8e. Theme (dark / light)
+ * ------------------------------------------------------------------ */
+
+/** Current theme from <html data-theme>; defaults to light. */
+function currentTheme() {
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+/** Sync the toggle button's glyph + accessible label to the active theme. */
+function updateThemeButton() {
+  if (!el.btnTheme) return;
+  const dark = currentTheme() === 'dark';
+  el.btnTheme.textContent = dark ? '☀️' : '🌙';
+  el.btnTheme.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+  el.btnTheme.setAttribute('aria-pressed', dark ? 'true' : 'false');
+}
+
+/** Flip the theme, persist it, and update the button. */
+function toggleTheme() {
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem('theme', next);
+  } catch (e) {
+    /* ignore storage failures (private mode, etc.) */
+  }
+  updateThemeButton();
+}
+
+/* ------------------------------------------------------------------ *
  * 9. Event wiring
  * ------------------------------------------------------------------ */
 
@@ -1300,6 +1331,9 @@ function onRemovePhoto() {
 function wireEvents() {
   // Header — open create modal.
   el.btnNew.addEventListener('click', openCreate);
+
+  // Header — theme toggle.
+  if (el.btnTheme) el.btnTheme.addEventListener('click', toggleTheme);
 
   // Search (debounced) + clear.
   el.searchInput.addEventListener('input', onSearch);
@@ -1485,6 +1519,7 @@ function init() {
   }
 
   wireEvents();
+  updateThemeButton();
   renderTagChips();
   populateTagFilter();
   load();

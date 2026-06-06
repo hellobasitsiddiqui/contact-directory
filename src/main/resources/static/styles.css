@@ -1177,3 +1177,60 @@ a.btn {
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* ------------------------------------------------------------------ *
+ * Header actions + theme toggle
+ * ------------------------------------------------------------------ */
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.btn--icon {
+  padding: var(--space-2);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* ------------------------------------------------------------------ *
+ * Dark theme — overrides the palette; the rest of the UI uses var()
+ * ------------------------------------------------------------------ */
+
+:root[data-theme="dark"] {
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-alt: #273449;
+  --color-border: #334155;
+  --color-border-strong: #475569;
+
+  --color-text: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #6b7a90;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-active: #2563eb;
+
+  --color-focus-ring: #3b82f6;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+}
+
+/* Dark tweaks for elements with hard-coded (non-variable) colours. */
+:root[data-theme="dark"] .tag-chip {
+  color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+:root[data-theme="dark"] .tag-chip__remove {
+  color: #bfdbfe;
+}
+
+:root[data-theme="dark"] .tag-chip__remove:hover {
+  background: rgba(59, 130, 246, 0.3);
+}

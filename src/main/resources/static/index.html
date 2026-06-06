@@ -4,6 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contact Directory</title>
+  <!-- Apply the saved/preferred theme before paint to avoid a flash. -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia
+          && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
   <script defer src="app.js"></script>
 </head>
@@ -11,9 +24,13 @@
   <header class="app-header">
     <div class="app-header__inner">
       <h1 class="app-header__title">Contact Directory</h1>
-      <button type="button" id="btn-new" class="btn btn--primary">
-        <span aria-hidden="true">+</span> New Contact
-      </button>
+      <div class="app-header__actions">
+        <button type="button" id="btn-theme" class="btn btn--secondary btn--icon"
+                aria-label="Switch to dark theme" aria-pressed="false">🌙</button>
+        <button type="button" id="btn-new" class="btn btn--primary">
+          <span aria-hidden="true">+</span> New Contact
+        </button>
+      </div>
     </div>
   </header>
 
