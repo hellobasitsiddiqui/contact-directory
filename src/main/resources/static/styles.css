@@ -1083,3 +1083,69 @@ dialog[open] {
 a.btn {
   text-decoration: none;
 }
+
+/* ------------------------------------------------------------------ *
+ * Contact detail (profile) modal
+ * ------------------------------------------------------------------ */
+
+/* Rows are clickable (open the read-only detail card). */
+.contacts-table tbody tr {
+  cursor: pointer;
+}
+
+.detail__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.detail__avatar {
+  flex: none;
+}
+
+/* Larger avatar variant for the profile header. */
+.avatar--lg {
+  width: 64px;
+  height: 64px;
+  font-size: 1.5rem;
+}
+
+.detail__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.detail__fav {
+  color: #f59e0b;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.detail__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.detail__row {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.detail__row dt {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.detail__row dd {
+  margin: 0;
+  color: var(--color-text);
+  word-break: break-word;
+  white-space: pre-wrap; /* preserve newlines in notes (Feature 8) */
+}

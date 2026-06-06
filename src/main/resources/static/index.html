@@ -211,5 +211,37 @@
       </footer>
     </div>
   </dialog>
+
+  <!-- Contact detail (read-only profile) modal -->
+  <dialog id="detail-modal" class="modal modal--detail" aria-labelledby="detail-name">
+    <div class="modal__form">
+      <header class="modal__header detail__header">
+        <div id="detail-avatar" class="detail__avatar"></div>
+        <div class="detail__heading">
+          <h2 id="detail-name" class="modal__title">Contact</h2>
+          <span id="detail-fav" class="detail__fav" hidden>★ Favourite</span>
+        </div>
+      </header>
+
+      <div class="modal__body detail__body">
+        <dl class="detail__list">
+          <div class="detail__row"><dt>Email</dt><dd id="detail-email"></dd></div>
+          <div class="detail__row"><dt>Phone</dt><dd id="detail-phone"></dd></div>
+          <div class="detail__row"><dt>Company</dt><dd id="detail-company"></dd></div>
+          <div class="detail__row"><dt>Tags</dt><dd id="detail-tags"></dd></div>
+          <div class="detail__row" id="detail-notes-row" hidden>
+            <dt>Notes</dt><dd id="detail-notes"></dd>
+          </div>
+          <div class="detail__row"><dt>Added</dt><dd id="detail-created"></dd></div>
+          <div class="detail__row"><dt>Updated</dt><dd id="detail-updated"></dd></div>
+        </dl>
+      </div>
+
+      <footer class="modal__footer">
+        <button type="button" id="btn-detail-close" class="btn btn--secondary">Close</button>
+        <button type="button" id="btn-detail-edit" class="btn btn--primary">Edit</button>
+      </footer>
+    </div>
+  </dialog>
 </body>
 </html>

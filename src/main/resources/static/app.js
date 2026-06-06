@@ -107,6 +107,21 @@ const el = {
   confirmText: $('confirm-text'),
   btnConfirmDelete: $('btn-confirm-delete'),
   btnCancelDelete: $('btn-cancel-delete'),
+  // Detail modal
+  detailModal: $('detail-modal'),
+  detailAvatar: $('detail-avatar'),
+  detailName: $('detail-name'),
+  detailFav: $('detail-fav'),
+  detailEmail: $('detail-email'),
+  detailPhone: $('detail-phone'),
+  detailCompany: $('detail-company'),
+  detailTags: $('detail-tags'),
+  detailNotesRow: $('detail-notes-row'),
+  detailNotes: $('detail-notes'),
+  detailCreated: $('detail-created'),
+  detailUpdated: $('detail-updated'),
+  btnDetailClose: $('btn-detail-close'),
+  btnDetailEdit: $('btn-detail-edit'),
 };
 
 /** Map a logical field name to its input / error elements. */
@@ -355,25 +370,31 @@ function makeStarCell(contact) {
  * The <img> src is assigned via the property (never built into an HTML string)
  * and initials are set via textContent, so contact data can never inject markup.
  */
+/**
+ * Build the avatar element for a contact: an <img> when a photo exists, else a
+ * coloured initials placeholder. Shared by the table cell and the detail modal.
+ */
+function avatarElement(contact, extraClass) {
+  if (contact.photoUrl) {
+    const img = document.createElement('img');
+    img.className = 'avatar' + (extraClass ? ' ' + extraClass : '');
+    img.src = contact.photoUrl;
+    img.alt = '';
+    return img;
+  }
+  const span = document.createElement('span');
+  span.className = 'avatar avatar--placeholder' + (extraClass ? ' ' + extraClass : '');
+  span.style.backgroundColor = avatarColor(contact);
+  span.setAttribute('aria-hidden', 'true');
+  span.textContent = initials(contact);
+  return span;
+}
+
 function makeAvatarCell(contact) {
   const td = document.createElement('td');
   td.className = 'cell-avatar';
   td.setAttribute('data-label', 'Photo');
-
-  if (contact.photoUrl) {
-    const img = document.createElement('img');
-    img.className = 'avatar';
-    img.src = contact.photoUrl;
-    img.alt = '';
-    td.appendChild(img);
-  } else {
-    const span = document.createElement('span');
-    span.className = 'avatar avatar--placeholder';
-    span.style.backgroundColor = avatarColor(contact);
-    span.setAttribute('aria-hidden', 'true');
-    span.textContent = initials(contact);
-    td.appendChild(span);
-  }
+  td.appendChild(avatarElement(contact));
   return td;
 }
 
@@ -1076,6 +1097,89 @@ async function onImportFile() {
 }
 
 /* ------------------------------------------------------------------ *
+ * 8d. Contact detail modal (read-only profile)
+ * ------------------------------------------------------------------ */
+
+/** Id of the contact shown in the detail modal (used by its Edit button). */
+let detailId = null;
+
+/** Format an ISO timestamp for display, or em dash when missing/invalid. */
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function showDetailModal() {
+  if (typeof el.detailModal.showModal === 'function') el.detailModal.showModal();
+  else el.detailModal.setAttribute('open', '');
+}
+
+function closeDetailModal() {
+  if (typeof el.detailModal.close === 'function') el.detailModal.close();
+  else el.detailModal.removeAttribute('open');
+}
+
+/** Render a contact into the detail modal. All values are set XSS-safely. */
+function renderDetail(contact) {
+  detailId = contact.id != null ? contact.id : null;
+
+  el.detailAvatar.replaceChildren(avatarElement(contact, 'avatar--lg'));
+  el.detailName.textContent = fullName(contact);
+  el.detailFav.hidden = !contact.favorite;
+  el.detailEmail.textContent = display(contact.email);
+  el.detailPhone.textContent = display(contact.phone);
+  el.detailCompany.textContent = display(contact.company);
+
+  const tags = Array.isArray(contact.tags) ? contact.tags : [];
+  if (tags.length === 0) {
+    el.detailTags.textContent = '—';
+  } else {
+    const wrap = document.createElement('div');
+    wrap.className = 'tag-chips tag-chips--row';
+    for (const tag of tags) {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.textContent = tag;
+      wrap.appendChild(chip);
+    }
+    el.detailTags.replaceChildren(wrap);
+  }
+
+  // Notes are only shown when present (the field arrives in Feature 8).
+  const hasNotes = contact.notes != null && String(contact.notes).trim() !== '';
+  el.detailNotesRow.hidden = !hasNotes;
+  el.detailNotes.textContent = hasNotes ? contact.notes : '';
+
+  el.detailCreated.textContent = formatDate(contact.createdAt);
+  el.detailUpdated.textContent = formatDate(contact.updatedAt);
+}
+
+/** Open the detail modal for a contact id (use the loaded row, else fetch). */
+async function openDetail(id) {
+  lastTrigger = document.activeElement;
+  const row =
+    currentPage &&
+    Array.isArray(currentPage.content) &&
+    currentPage.content.find((c) => String(c.id) === String(id));
+  if (row) {
+    renderDetail(row);
+    showDetailModal();
+    return;
+  }
+  try {
+    const fresh = await getContact(id);
+    if (fresh) {
+      renderDetail(fresh);
+      showDetailModal();
+    }
+  } catch (err) {
+    toast(err.message || 'Failed to load contact.', 'error');
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * 9. Event wiring
  * ------------------------------------------------------------------ */
 
@@ -1205,18 +1309,25 @@ function wireEvents() {
     load();
   });
 
-  // Row actions via event delegation (no inline onclick).
+  // Row actions via event delegation (no inline onclick). A click on a row
+  // button runs that action; a click elsewhere on the row opens the detail card.
   el.contactsBody.addEventListener('click', (event) => {
     const btn = event.target.closest('button[data-action]');
-    if (!btn || !el.contactsBody.contains(btn)) return;
-    const id = btn.dataset.id;
-    if (!id) return;
-    if (btn.dataset.action === 'edit') {
-      openEdit(id);
-    } else if (btn.dataset.action === 'delete') {
-      openDelete(id);
-    } else if (btn.dataset.action === 'favorite') {
-      toggleFavorite(id);
+    if (btn && el.contactsBody.contains(btn)) {
+      const id = btn.dataset.id;
+      if (!id) return;
+      if (btn.dataset.action === 'edit') {
+        openEdit(id);
+      } else if (btn.dataset.action === 'delete') {
+        openDelete(id);
+      } else if (btn.dataset.action === 'favorite') {
+        toggleFavorite(id);
+      }
+      return;
+    }
+    const row = event.target.closest('tr[data-id]');
+    if (row && el.contactsBody.contains(row)) {
+      openDetail(row.dataset.id);
     }
   });
 
@@ -1299,6 +1410,18 @@ function wireEvents() {
   });
   // Any close path returns focus to the opener (or #btn-new if the row is gone).
   el.confirmModal.addEventListener('close', restoreTriggerFocus);
+
+  // Detail modal: Edit hands off to the edit modal; close / backdrop dismiss it.
+  el.btnDetailEdit.addEventListener('click', () => {
+    const id = detailId;
+    closeDetailModal();
+    if (id != null) openEdit(id);
+  });
+  el.btnDetailClose.addEventListener('click', closeDetailModal);
+  el.detailModal.addEventListener('click', (event) => {
+    if (isBackdropClick(el.detailModal, event)) closeDetailModal();
+  });
+  el.detailModal.addEventListener('close', restoreTriggerFocus);
 }
 
 /* ------------------------------------------------------------------ *
