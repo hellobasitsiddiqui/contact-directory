@@ -96,6 +96,8 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Release automation (on tag) | Versioned releases | ⬜ |
 | Deployment / CD | Ship to environments | ⬜ |
 | Status badges | At-a-glance health | ✅ |
+| Protected master + PR workflow | CI-gated merges + automated review | ✅ |
+| Ticket / issue tracking | Traceable work | ✅ (plain-text `tickets/`) |
 
 ## 9. Configuration & ops
 | Feature | Why | This app |
@@ -122,7 +124,7 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Walkthrough / screenshots | Show, don't tell | ✅ |
 | CHANGELOG | Track changes | ⬜ |
 | LICENSE | Usage terms | ⬜ |
-| CONTRIBUTING | Contributor guide | ⬜ |
+| CONTRIBUTING | Contributor guide | ✅ |
 
 ## 12. Compliance & privacy
 | Feature | Why | This app |
