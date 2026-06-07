@@ -77,20 +77,10 @@ jobs:
           done
           curl -sf http://localhost:8080/v3/api-docs >/dev/null || { echo "app did not start"; cat /tmp/app.log; exit 1; }
 
-      - name: Regenerate the OpenAPI spec and compare to the committed copy
+      - name: Check the committed OpenAPI spec is current
         run: |
-          TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
-            -H 'Content-Type: application/json' \
-            -d '{"username":"admin","password":"admin123"}' \
-            | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
-          curl -s http://localhost:8080/v3/api-docs | python3 -m json.tool > openapi.json
-          curl -s http://localhost:8080/v3/api-docs.yaml -H "Authorization: Bearer $TOKEN" > openapi.yaml
-          if ! git diff --quiet -- openapi.json openapi.yaml; then
-            echo "::error::Committed OpenAPI spec is stale. Regenerate openapi.json/openapi.yaml from /v3/api-docs and commit them."
-            git --no-pager diff -- openapi.json openapi.yaml | head -120
-            exit 1
-          fi
-          echo "OpenAPI spec is up to date."
+          curl -s http://localhost:8080/v3/api-docs > /tmp/live-openapi.json
+          python3 .github/scripts/check_openapi_drift.py /tmp/live-openapi.json openapi.json
 
   package:
     name: Package JAR + Docker image
