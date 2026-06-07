@@ -84,10 +84,12 @@ public class Contact {
 
     /**
      * Optimistic-locking version. Managed by JPA; new rows start at {@code 0}
-     * and the value is incremented on each dirty flush. Primitive {@code long}
-     * so the generated column is NOT NULL with an implicit default of 0.
+     * and the value is incremented on each dirty flush. The column is generated
+     * NOT NULL, so {@link ColumnDefault} gives it a DB-level default of 0 — this
+     * keeps inserts that omit the column (e.g. seed SQL) valid.
      */
     @Version
+    @ColumnDefault("0")
     private long version;
 
     /**
