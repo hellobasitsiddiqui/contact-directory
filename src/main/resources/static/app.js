@@ -156,11 +156,7 @@ const el = {
   errPhoto: $('err-photo'),
   btnSave: $('btn-save'),
   btnCancel: $('btn-cancel'),
-  // Delete modal
-  confirmModal: $('confirm-modal'),
-  confirmText: $('confirm-text'),
-  btnConfirmDelete: $('btn-confirm-delete'),
-  btnCancelDelete: $('btn-cancel-delete'),
+  // Delete confirmation uses the shared confirmDialog() — no static markup.
   // Detail modal
   detailModal: $('detail-modal'),
   detailAvatar: $('detail-avatar'),
@@ -1393,31 +1389,6 @@ async function submitForm(event) {
  * 8. Delete confirmation
  * ------------------------------------------------------------------ */
 
-/** Id of the contact currently queued for deletion. */
-let pendingDeleteId = null;
-
-/**
- * What the confirm modal will do: 'soft' (move to trash, reversible via Undo) or
- * 'purge' (permanent hard delete, no Undo). Set by openDelete / openPurge.
- */
-let pendingDeleteMode = 'soft';
-
-function openConfirmModal() {
-  if (typeof el.confirmModal.showModal === 'function') {
-    el.confirmModal.showModal();
-  } else {
-    el.confirmModal.setAttribute('open', '');
-  }
-}
-
-function closeConfirmModal() {
-  if (typeof el.confirmModal.close === 'function') {
-    el.confirmModal.close();
-  } else {
-    el.confirmModal.removeAttribute('open');
-  }
-}
-
 /** Find a contact's display name on the current page, or a generic fallback. */
 function nameOnPage(id) {
   const row =
@@ -1427,28 +1398,31 @@ function nameOnPage(id) {
   return row ? fullName(row) : 'this contact';
 }
 
-function openDelete(id) {
-  lastTrigger = document.activeElement;
-  pendingDeleteId = id;
-  pendingDeleteMode = 'soft';
+/** Confirm + soft-delete (move to Trash, reversible via the Undo toast). */
+async function openDelete(id) {
   const name = nameOnPage(id);
-
-  // textContent keeps the name XSS-safe. Soft delete is reversible (Undo toast).
-  el.confirmText.textContent = `Delete ${name}? You can undo this from Trash.`;
-  openConfirmModal();
-  el.btnConfirmDelete.focus();
+  const ok = await confirmDialog({
+    title: 'Delete contact',
+    // textContent inside confirmDialog keeps the name XSS-safe.
+    message: `Delete ${name}? You can undo this from Trash.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  // performDelete handles its own errors internally; fire-and-forget is intentional.
+  if (ok) void performDelete(id, 'soft');
 }
 
-/** Queue a permanent (hard) delete via the same confirm modal. */
-function openPurge(id) {
-  lastTrigger = document.activeElement;
-  pendingDeleteId = id;
-  pendingDeleteMode = 'purge';
+/** Confirm + permanent (hard) delete — no Undo. */
+async function openPurge(id) {
   const name = nameOnPage(id);
-
-  el.confirmText.textContent = `Permanently delete ${name}? This cannot be undone.`;
-  openConfirmModal();
-  el.btnConfirmDelete.focus();
+  const ok = await confirmDialog({
+    title: 'Permanently delete contact',
+    message: `Permanently delete ${name}? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  // performDelete handles its own errors internally; fire-and-forget is intentional.
+  if (ok) void performDelete(id, 'purge');
 }
 
 /** Step back one page if the just-removed row was the last on a non-first page. */
@@ -1462,22 +1436,16 @@ function stepBackIfPageEmptied() {
   }
 }
 
-async function confirmDelete() {
-  if (pendingDeleteId == null) return;
-  const id = pendingDeleteId;
-  const mode = pendingDeleteMode;
-
-  el.btnConfirmDelete.disabled = true;
-  el.btnCancelDelete.disabled = true;
+/** Run the delete (soft or purge) and reconcile the table / toast / tags. */
+async function performDelete(id, mode) {
+  if (id == null) return;
 
   try {
     if (mode === 'purge') {
       await purgeContact(id);
-      closeConfirmModal();
       toast('Contact permanently deleted.', 'success');
     } else {
       await deleteContact(id);
-      closeConfirmModal();
       // Soft delete is reversible — offer an Undo that restores then reloads.
       toast('Contact moved to Trash.', 'success', {
         label: 'Undo',
@@ -1489,18 +1457,12 @@ async function confirmDelete() {
     load();
     populateTagFilter();
   } catch (err) {
-    closeConfirmModal();
     if (err.status === 404) {
       toast(err.message || 'Contact already deleted.', 'error');
     } else {
       toast(err.message || 'Failed to delete contact.', 'error');
     }
     load();
-  } finally {
-    pendingDeleteId = null;
-    pendingDeleteMode = 'soft';
-    el.btnConfirmDelete.disabled = false;
-    el.btnCancelDelete.disabled = false;
   }
 }
 
@@ -2038,24 +2000,9 @@ function wireEvents() {
     restoreTriggerFocus();
   });
 
-  // Delete modal: confirm / cancel / backdrop.
-  el.btnConfirmDelete.addEventListener('click', confirmDelete);
-  el.btnCancelDelete.addEventListener('click', (event) => {
-    event.preventDefault();
-    pendingDeleteId = null;
-    closeConfirmModal();
-  });
-  el.confirmModal.addEventListener('click', (event) => {
-    if (isBackdropClick(el.confirmModal, event)) {
-      pendingDeleteId = null;
-      closeConfirmModal();
-    }
-  });
-  el.confirmModal.addEventListener('cancel', () => {
-    pendingDeleteId = null;
-  });
-  // Any close path returns focus to the opener (or #btn-new if the row is gone).
-  el.confirmModal.addEventListener('close', restoreTriggerFocus);
+  // Delete confirmation: openDelete / openPurge drive the shared confirmDialog()
+  // (confirm-dialog.js), which owns its own confirm / cancel / Esc / backdrop /
+  // focus-restore handling — no per-page wiring needed here.
 
   // Detail modal: Edit hands off to the edit modal; close / backdrop dismiss it.
   el.btnDetailEdit.addEventListener('click', () => {

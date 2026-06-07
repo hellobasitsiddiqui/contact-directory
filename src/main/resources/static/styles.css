@@ -636,9 +636,18 @@ dialog[open] {
   color: var(--color-text);
 }
 
+/* Confirm dialog body text — single paragraph, comfortable reading width. */
+.confirm-text {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+
 /* ---------- Form layout inside modal ------------------------------------ */
 /* The contact form's body is the two-column responsive field grid. The
-   confirm modal's body is left untouched (it only holds a paragraph). */
+   confirm dialog (built dynamically in confirm-dialog.js) only holds a
+   single paragraph, styled by the shared .confirm-text rule above. */
 #contact-form .modal__body {
   display: grid;
   grid-template-columns: 1fr 1fr;
