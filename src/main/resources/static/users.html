@@ -82,11 +82,27 @@
       <table class="users-table" id="users-table" hidden>
         <thead>
           <tr>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th class="users-table__actions-col">Actions</th>
+            <th scope="col" aria-sort="none">
+              <button type="button" class="users-sort" data-sort="username">
+                Username<span class="users-sort__indicator" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="none">
+              <button type="button" class="users-sort" data-sort="role">
+                Role<span class="users-sort__indicator" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="none">
+              <button type="button" class="users-sort" data-sort="status">
+                Status<span class="users-sort__indicator" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="none">
+              <button type="button" class="users-sort" data-sort="created">
+                Created<span class="users-sort__indicator" aria-hidden="true"></span>
+              </button>
+            </th>
+            <th scope="col" class="users-table__actions-col">Actions</th>
           </tr>
         </thead>
         <tbody id="users-body"></tbody>

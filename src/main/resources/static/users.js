@@ -28,12 +28,14 @@ const auth = {
   },
 };
 
-/** All users fetched from the API, plus the current client-side filters. */
+/** All users fetched from the API, plus the current client-side filters/sort. */
 const state = {
   users: [],
   username: '',
   role: '',
   status: '',
+  sortKey: '',
+  sortDir: 'asc',
 };
 
 function $(id) {
@@ -165,11 +167,65 @@ function hasActiveFilter() {
   return !!(state.username.trim() || state.role || state.status);
 }
 
+/** Comparable value for a user under the given sort key. */
+function sortValue(user, key) {
+  switch (key) {
+    case 'username':
+      return String(user.username || '').toLowerCase();
+    case 'role':
+      return String(user.role || '').toLowerCase();
+    case 'status':
+      // Enabled before Disabled when ascending.
+      return user.enabled ? 0 : 1;
+    case 'created': {
+      const t = user.createdAt ? new Date(user.createdAt).getTime() : 0;
+      return Number.isNaN(t) ? 0 : t;
+    }
+    default:
+      return 0;
+  }
+}
+
+/** Sort a copy of the list by the active column; stable, no-op when no sort set. */
+function sortedUsers(users) {
+  if (!state.sortKey) return users;
+  const dir = state.sortDir === 'desc' ? -1 : 1;
+  return users
+    .map((u, i) => [u, i])
+    .sort((a, b) => {
+      const av = sortValue(a[0], state.sortKey);
+      const bv = sortValue(b[0], state.sortKey);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return a[1] - b[1]; // keep original order for ties
+    })
+    .map((pair) => pair[0]);
+}
+
+/** Reflect the active sort onto the header buttons (indicator + aria-sort). */
+function renderSortHeaders() {
+  document.querySelectorAll('.users-sort').forEach((btn) => {
+    const th = btn.closest('th');
+    const active = btn.dataset.sort === state.sortKey;
+    const indicator = btn.querySelector('.users-sort__indicator');
+    if (active) {
+      btn.classList.add('users-sort--active');
+      if (indicator) indicator.textContent = state.sortDir === 'desc' ? '▼' : '▲';
+      if (th) th.setAttribute('aria-sort', state.sortDir === 'desc' ? 'descending' : 'ascending');
+    } else {
+      btn.classList.remove('users-sort--active');
+      if (indicator) indicator.textContent = '';
+      if (th) th.setAttribute('aria-sort', 'none');
+    }
+  });
+}
+
 /** Render the table from the fetched list + current filters; shows an empty state. */
 function renderUsers() {
   const current = auth.user();
   const currentUsername = current ? current.username : '';
-  const matches = filteredUsers();
+  const matches = sortedUsers(filteredUsers());
+  renderSortHeaders();
   $('users-body').innerHTML = matches.map((u) => rowHtml(u, currentUsername)).join('');
   $('users-table').hidden = matches.length === 0;
   const empty = $('users-empty');
@@ -280,11 +336,30 @@ function onStatusFilterChange(event) {
   renderUsers();
 }
 
+function onSortClick(event) {
+  const btn = event.target.closest('.users-sort');
+  if (!btn) return;
+  const key = btn.dataset.sort;
+  if (state.sortKey === key) {
+    // Same column: toggle direction.
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    // New column: start ascending.
+    state.sortKey = key;
+    state.sortDir = 'asc';
+  }
+  renderUsers();
+}
+
 function onClearFilters() {
   if (usernameTimer) clearTimeout(usernameTimer);
   state.username = '';
   state.role = '';
   state.status = '';
+  // Clear also resets sort so the table returns to its default state
+  // (renderSortHeaders, called via renderUsers, clears the column indicators).
+  state.sortKey = '';
+  state.sortDir = 'asc';
   $('filter-username').value = '';
   $('filter-role').value = '';
   $('filter-status').value = '';
@@ -301,6 +376,7 @@ function init() {
   $('btn-logout').addEventListener('click', () => auth.logout());
   $('users-body').addEventListener('click', onTableClick);
   $('users-body').addEventListener('change', onTableChange);
+  $('users-table').tHead.addEventListener('click', onSortClick);
   $('filter-username').addEventListener('input', onUsernameInput);
   $('filter-role').addEventListener('change', onRoleFilterChange);
   $('filter-status').addEventListener('change', onStatusFilterChange);
