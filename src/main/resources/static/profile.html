@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile — Contact Directory</title>
+  <!-- Apply the saved/preferred theme before paint to avoid a flash. -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia
+          && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
+        // Auth guard: bounce to the login page before paint if no token is stored.
+        if (!localStorage.getItem('auth_token')) {
+          window.location.replace('login.html');
+        }
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="profile.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1 class="app-header__title">My Profile</h1>
+      <div class="app-header__actions">
+        <span id="current-user" class="app-header__user" hidden></span>
+        <a href="index.html" class="btn btn--secondary">← Contacts</a>
+        <button type="button" id="btn-theme" class="btn btn--secondary btn--icon"
+                aria-label="Switch to dark theme" aria-pressed="false">🌙</button>
+        <button type="button" id="btn-logout" class="btn btn--secondary">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main profile-main">
+    <!-- Account summary: username, role, member-since. -->
+    <section class="profile-panel" aria-labelledby="profile-summary-title">
+      <h2 id="profile-summary-title" class="profile-panel__title">Account</h2>
+      <dl class="profile-summary">
+        <div class="profile-summary__row">
+          <dt>Username</dt><dd id="profile-username">—</dd>
+        </div>
+        <div class="profile-summary__row">
+          <dt>Role</dt>
+          <dd><span id="profile-role" class="profile-role">—</span></dd>
+        </div>
+        <div class="profile-summary__row">
+          <dt>Member since</dt><dd id="profile-created">—</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- Change-password form. -->
+    <section class="profile-panel" aria-labelledby="profile-password-title">
+      <h2 id="profile-password-title" class="profile-panel__title">Change password</h2>
+      <form id="password-form" class="profile-form" novalidate>
+        <p id="password-message" class="profile-message" role="alert" hidden></p>
+
+        <div class="login-field">
+          <label for="current-password">Current password</label>
+          <input type="password" id="current-password" name="currentPassword"
+                 autocomplete="current-password" required />
+        </div>
+
+        <div class="login-field">
+          <label for="new-password">New password</label>
+          <input type="password" id="new-password" name="newPassword"
+                 autocomplete="new-password" required minlength="6" maxlength="100" />
+        </div>
+
+        <div class="login-field">
+          <label for="confirm-password">Confirm new password</label>
+          <input type="password" id="confirm-password" name="confirmPassword"
+                 autocomplete="new-password" required minlength="6" maxlength="100" />
+        </div>
+
+        <button type="submit" id="password-submit" class="btn btn--primary">
+          Update password
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <!-- Toast (shared #toast pattern: shown via toast--show). -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
