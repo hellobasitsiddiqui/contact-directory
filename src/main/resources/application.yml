@@ -36,3 +36,20 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
+
+app:
+  jwt:
+    # HS256 signing secret (>= 32 bytes). Override via APP_JWT_SECRET in any real
+    # environment; this default is for local/dev use only.
+    secret: ${APP_JWT_SECRET:change-me-local-dev-secret-please-override-32+bytes}
+    # Token lifetime in milliseconds (default 24h).
+    expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
+  default-admin:
+    # Seeded on first run when no users exist. Change before deploying.
+    username: ${APP_DEFAULT_ADMIN_USERNAME:admin}
+    password: ${APP_DEFAULT_ADMIN_PASSWORD:admin123}
+  security:
+    # Brute-force login protection: lock an account after this many consecutive
+    # failed logins, for this many minutes. A successful login resets the counter.
+    max-login-attempts: ${APP_MAX_LOGIN_ATTEMPTS:5}
+    lockout-minutes: ${APP_LOCKOUT_MINUTES:15}

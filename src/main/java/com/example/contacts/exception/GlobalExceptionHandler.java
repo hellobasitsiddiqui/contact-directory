@@ -4,6 +4,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -45,6 +48,90 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDuplicateEmail(
             DuplicateEmailException ex, HttpServletRequest req) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), req);
+    }
+
+    /**
+     * Handles registering an already-taken username, returning {@code 409 Conflict}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 409} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(DuplicateUsernameException.class)
+    public ResponseEntity<ApiError> handleDuplicateUsername(
+            DuplicateUsernameException ex, HttpServletRequest req) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), req);
+    }
+
+    /**
+     * Handles refused integrity-protecting operations (e.g. an admin demoting,
+     * disabling or deleting their own account, or removing the last admin),
+     * returning {@code 409 Conflict}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 409} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(OperationNotAllowedException.class)
+    public ResponseEntity<ApiError> handleOperationNotAllowed(
+            OperationNotAllowedException ex, HttpServletRequest req) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), req);
+    }
+
+    /**
+     * Handles failed login attempts (bad username/password), returning
+     * {@code 401 Unauthorized}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 401} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiError> handleBadCredentials(
+            BadCredentialsException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, "Invalid username or password", req);
+    }
+
+    /**
+     * Handles login attempts against a disabled account, returning
+     * {@code 401 Unauthorized}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 401} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ApiError> handleDisabled(
+            DisabledException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, "Account is disabled", req);
+    }
+
+    /**
+     * Handles login attempts against a temporarily locked account (too many
+     * consecutive failed logins), returning {@code 423 Locked}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 423} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ApiError> handleLocked(
+            LockedException ex, HttpServletRequest req) {
+        return build(HttpStatus.LOCKED, ex.getMessage(), req);
+    }
+
+    /**
+     * Handles a self-service password change where the supplied current password
+     * does not match the stored hash, returning {@code 400 Bad Request}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 400} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(InvalidCurrentPasswordException.class)
+    public ResponseEntity<ApiError> handleInvalidCurrentPassword(
+            InvalidCurrentPasswordException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req);
     }
 
     /**

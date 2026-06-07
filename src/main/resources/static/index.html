@@ -12,6 +12,10 @@
         var prefersDark = window.matchMedia
           && window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
+        // Auth guard: bounce to the login page before paint if no token is stored.
+        if (!localStorage.getItem('auth_token')) {
+          window.location.replace('login.html');
+        }
       } catch (e) {
         document.documentElement.dataset.theme = 'light';
       }
@@ -25,10 +29,16 @@
     <div class="app-header__inner">
       <h1 class="app-header__title">Contact Directory</h1>
       <div class="app-header__actions">
+        <span id="current-user" class="app-header__user" hidden></span>
+        <a href="profile.html" id="link-profile" class="btn btn--secondary">Profile</a>
+        <a href="users.html" id="link-users" class="btn btn--secondary" hidden>Users</a>
         <button type="button" id="btn-theme" class="btn btn--secondary btn--icon"
                 aria-label="Switch to dark theme" aria-pressed="false">🌙</button>
         <button type="button" id="btn-new" class="btn btn--primary">
           <span aria-hidden="true">+</span> New Contact
+        </button>
+        <button type="button" id="btn-logout" class="btn btn--secondary">
+          Log out
         </button>
       </div>
     </div>

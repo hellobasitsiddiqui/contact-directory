@@ -1340,3 +1340,386 @@ a.btn {
 :root[data-theme="dark"] .tag-chip__remove:hover {
   background: rgba(59, 130, 246, 0.3);
 }
+
+/* ------------------------------------------------------------------ *
+ * Header: signed-in user label
+ * ------------------------------------------------------------------ */
+.app-header__user {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: var(--space-1) var(--space-3);
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ *
+ * Login / register page
+ * ------------------------------------------------------------------ */
+.login-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(37, 99, 235, 0.12), transparent),
+    var(--color-bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 26rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.login-brand__mark {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.login-brand__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.login-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  margin-bottom: var(--space-5);
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.login-tab {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.login-tab.is-active {
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.login-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.login-field label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.login-field input {
+  padding: var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.login-field input:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.login-submit {
+  width: 100%;
+  justify-content: center;
+  padding: var(--space-3);
+  font-size: 0.9375rem;
+}
+
+.login-error {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: 0.875rem;
+  color: var(--color-danger-contrast);
+  background-color: var(--color-error-bg);
+  border-radius: var(--radius-sm);
+}
+
+.login-hint {
+  margin: var(--space-5) 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-subtle);
+  text-align: center;
+}
+
+.login-hint code {
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-muted);
+  background-color: var(--color-surface-alt);
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+}
+
+/* ------------------------------------------------------------------ *
+ * Admin: user-management table
+ * ------------------------------------------------------------------ */
+.users-panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+}
+
+.users-status {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-base);
+}
+
+.users-table thead th {
+  text-align: left;
+  padding: var(--space-3);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.users-table tbody td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.users-table tbody tr:hover {
+  background-color: var(--color-surface-alt);
+}
+
+.users-username {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.users-self {
+  font-weight: 400;
+  color: var(--color-text-subtle);
+  font-size: 0.8125rem;
+}
+
+.users-muted {
+  color: var(--color-text-muted);
+}
+
+.users-role {
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.users-role:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.users-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+}
+
+.users-badge--on {
+  color: #166534;
+  background-color: #dcfce7;
+}
+
+.users-badge--off {
+  color: #991b1b;
+  background-color: #fee2e2;
+}
+
+.users-table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.users-table__actions-col {
+  text-align: right;
+}
+
+:root[data-theme="dark"] .users-badge--on {
+  color: #bbf7d0;
+  background-color: rgba(22, 101, 52, 0.35);
+}
+
+:root[data-theme="dark"] .users-badge--off {
+  color: #fecaca;
+  background-color: rgba(153, 27, 27, 0.35);
+}
+
+/* ------------------------------------------------------------------ *
+ * Profile (account self-service) page
+ * ------------------------------------------------------------------ */
+.profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 36rem;
+}
+
+/* A card panel; matches the surface/border/shadow used elsewhere. */
+.profile-panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+
+.profile-panel__title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* Account summary definition list. */
+.profile-summary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.profile-summary__row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.profile-summary__row dt {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.profile-summary__row dd {
+  margin: 0;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+/* Role pill in the summary. */
+.profile-role {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-primary);
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+/* Change-password form: reuses .login-field for the labelled inputs. */
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.profile-form .btn {
+  align-self: flex-start;
+}
+
+/* Inline status message under the form. */
+.profile-message {
+  margin: 0;
+  padding: var(--space-3);
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-sm);
+}
+
+.profile-message--error {
+  color: var(--color-danger-contrast);
+  background-color: var(--color-error-bg);
+}
+
+.profile-message--success {
+  color: #ffffff;
+  background-color: var(--color-success-bg);
+}
+
+@media (max-width: 640px) {
+  .profile-summary__row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .profile-form .btn {
+    align-self: stretch;
+  }
+}

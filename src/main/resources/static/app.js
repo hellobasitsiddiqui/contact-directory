@@ -25,6 +25,31 @@
 const API_BASE = '/api/v1/contacts';
 const SEARCH_DEBOUNCE_MS = 300;
 
+/* ------------------------------------------------------------------ *
+ * Auth helpers — JWT bearer token stored in localStorage by login.js.
+ * ------------------------------------------------------------------ */
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+
+const auth = {
+  token() {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+  user() {
+    try {
+      return JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+    } catch (_) {
+      return null;
+    }
+  },
+  /** Clear credentials and return to the login page. */
+  logout() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    window.location.replace('login.html');
+  },
+};
+
 /** Client-side photo upload constraints — mirror the server limits. */
 const ALLOWED_PHOTO_TYPES = [
   'image/png',
@@ -75,6 +100,9 @@ const el = {
   // Header
   btnNew: $('btn-new'),
   btnTheme: $('btn-theme'),
+  btnLogout: $('btn-logout'),
+  currentUser: $('current-user'),
+  linkUsers: $('link-users'),
   // Toolbar
   searchInput: $('search-input'),
   btnClearSearch: $('btn-clear-search'),
@@ -195,6 +223,12 @@ async function request(url, options = {}) {
     }
   }
 
+  // Attach the JWT bearer token to every API call.
+  const token = auth.token();
+  if (token) {
+    opts.headers = { ...(opts.headers || {}), Authorization: `Bearer ${token}` };
+  }
+
   let response;
   try {
     response = await fetch(url, opts);
@@ -203,6 +237,15 @@ async function request(url, options = {}) {
     err.status = 0;
     err.body = null;
     err.cause = networkErr;
+    throw err;
+  }
+
+  // An expired/invalid token (or being signed out server-side) -> back to login.
+  if (response.status === 401) {
+    auth.logout();
+    const err = new Error('Session expired — please sign in again.');
+    err.status = 401;
+    err.body = null;
     throw err;
   }
 
@@ -1939,6 +1982,22 @@ function wireEvents() {
  * Bootstrap
  * ------------------------------------------------------------------ */
 
+/** Show the signed-in username in the header and wire the logout button. */
+function setupAuthUi() {
+  const user = auth.user();
+  if (user && user.username && el.currentUser) {
+    el.currentUser.textContent = user.username;
+    el.currentUser.hidden = false;
+  }
+  // The user-management link is only shown to admins (and the API enforces it).
+  if (el.linkUsers && user && user.role === 'ADMIN') {
+    el.linkUsers.hidden = false;
+  }
+  if (el.btnLogout) {
+    el.btnLogout.addEventListener('click', () => auth.logout());
+  }
+}
+
 function init() {
   // Sync state with any defaults already present in the markup.
   if (el.pageSize && el.pageSize.value) {
@@ -1949,6 +2008,7 @@ function init() {
     state.sort = el.sortSelect.value;
   }
 
+  setupAuthUi();
   wireEvents();
   updateThemeButton();
   renderTagChips();

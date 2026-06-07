@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — Contact Directory</title>
+  <!-- Apply the saved/preferred theme before paint to avoid a flash. -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia
+          && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
+        // If already signed in, skip the login screen.
+        if (localStorage.getItem('auth_token')) {
+          window.location.replace('index.html');
+        }
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="login.js"></script>
+</head>
+<body class="login-body">
+  <main class="login-card" aria-labelledby="login-title">
+    <div class="login-brand">
+      <span class="login-brand__mark" aria-hidden="true">📇</span>
+      <h1 id="login-title" class="login-brand__title">Contact Directory</h1>
+    </div>
+
+    <div class="login-tabs" role="tablist" aria-label="Authentication mode">
+      <button type="button" id="tab-login" class="login-tab is-active"
+              role="tab" aria-selected="true">Sign in</button>
+      <button type="button" id="tab-register" class="login-tab"
+              role="tab" aria-selected="false">Create account</button>
+    </div>
+
+    <form id="auth-form" class="login-form" novalidate>
+      <p id="auth-subtitle" class="login-subtitle">Sign in to manage your contacts.</p>
+
+      <div class="login-field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username"
+               required minlength="3" maxlength="50" autofocus />
+      </div>
+
+      <div class="login-field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               autocomplete="current-password" required minlength="6" maxlength="100" />
+      </div>
+
+      <p id="auth-error" class="login-error" role="alert" hidden></p>
+
+      <button type="submit" id="auth-submit" class="btn btn--primary login-submit">
+        Sign in
+      </button>
+    </form>
+
+    <p class="login-hint" id="login-hint">
+      Default admin login: <code>admin</code> / <code>admin123</code>
+    </p>
+  </main>
+</body>
+</html>

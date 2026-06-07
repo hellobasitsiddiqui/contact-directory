@@ -19,3 +19,17 @@ spring:
     multipart:
       max-file-size: 2MB
       max-request-size: 2MB
+
+# Fixed test secret/lifetime so JWT beans wire and tokens are deterministic.
+app:
+  jwt:
+    secret: test-only-jwt-signing-secret-at-least-32-bytes-long-1234567890
+    expiration-ms: 3600000
+  default-admin:
+    username: admin
+    password: admin123
+  security:
+    # Safe for the existing suite: tests never fail the same account 5+ times in
+    # a row and always reset via successful logins, so nobody gets locked out.
+    max-login-attempts: 5
+    lockout-minutes: 15
