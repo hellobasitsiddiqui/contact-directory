@@ -99,14 +99,54 @@ function showError(message) {
   e.hidden = false;
 }
 
-function formatDate(iso) {
+/** Absolute, localised timestamp used for the hover title (and as a fallback). */
+function formatTimestamp(iso) {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleDateString(undefined,
+    return new Date(iso).toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch (_) {
+    return iso;
+  }
+}
+
+/**
+ * Human-friendly relative label: "just now", "5m", "3h", "2d", then a short
+ * date once older than a week. Future times degrade gracefully to "just now".
+ */
+function formatRelative(iso) {
+  if (!iso) return '—';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return iso;
+  const diffSeconds = Math.round((Date.now() - then) / 1000);
+  if (diffSeconds < 45) return 'just now';
+  const minutes = Math.round(diffSeconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(diffSeconds / 3600);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.round(diffSeconds / 86400);
+  if (days < 7) return `${days}d`;
+  try {
+    return new Date(then).toLocaleDateString(undefined,
       { year: 'numeric', month: 'short', day: 'numeric' });
   } catch (_) {
     return iso;
   }
+}
+
+/**
+ * A <time> cell showing the relative label, with the exact timestamp on hover
+ * (title) and machine-readable in datetime. Falls back to a plain dash.
+ */
+function timeCell(iso) {
+  if (!iso) return '—';
+  const relative = escapeHtml(formatRelative(iso));
+  const absolute = escapeHtml(formatTimestamp(iso));
+  // aria-label mirrors the hover title so screen readers announce the full
+  // date/time, while sighted users keep the compact relative label.
+  return `<time datetime="${escapeHtml(iso)}" title="${absolute}" aria-label="${absolute}">${relative}</time>`;
 }
 
 function rowHtml(user, currentUsername) {
@@ -144,7 +184,7 @@ function rowHtml(user, currentUsername) {
       <td class="users-username">${escapeHtml(user.username)}${selfTag}</td>
       <td>${roleSelect}</td>
       <td>${statusBadge}</td>
-      <td class="users-muted">${formatDate(user.createdAt)}</td>
+      <td class="users-muted">${timeCell(user.createdAt)}</td>
       <td class="users-table__actions">${toggleBtn} ${resetBtn} ${deleteBtn}</td>
     </tr>`;
 }
