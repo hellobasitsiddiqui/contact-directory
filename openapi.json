@@ -2,7 +2,7 @@
     "openapi": "3.0.1",
     "info": {
         "title": "Contact Directory API",
-        "description": "REST API for managing contacts in the Contact Directory.",
+        "description": "REST API for managing contacts in the Contact Directory. Most endpoints require a JWT bearer token obtained from POST /api/v1/auth/login or /api/v1/auth/register.",
         "version": "1.0"
     },
     "servers": [
@@ -11,10 +11,23 @@
             "description": "Generated server url"
         }
     ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
     "tags": [
+        {
+            "name": "User management",
+            "description": "Admin-only management of user accounts"
+        },
         {
             "name": "Contacts",
             "description": "Create, read, update, delete and search contacts"
+        },
+        {
+            "name": "Authentication",
+            "description": "Register, login and current-user endpoints"
         }
     ],
     "paths": {
@@ -83,11 +96,11 @@
                     "required": true
                 },
                 "responses": {
-                    "404": {
-                        "description": "Contact not found"
-                    },
                     "412": {
                         "description": "Stale version / concurrent modification"
+                    },
+                    "404": {
+                        "description": "Contact not found"
                     },
                     "400": {
                         "description": "Validation failed"
@@ -113,7 +126,7 @@
                 ],
                 "summary": "Soft-delete a contact",
                 "description": "Soft-deletes the contact (moves it to trash); it can be restored or permanently deleted later.",
-                "operationId": "delete",
+                "operationId": "delete_1",
                 "parameters": [
                     {
                         "name": "id",
@@ -165,11 +178,11 @@
                     "required": true
                 },
                 "responses": {
-                    "404": {
-                        "description": "Contact not found"
-                    },
                     "412": {
                         "description": "Stale version / concurrent modification"
+                    },
+                    "404": {
+                        "description": "Contact not found"
                     },
                     "400": {
                         "description": "Validation failed"
@@ -190,6 +203,48 @@
                 }
             }
         },
+        "/api/v1/users/{id}/reset-password": {
+            "post": {
+                "tags": [
+                    "User management"
+                ],
+                "summary": "Reset a user's password",
+                "operationId": "resetPassword",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResetPasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contacts": {
             "get": {
                 "tags": [
@@ -197,7 +252,7 @@
                 ],
                 "summary": "List contacts",
                 "description": "Returns a paginated list of contacts, optionally filtered by a search term and/or a tag.",
-                "operationId": "list",
+                "operationId": "list_1",
                 "parameters": [
                     {
                         "name": "search",
@@ -418,6 +473,12 @@
                     }
                 },
                 "responses": {
+                    "400": {
+                        "description": "Invalid image"
+                    },
+                    "413": {
+                        "description": "File too large"
+                    },
                     "404": {
                         "description": "Contact not found"
                     },
@@ -430,12 +491,6 @@
                                 }
                             }
                         }
-                    },
-                    "400": {
-                        "description": "Invalid image"
-                    },
-                    "413": {
-                        "description": "File too large"
                     }
                 }
             },
@@ -505,11 +560,11 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "Invalid file"
-                    },
                     "413": {
                         "description": "File too large"
+                    },
+                    "400": {
+                        "description": "Invalid file"
                     }
                 }
             }
@@ -603,6 +658,210 @@
                             "*/*": {
                                 "schema": {
                                     "$ref": "#/components/schemas/BulkResult"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/register": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Register a new account and receive a JWT",
+                "operationId": "register",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Log in with username/password and receive a JWT",
+                "operationId": "login",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/change-password": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Change the current user's own password",
+                "operationId": "changePassword",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChangePasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/{id}/role": {
+            "patch": {
+                "tags": [
+                    "User management"
+                ],
+                "summary": "Change a user's role",
+                "operationId": "updateRole",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateRoleRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/{id}/enabled": {
+            "patch": {
+                "tags": [
+                    "User management"
+                ],
+                "summary": "Enable or disable a user account",
+                "operationId": "setEnabled",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateEnabledRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users": {
+            "get": {
+                "tags": [
+                    "User management"
+                ],
+                "summary": "List all user accounts",
+                "operationId": "list",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserResponse"
+                                    }
                                 }
                             }
                         }
@@ -742,13 +1001,62 @@
                 }
             }
         },
+        "/api/v1/auth/me": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Return the currently authenticated user",
+                "operationId": "me",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/{id}": {
+            "delete": {
+                "tags": [
+                    "User management"
+                ],
+                "summary": "Delete a user account",
+                "operationId": "delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/api/v1/contacts/{id}/permanent": {
             "delete": {
                 "tags": [
                     "Contacts"
                 ],
-                "summary": "Permanently delete a contact",
-                "description": "Hard-deletes the contact, removing it irreversibly.",
+                "summary": "Permanently delete a contact (admin only)",
+                "description": "Hard-deletes the contact, removing it irreversibly. Requires the ADMIN role.",
                 "operationId": "purge",
                 "parameters": [
                     {
@@ -763,6 +1071,9 @@
                     }
                 ],
                 "responses": {
+                    "403": {
+                        "description": "Caller is not an admin"
+                    },
                     "404": {
                         "description": "Contact not found"
                     },
@@ -874,6 +1185,41 @@
                     }
                 }
             },
+            "ResetPasswordRequest": {
+                "required": [
+                    "password"
+                ],
+                "type": "object",
+                "properties": {
+                    "password": {
+                        "maxLength": 100,
+                        "minLength": 6,
+                        "type": "string"
+                    }
+                }
+            },
+            "UserResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
             "ImportSummary": {
                 "type": "object",
                 "properties": {
@@ -952,6 +1298,104 @@
                             "type": "integer",
                             "format": "int64"
                         }
+                    }
+                }
+            },
+            "RegisterRequest": {
+                "required": [
+                    "password",
+                    "username"
+                ],
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "maxLength": 50,
+                        "minLength": 3,
+                        "type": "string"
+                    },
+                    "password": {
+                        "maxLength": 100,
+                        "minLength": 6,
+                        "type": "string"
+                    }
+                }
+            },
+            "AuthResponse": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "tokenType": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "expiresInMs": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "LoginRequest": {
+                "required": [
+                    "password",
+                    "username"
+                ],
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ChangePasswordRequest": {
+                "required": [
+                    "currentPassword",
+                    "newPassword"
+                ],
+                "type": "object",
+                "properties": {
+                    "currentPassword": {
+                        "type": "string"
+                    },
+                    "newPassword": {
+                        "maxLength": 100,
+                        "minLength": 6,
+                        "type": "string"
+                    }
+                }
+            },
+            "UpdateRoleRequest": {
+                "required": [
+                    "role"
+                ],
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "USER",
+                            "ADMIN"
+                        ]
+                    }
+                }
+            },
+            "UpdateEnabledRequest": {
+                "required": [
+                    "enabled"
+                ],
+                "type": "object",
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -1089,6 +1533,14 @@
                         "type": "boolean"
                     }
                 }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "Paste a JWT from /api/v1/auth/login (the 'Bearer ' prefix is added automatically).",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
             }
         }
     }
