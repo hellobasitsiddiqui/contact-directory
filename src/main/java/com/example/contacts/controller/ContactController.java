@@ -10,7 +10,9 @@ import com.example.contacts.dto.ContactResponse;
 import com.example.contacts.dto.ImportSummary;
 import com.example.contacts.exception.InvalidFileException;
 import com.example.contacts.exception.InvalidImageException;
+import com.example.contacts.model.AuditAction;
 import com.example.contacts.security.CurrentUserService;
+import com.example.contacts.service.AuditService;
 import com.example.contacts.service.ContactService;
 import com.example.contacts.service.PhotoData;
 
@@ -65,6 +67,7 @@ public class ContactController {
 
     private final ContactService contactService;
     private final CurrentUserService currentUserService;
+    private final AuditService auditService;
 
     /**
      * Creates the controller with its required collaborators.
@@ -72,11 +75,14 @@ public class ContactController {
      * @param contactService     the service handling contact business logic
      * @param currentUserService resolves the owner id and admin flag for the
      *                           authenticated request, used to scope operations
+     * @param auditService       records an audit event after each successful mutation
      */
     public ContactController(ContactService contactService,
-                             CurrentUserService currentUserService) {
+                             CurrentUserService currentUserService,
+                             AuditService auditService) {
         this.contactService = contactService;
         this.currentUserService = currentUserService;
+        this.auditService = auditService;
     }
 
     /**
@@ -97,6 +103,8 @@ public class ContactController {
     public ResponseEntity<ContactResponse> create(@Valid @RequestBody ContactRequest request,
                                                   Authentication auth) {
         ContactResponse created = contactService.create(request, currentUserService.currentUserId(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_CREATE, "CONTACT", created.id(),
+                "Created contact " + created.id());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(created.id())
@@ -183,8 +191,11 @@ public class ContactController {
             @PathVariable @Parameter(description = "Contact identifier") Long id,
             @Valid @RequestBody ContactRequest request,
             Authentication auth) {
-        return ResponseEntity.ok(contactService.update(id, request,
-                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
+        ContactResponse updated = contactService.update(id, request,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_UPDATE, "CONTACT", id,
+                "Updated contact " + id);
+        return ResponseEntity.ok(updated);
     }
 
     /**
@@ -208,8 +219,11 @@ public class ContactController {
             @PathVariable @Parameter(description = "Contact identifier") Long id,
             @Valid @RequestBody ContactPatchRequest request,
             Authentication auth) {
-        return ResponseEntity.ok(contactService.patch(id, request,
-                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
+        ContactResponse patched = contactService.patch(id, request,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_UPDATE, "CONTACT", id,
+                "Updated contact " + id);
+        return ResponseEntity.ok(patched);
     }
 
     /**
@@ -231,6 +245,8 @@ public class ContactController {
             Authentication auth) {
         contactService.delete(id,
                 currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_DELETE, "CONTACT", id,
+                "Soft-deleted contact " + id);
         return ResponseEntity.noContent().build();
     }
 
@@ -267,8 +283,11 @@ public class ContactController {
     public ResponseEntity<ContactResponse> restore(
             @PathVariable @Parameter(description = "Contact identifier") Long id,
             Authentication auth) {
-        return ResponseEntity.ok(contactService.restore(id,
-                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
+        ContactResponse restored = contactService.restore(id,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_RESTORE, "CONTACT", id,
+                "Restored contact " + id);
+        return ResponseEntity.ok(restored);
     }
 
     /**
@@ -292,6 +311,8 @@ public class ContactController {
             Authentication auth) {
         contactService.purge(id,
                 currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_PURGE, "CONTACT", id,
+                "Permanently deleted contact " + id);
         return ResponseEntity.noContent().build();
     }
 
@@ -361,6 +382,8 @@ public class ContactController {
         Long ownerId = currentUserService.currentUserId(auth);
         boolean isAdmin = currentUserService.isAdmin(auth);
         contactService.savePhoto(id, file.getBytes(), file.getContentType(), ownerId, isAdmin);
+        auditService.record(auth.getName(), AuditAction.CONTACT_PHOTO_UPDATE, "CONTACT", id,
+                "Updated photo for contact " + id);
         return ResponseEntity.ok(contactService.get(id, ownerId, isAdmin));
     }
 
@@ -381,6 +404,8 @@ public class ContactController {
             Authentication auth) {
         contactService.deletePhoto(id,
                 currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_PHOTO_DELETE, "CONTACT", id,
+                "Deleted photo for contact " + id);
         return ResponseEntity.noContent().build();
     }
 
@@ -453,7 +478,10 @@ public class ContactController {
                     "Unsupported file type: " + type + ". Please upload a .csv file.");
         }
         String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-        return ResponseEntity.ok(contactService.importCsv(content, currentUserService.currentUserId(auth)));
+        ImportSummary summary = contactService.importCsv(content, currentUserService.currentUserId(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_IMPORT, "CONTACT", null,
+                "Imported contacts: " + summary.imported() + " imported, " + summary.skipped() + " skipped");
+        return ResponseEntity.ok(summary);
     }
 
     /**
@@ -470,6 +498,8 @@ public class ContactController {
                                                  Authentication auth) {
         int affected = contactService.bulkDelete(request.ids(),
                 currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_BULK_DELETE, "CONTACT", null,
+                "Bulk soft-deleted " + affected + " contact(s)");
         return ResponseEntity.ok(new BulkResult(affected));
     }
 
@@ -487,6 +517,8 @@ public class ContactController {
                                                    Authentication auth) {
         int affected = contactService.bulkSetFavorite(request.ids(), request.favorite(),
                 currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_BULK_FAVORITE, "CONTACT", null,
+                "Bulk set favorite=" + request.favorite() + " on " + affected + " contact(s)");
         return ResponseEntity.ok(new BulkResult(affected));
     }
 
@@ -505,6 +537,8 @@ public class ContactController {
         int affected = contactService.bulkAddRemoveTags(
                 request.ids(), request.addTags(), request.removeTags(),
                 currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
+        auditService.record(auth.getName(), AuditAction.CONTACT_BULK_TAGS, "CONTACT", null,
+                "Bulk updated tags on " + affected + " contact(s)");
         return ResponseEntity.ok(new BulkResult(affected));
     }
 }

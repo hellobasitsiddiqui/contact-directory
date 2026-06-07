@@ -47,6 +47,14 @@ Every signed-in user has a **Profile** page showing their account details and a 
 
 ![Profile](screenshots/04-profile.png)
 
+## 5. Admin: activity log
+
+Admins also get an **Activity** link opening the audit trail — an append-only log of who did what
+and when (contact create/edit/delete/restore, bulk and import actions, user-management changes, and
+logins/registrations). It can be filtered by actor and action.
+
+![Activity log](screenshots/05-activity.png)
+
 ---
 
 > Screenshots are generated from the running app. To refresh them, re-run the app and recapture the

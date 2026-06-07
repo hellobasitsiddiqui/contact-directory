@@ -15,6 +15,10 @@ a persistent file-mode **H2** database and covered by **178 automated tests**.
 |---|---|
 | ![User management](docs/screenshots/03-users.png) | ![Profile & change password](docs/screenshots/04-profile.png) |
 
+**Admin activity log (audit trail)**
+
+![Activity log](docs/screenshots/05-activity.png)
+
 > A step-by-step walkthrough with these screens lives in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 ## Features
@@ -39,6 +43,8 @@ a persistent file-mode **H2** database and covered by **178 automated tests**.
   (with self-protection: an admin can't demote, disable or delete their own account)
 - **Account self-service** — change your own password and a profile page
 - **Brute-force lockout** — repeated failed logins temporarily lock an account (`423 Locked`)
+- **Audit log** — contact mutations, user-management actions and logins are recorded; admins get
+  an Activity page backed by `GET /api/v1/audit` (filterable by actor and action)
 
 ## Tech stack
 
@@ -143,6 +149,12 @@ unsupported types return `400`.
 | `PATCH`  | `/api/v1/users/{id}/enabled`          | Enable / disable a user    |
 | `POST`   | `/api/v1/users/{id}/reset-password`   | Reset a user's password    |
 | `DELETE` | `/api/v1/users/{id}`                  | Delete a user              |
+
+### Audit log — base path `/api/v1/audit` (**ADMIN only**)
+
+| Method | Path            | Description                                                       |
+|--------|-----------------|------------------------------------------------------------------|
+| `GET`  | `/api/v1/audit` | List recorded events (paginated, newest first; `?actor=`, `?action=`) |
 
 ### Listing query parameters
 

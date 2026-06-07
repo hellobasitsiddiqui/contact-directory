@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.Instant;
@@ -233,6 +234,23 @@ public class GlobalExceptionHandler {
             MaxUploadSizeExceededException ex, HttpServletRequest req) {
         return build(HttpStatus.PAYLOAD_TOO_LARGE,
                 "Uploaded file is too large (max 2MB)", req);
+    }
+
+    /**
+     * Handles a query/path parameter whose value cannot be bound to the target
+     * type (e.g. an unknown {@code action} enum name on the audit endpoint),
+     * returning {@code 400 Bad Request} as a structured {@link ApiError} rather
+     * than letting it fall through to Spring's default error handling.
+     *
+     * @param ex  the type-mismatch exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 400} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Invalid value for parameter '" + ex.getName() + "'", req);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message, HttpServletRequest req) {

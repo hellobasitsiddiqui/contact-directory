@@ -3,11 +3,13 @@ package com.example.contacts.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -19,7 +21,9 @@ import com.example.contacts.dto.ContactRequest;
 import com.example.contacts.dto.ContactResponse;
 import com.example.contacts.exception.ResourceNotFoundException;
 import com.example.contacts.exception.StaleResourceException;
+import com.example.contacts.model.AuditAction;
 import com.example.contacts.security.CurrentUserService;
+import com.example.contacts.service.AuditService;
 import com.example.contacts.service.ContactService;
 import com.example.contacts.service.PhotoData;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,8 +45,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 /**
  * Web-layer slice tests for {@link ContactController}. Only the MVC
@@ -70,6 +78,8 @@ class ContactControllerTest {
     private static final long OWNER_ID = 1000L;
 
     @Autowired
+    private WebApplicationContext webApplicationContext;
+
     private MockMvc mockMvc;
 
     @Autowired
@@ -81,8 +91,34 @@ class ContactControllerTest {
     @MockBean
     private CurrentUserService currentUserService;
 
+    /**
+     * {@link ContactController} now records audit events via {@link AuditService};
+     * it is mocked so the web slice wires and its no-op {@code record} calls do
+     * not touch persistence.
+     */
+    @MockBean
+    private AuditService auditService;
+
     @BeforeEach
-    void stubCurrentUser() {
+    void setUp() {
+        // Build MockMvc with a default request that carries the security-context
+        // principal as the servlet user principal. With addFilters = false the
+        // security filter chain never runs, so the controller's raw Authentication
+        // argument would otherwise resolve to null; the controller now dereferences
+        // it (e.g. auth.getName() when recording audit events), so it must be
+        // populated. @WithMockUser puts the Authentication in the SecurityContext,
+        // and this RequestPostProcessor copies it onto the request.
+        RequestPostProcessor withSecurityContextPrincipal = request -> {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                request.setUserPrincipal(auth);
+            }
+            return request;
+        };
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .defaultRequest(get("/").with(withSecurityContextPrincipal))
+                .build();
+
         // Default to a non-admin owner; admin-only tests override isAdmin below.
         // Use any() (not any(Authentication.class)) so the stub still matches even
         // when the resolved Authentication argument is null in the slice context.
@@ -110,6 +146,8 @@ class ContactControllerTest {
                 .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/api/v1/contacts/1")))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.email").value("ada@example.com"));
+
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_CREATE), eq("CONTACT"), eq(1L), any());
     }
 
     @Test
@@ -176,6 +214,7 @@ class ContactControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(contactService).delete(eq(1L), eq(OWNER_ID), eq(false));
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_DELETE), eq("CONTACT"), eq(1L), any());
     }
 
     // ---- Trash / restore / permanent -------------------------------------
@@ -201,6 +240,7 @@ class ContactControllerTest {
                 .andExpect(jsonPath("$.id").value(1));
 
         verify(contactService).restore(eq(1L), eq(OWNER_ID), eq(false));
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_RESTORE), eq("CONTACT"), eq(1L), any());
     }
 
     @Test
@@ -213,6 +253,7 @@ class ContactControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(contactService).purge(eq(1L), eq(OWNER_ID), eq(true));
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_PURGE), eq("CONTACT"), eq(1L), any());
     }
 
     // ---- Optimistic concurrency (412) ------------------------------------
@@ -231,6 +272,38 @@ class ContactControllerTest {
                 .andExpect(jsonPath("$.status").value(412));
     }
 
+    // ---- Update / patch ---------------------------------------------------
+
+    @Test
+    void put_validBody_returns200AndRecordsUpdate() throws Exception {
+        ContactRequest req = new ContactRequest("Ada", "Lovelace", "ada@example.com",
+                null, null, null, false, null, null);
+        when(contactService.update(eq(1L), any(ContactRequest.class), eq(OWNER_ID), eq(false)))
+                .thenReturn(sampleResponse());
+
+        mockMvc.perform(put("/api/v1/contacts/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_UPDATE), eq("CONTACT"), eq(1L), any());
+    }
+
+    @Test
+    void patch_validBody_returns200AndRecordsUpdate() throws Exception {
+        when(contactService.patch(eq(1L), any(), eq(OWNER_ID), eq(false)))
+                .thenReturn(sampleResponse());
+
+        mockMvc.perform(patch("/api/v1/contacts/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"New\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_UPDATE), eq("CONTACT"), eq(1L), any());
+    }
+
     // ---- Bulk endpoints ---------------------------------------------------
 
     @Test
@@ -242,6 +315,8 @@ class ContactControllerTest {
                         .content("{\"ids\":[1,2]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.affected").value(2));
+
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_BULK_DELETE), eq("CONTACT"), isNull(), any());
     }
 
     @Test
@@ -253,6 +328,8 @@ class ContactControllerTest {
                         .content("{\"ids\":[1,2,3],\"favorite\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.affected").value(3));
+
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_BULK_FAVORITE), eq("CONTACT"), isNull(), any());
     }
 
     @Test
@@ -265,6 +342,8 @@ class ContactControllerTest {
                         .content("{\"ids\":[1],\"addTags\":[\"VIP\"],\"removeTags\":[\"Old\"]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.affected").value(1));
+
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_BULK_TAGS), eq("CONTACT"), isNull(), any());
     }
 
     // ---- Photo endpoints -------------------------------------------------
@@ -281,6 +360,7 @@ class ContactControllerTest {
                 .andExpect(jsonPath("$.id").value(1));
 
         verify(contactService).savePhoto(eq(1L), eq(bytes), eq("image/png"), eq(OWNER_ID), eq(false));
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_PHOTO_UPDATE), eq("CONTACT"), eq(1L), any());
     }
 
     @Test
@@ -320,5 +400,6 @@ class ContactControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(contactService).deletePhoto(eq(1L), eq(OWNER_ID), eq(false));
+        verify(auditService).record(any(), eq(AuditAction.CONTACT_PHOTO_DELETE), eq("CONTACT"), eq(1L), any());
     }
 }

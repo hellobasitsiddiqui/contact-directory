@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Log — Contact Directory</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia
+          && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
+        // Auth guard: must be signed in...
+        if (!localStorage.getItem('auth_token')) {
+          window.location.replace('login.html');
+        } else {
+          // ...and must be an admin.
+          var u = JSON.parse(localStorage.getItem('auth_user') || 'null');
+          if (!u || u.role !== 'ADMIN') {
+            window.location.replace('index.html');
+          }
+        }
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="activity.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1 class="app-header__title">Activity Log</h1>
+      <div class="app-header__actions">
+        <span id="current-user" class="app-header__user" hidden></span>
+        <a href="index.html" class="btn btn--secondary">← Contacts</a>
+        <a href="users.html" class="btn btn--secondary">Users</a>
+        <a href="profile.html" class="btn btn--secondary">Profile</a>
+        <button type="button" id="btn-logout" class="btn btn--secondary">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <p id="audit-error" class="login-error" role="alert" hidden></p>
+
+    <section class="toolbar" aria-label="Filters">
+      <div class="toolbar__inner">
+        <div class="toolbar__controls">
+          <div class="toolbar__control">
+            <label for="filter-actor">Actor</label>
+            <input type="search" id="filter-actor" class="input"
+                   placeholder="Username…" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="toolbar__control">
+            <label for="filter-action">Action</label>
+            <select id="filter-action" class="select">
+              <option value="">All actions</option>
+            </select>
+          </div>
+          <div class="toolbar__control">
+            <button type="button" id="btn-clear-filters" class="btn btn--secondary">Clear</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="users-panel" aria-label="Audit events">
+      <div id="audit-loading" class="users-status">Loading activity…</div>
+      <table class="users-table" id="audit-table" hidden>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Target</th>
+            <th>Summary</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body"></tbody>
+      </table>
+      <div id="audit-empty" class="users-status" hidden>No activity recorded.</div>
+
+      <nav class="pagination" aria-label="Pagination">
+        <button type="button" id="btn-prev" class="btn btn--secondary">Previous</button>
+        <span id="page-info" class="page-info" aria-live="polite"></span>
+        <button type="button" id="btn-next" class="btn btn--secondary">Next</button>
+      </nav>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

@@ -103,6 +103,7 @@ const el = {
   btnLogout: $('btn-logout'),
   currentUser: $('current-user'),
   linkUsers: $('link-users'),
+  linkActivity: $('link-activity'),
   // Toolbar
   searchInput: $('search-input'),
   btnClearSearch: $('btn-clear-search'),
@@ -1989,9 +1990,11 @@ function setupAuthUi() {
     el.currentUser.textContent = user.username;
     el.currentUser.hidden = false;
   }
-  // The user-management link is only shown to admins (and the API enforces it).
-  if (el.linkUsers && user && user.role === 'ADMIN') {
-    el.linkUsers.hidden = false;
+  // The user-management and activity-log links are only shown to admins
+  // (and the APIs enforce it).
+  if (user && user.role === 'ADMIN') {
+    if (el.linkUsers) el.linkUsers.hidden = false;
+    if (el.linkActivity) el.linkActivity.hidden = false;
   }
   if (el.btnLogout) {
     el.btnLogout.addEventListener('click', () => auth.logout());

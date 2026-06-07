@@ -34,8 +34,8 @@ public class SecurityConfig {
 
     /** Public static assets and infrastructure paths. */
     private static final String[] PUBLIC_GET = {
-            "/", "/index.html", "/login.html", "/users.html", "/profile.html",
-            "/app.js", "/login.js", "/users.js", "/profile.js",
+            "/", "/index.html", "/login.html", "/users.html", "/profile.html", "/activity.html",
+            "/app.js", "/login.js", "/users.js", "/profile.js", "/activity.js",
             "/styles.css", "/favicon.ico"
     };
 
