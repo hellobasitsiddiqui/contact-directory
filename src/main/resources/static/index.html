@@ -22,6 +22,7 @@
     })();
   </script>
   <link rel="stylesheet" href="styles.css" />
+  <script defer src="confirm-dialog.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -247,23 +248,7 @@
     </form>
   </dialog>
 
-  <!-- Delete confirmation modal -->
-  <dialog id="confirm-modal" class="modal modal--confirm" aria-labelledby="confirm-title">
-    <div class="modal__form">
-      <header class="modal__header">
-        <h2 id="confirm-title" class="modal__title">Delete contact</h2>
-      </header>
-
-      <div class="modal__body">
-        <p id="confirm-text" class="confirm-text"></p>
-      </div>
-
-      <footer class="modal__footer">
-        <button type="button" id="btn-cancel-delete" class="btn btn--secondary">Cancel</button>
-        <button type="button" id="btn-confirm-delete" class="btn btn--danger">Delete</button>
-      </footer>
-    </div>
-  </dialog>
+  <!-- Delete confirmation uses the shared confirmDialog() (confirm-dialog.js). -->
 
   <!-- Contact detail (read-only profile) modal -->
   <dialog id="detail-modal" class="modal modal--detail" aria-labelledby="detail-name">

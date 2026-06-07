@@ -406,7 +406,13 @@ async function resetPassword(id, username) {
 }
 
 async function deleteUser(id, username) {
-  if (!window.confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  const ok = await confirmDialog({
+    title: 'Delete user',
+    message: `Delete user "${username}"? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     await request(`${USERS_API}/${id}`, { method: 'DELETE' });
     toast(`Deleted ${username}`);
