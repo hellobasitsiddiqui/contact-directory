@@ -208,9 +208,10 @@ H2 console connection: JDBC URL `jdbc:h2:file:./data/contacts`, user `sa`, blank
 
 ## Contributing
 
-Ticket-driven, PR-based workflow with a **protected `master`**. In short: create a `CD-NNN` ticket
-in [tickets/](tickets/), branch `CD-NNN-short-slug`, open a PR (CI must pass), an automated agent reviews
-it, and the maintainer merges. Full details in [CONTRIBUTING.md](CONTRIBUTING.md).
+**Git Flow**, ticket-driven, PR-based workflow with protected `master` + `develop`. In short: create
+a `CD-NNN` ticket in [tickets/](tickets/), branch off `develop`, open a PR into `develop` (CI must
+pass); an automated agent reviews it and **merges to `develop`**. Releases go `develop` → `master`,
+merged by the maintainer. Full details in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Project structure
 

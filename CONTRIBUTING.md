@@ -1,30 +1,35 @@
 # Contributing & workflow
 
-This project uses a lightweight, **ticket-driven, PR-based** workflow. `master` is **protected** —
-no direct pushes; every change lands through a pull request with green CI.
+This project follows a **Git Flow** style, ticket-driven, PR-based workflow:
+
+- **`master`** — release branch (protected). Updated only by **release PRs from `develop`**, which the **maintainer merges** (and tags).
+- **`develop`** — integration branch and the **default branch** (protected). Feature PRs land here; **automation merges** them once CI is green and the review is posted.
+- **`CD-NNN-short-slug`** — one feature branch per ticket, branched off `develop`.
 
 ## The flow
 
 1. **Ticket** — every piece of work has a plain-text ticket in [`tickets/`](tickets/) (no external
    tracker). IDs are `CD-NNN`. Create one from [`tickets/TEMPLATE.md`](tickets/TEMPLATE.md).
-2. **Branch** — one branch per ticket, named `CD-NNN-short-slug`
-   (e.g. `CD-002-actuator-health-metrics`). Branch off the latest `master`.
+2. **Branch** — one branch per ticket, `CD-NNN-short-slug`, branched off the latest **`develop`**.
 3. **Commit** — reference the ticket: `CD-NNN: imperative summary`.
-4. **Pull request** — open a PR into `master`. CI runs automatically (tests + coverage gate +
+4. **Pull request** — open a PR into **`develop`**. CI runs automatically (tests + coverage gate +
    OpenAPI drift + build/package; CodeQL + dependency review on top).
-5. **Review** — an automated review agent reviews the PR and posts findings as a comment. The review
-   is **advisory** (a comment, not an enforced approval gate).
-6. **Merge** — the **maintainer merges** once CI is green, having considered the review.
-   (Automation never merges.)
+5. **Review** — an automated review agent reviews the PR and posts findings as a comment (advisory).
+6. **Merge to `develop`** — once CI is green and the review is posted, **automation merges** the
+   feature PR into `develop`.
+7. **Release** — periodically a **`develop` → `master`** release PR is opened; the **maintainer**
+   merges it. Automation never merges to `master`.
 
-## Branch protection on `master`
+## Branch protection
 
-- Pull request required before merging (no direct pushes, admins included).
-- Required status check: **Build, test & coverage gate** must pass. The OpenAPI drift check, CodeQL,
-  packaging and dependency review also run on every PR but are **advisory** (not merge-blocking) —
-  so a transient infra flake can't lock merges while admin enforcement is on.
-- `strict` is off (PRs aren't forced up-to-date with `master`) to avoid re-run churn on a low-traffic repo.
-- Force-pushes and branch deletion are disabled.
+Both `master` and `develop` are protected: a pull request is required (no direct pushes), the
+required status check **Build, test & coverage gate** must pass, and force-pushes / branch deletion
+are disabled. The OpenAPI drift check, CodeQL, packaging and dependency review also run on every PR
+but are **advisory** (not merge-blocking), so a transient infra flake can't lock merges. `strict` is
+off (PRs aren't forced up-to-date) to avoid re-run churn.
+
+- **`master`** also enforces protection for admins (release gate) — only the maintainer merges release PRs.
+- **`develop`** lets automation merge feature PRs once the required check is green.
 
 ## Conventions
 

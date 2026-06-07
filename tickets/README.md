@@ -4,13 +4,13 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 [`TEMPLATE.md`](TEMPLATE.md). See [../CONTRIBUTING.md](../CONTRIBUTING.md) for the full workflow.
 
 - **ID:** `CD-NNN` (zero-padded, increment from the highest existing).
-- **Branch:** `CD-NNN-short-slug` · **Commit/PR:** `CD-NNN: summary`.
+- **Branch:** `CD-NNN-short-slug`, off `develop` · **Commit/PR:** `CD-NNN: summary` · PR base: `develop`.
 - **Status:** `Open` → `In progress` → `In review` → `Done` (set `Done` when the PR merges).
 
 ## Index
 
 | Ticket | Title | Status |
 |--------|-------|--------|
-| [CD-001](CD-001-contribution-workflow.md) | Establish ticket → branch → PR workflow + protect master | In review |
+| [CD-001](CD-001-contribution-workflow.md) | Establish Git Flow (feature → develop → master) + branch protection | In review |
 | [CD-002](CD-002-actuator-health-metrics.md) | Add Actuator health checks & metrics | Open |
 | [CD-003](CD-003-license-and-changelog.md) | Add LICENSE and CHANGELOG | Open |
