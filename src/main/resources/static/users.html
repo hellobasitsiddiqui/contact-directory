@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Management — Contact Directory</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia
+          && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
+        // Auth guard: must be signed in...
+        if (!localStorage.getItem('auth_token')) {
+          window.location.replace('login.html');
+        } else {
+          // ...and must be an admin.
+          var u = JSON.parse(localStorage.getItem('auth_user') || 'null');
+          if (!u || u.role !== 'ADMIN') {
+            window.location.replace('index.html');
+          }
+        }
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="users.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1 class="app-header__title">User Management</h1>
+      <div class="app-header__actions">
+        <span id="current-user" class="app-header__user" hidden></span>
+        <a href="index.html" class="btn btn--secondary">← Contacts</a>
+        <a href="profile.html" class="btn btn--secondary">Profile</a>
+        <button type="button" id="btn-logout" class="btn btn--secondary">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <p id="users-error" class="login-error" role="alert" hidden></p>
+
+    <section class="users-panel" aria-label="User accounts">
+      <div id="users-loading" class="users-status">Loading users…</div>
+      <table class="users-table" id="users-table" hidden>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th class="users-table__actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-body"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
