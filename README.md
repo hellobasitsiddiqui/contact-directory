@@ -1,5 +1,7 @@
 # Contact Directory
 
+[![CI](https://github.com/hellobasitsiddiqui/contact-directory/actions/workflows/ci.yml/badge.svg)](https://github.com/hellobasitsiddiqui/contact-directory/actions/workflows/ci.yml)
+
 A full-stack **contact manager** built with **Spring Boot 3.3.5**, **Java 21**, and **Maven** — a
 JSON REST API plus a framework-free browser UI. It features **JWT authentication**, **role-based
 access** (USER / ADMIN), **per-user contact ownership**, and account **self-service**, all backed by
