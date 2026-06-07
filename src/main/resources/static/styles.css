@@ -1285,6 +1285,58 @@ a.btn {
 }
 
 /* ------------------------------------------------------------------ *
+ * Copy-to-clipboard buttons (email / username)
+ * ------------------------------------------------------------------ */
+
+/* Wraps a value + its copy button so the icon sits inline next to the text and
+ * only reveals on row hover / focus, keeping the table calm at rest. */
+.cell-copyable {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.btn-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--color-text-subtle);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+/* Reveal on row hover, or whenever the button itself is focused/hovered (so
+ * keyboard users can always reach it, and it stays visible after a copy). */
+tr:hover .btn-copy,
+.btn-copy:hover,
+.btn-copy:focus-visible,
+.btn-copy--done {
+  opacity: 1;
+}
+
+.btn-copy:hover {
+  color: var(--color-primary);
+}
+
+.btn-copy:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Brief confirmation state: the glyph is swapped to a tick in JS; this just
+ * recolours it green so the "Copied" feedback reads at a glance. */
+.btn-copy--done {
+  color: var(--color-success);
+}
+
+/* ------------------------------------------------------------------ *
  * Header actions + theme toggle
  * ------------------------------------------------------------------ */
 
