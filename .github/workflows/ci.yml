@@ -1,9 +1,12 @@
 name: CI
 
-# Build, test and package on every push and pull request.
+# Build, test and package. Feature branches are validated via their pull request;
+# master also runs on merge. (Scoping push to master avoids double runs on PRs.)
 on:
   push:
+    branches: [ master ]
   pull_request:
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref to save runner minutes.
 concurrency:
