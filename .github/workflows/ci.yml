@@ -6,6 +6,7 @@ on:
   push:
     branches: [ master ]
   pull_request:
+    branches: [ master ]
   workflow_dispatch:
 
 # Cancel superseded runs on the same ref to save runner minutes.
@@ -19,7 +20,7 @@ permissions:
 
 jobs:
   test:
-    name: Build, test & coverage gate (Java 21)
+    name: Build, test & coverage gate
     runs-on: ubuntu-latest
     permissions:
       contents: read

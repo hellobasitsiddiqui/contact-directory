@@ -12,14 +12,18 @@ no direct pushes; every change lands through a pull request with green CI.
 3. **Commit** — reference the ticket: `CD-NNN: imperative summary`.
 4. **Pull request** — open a PR into `master`. CI runs automatically (tests + coverage gate +
    OpenAPI drift + build/package; CodeQL + dependency review on top).
-5. **Review** — an automated review agent reviews the PR and posts findings as a comment.
-6. **Merge** — the **maintainer merges** once CI is green and the review is addressed.
+5. **Review** — an automated review agent reviews the PR and posts findings as a comment. The review
+   is **advisory** (a comment, not an enforced approval gate).
+6. **Merge** — the **maintainer merges** once CI is green, having considered the review.
    (Automation never merges.)
 
 ## Branch protection on `master`
 
 - Pull request required before merging (no direct pushes, admins included).
-- Required status checks must pass: **Build, test & coverage gate** and **OpenAPI spec drift check**.
+- Required status check: **Build, test & coverage gate** must pass. The OpenAPI drift check, CodeQL,
+  packaging and dependency review also run on every PR but are **advisory** (not merge-blocking) —
+  so a transient infra flake can't lock merges while admin enforcement is on.
+- `strict` is off (PRs aren't forced up-to-date with `master`) to avoid re-run churn on a low-traffic repo.
 - Force-pushes and branch deletion are disabled.
 
 ## Conventions
@@ -34,7 +38,13 @@ no direct pushes; every change lands through a pull request with green CI.
 ## Local checks before pushing
 
 ```bash
-./mvnw -B clean verify   # tests + coverage gate (matches CI)
+./mvnw -B clean verify   # tests + coverage gate (the required CI gate)
+
+# If you changed the REST API, regenerate the spec and confirm it's current:
+./mvnw -q -DskipTests package && java -jar target/*.jar >/tmp/app.log 2>&1 &
+sleep 20
+curl -s localhost:8080/v3/api-docs | python3 -m json.tool > openapi.json
+python3 .github/scripts/check_openapi_drift.py openapi.json openapi.json   # sanity; CI re-checks vs live
 ```
 
 If a change alters the REST API, regenerate the OpenAPI spec so the drift check passes, and update
