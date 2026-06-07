@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Spring Data JPA repository for {@link Contact} entities.
@@ -18,22 +19,37 @@ import java.util.List;
 public interface ContactRepository extends JpaRepository<Contact, Long> {
 
     /**
-     * Checks whether a contact with the given email already exists, ignoring case.
+     * Checks whether the given owner already has a contact with the given email,
+     * ignoring case. Used to enforce per-owner email uniqueness on create.
      *
-     * @param email the email address to check
-     * @return {@code true} if a matching contact exists
+     * @param email   the email address to check
+     * @param ownerId the id of the owner to scope the check to
+     * @return {@code true} if the owner already has a matching contact
      */
-    boolean existsByEmailIgnoreCase(String email);
+    boolean existsByEmailIgnoreCaseAndOwnerId(String email, Long ownerId);
 
     /**
-     * Checks whether a contact other than the one with the given id uses the given
-     * email, ignoring case. Used to enforce email uniqueness on update.
+     * Checks whether the given owner has a contact other than the one with the
+     * given id using the given email, ignoring case. Used to enforce per-owner
+     * email uniqueness on update.
      *
-     * @param email the email address to check
-     * @param id    the id of the contact to exclude from the check
-     * @return {@code true} if a different contact already uses the email
+     * @param email   the email address to check
+     * @param ownerId the id of the owner to scope the check to
+     * @param id      the id of the contact to exclude from the check
+     * @return {@code true} if a different contact of the owner already uses the email
      */
-    boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
+    boolean existsByEmailIgnoreCaseAndOwnerIdAndIdNot(String email, Long ownerId, Long id);
+
+    /**
+     * Finds a contact by id, scoped to a single owner. A contact owned by another
+     * user is treated as missing, so callers can return 404 without revealing
+     * its existence.
+     *
+     * @param id      the contact id
+     * @param ownerId the id of the owner the contact must belong to
+     * @return the matching contact, or empty if none exists for that owner
+     */
+    Optional<Contact> findByIdAndOwnerId(Long id, Long ownerId);
 
     /**
      * Full-text style search across first name, last name, email, company and phone.
@@ -54,6 +70,27 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
            OR LOWER(COALESCE(c.phone, ''))   LIKE LOWER(CONCAT('%', :q, '%')))
         """)
     Page<Contact> search(@Param("q") String q, Pageable pageable);
+
+    /**
+     * Owner-scoped variant of {@link #search(String, Pageable)} restricting the
+     * results to contacts owned by the given user.
+     *
+     * @param q        the search term
+     * @param ownerId  the id of the owner to scope results to
+     * @param pageable pagination and sorting information
+     * @return a page of the owner's matching contacts
+     */
+    @Query("""
+        SELECT c FROM Contact c
+        WHERE c.deletedAt IS NULL
+          AND c.ownerId = :ownerId
+          AND (LOWER(c.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(c.lastName)  LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(c.email)     LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(COALESCE(c.company, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+           OR LOWER(COALESCE(c.phone, ''))   LIKE LOWER(CONCAT('%', :q, '%')))
+        """)
+    Page<Contact> search(@Param("q") String q, @Param("ownerId") Long ownerId, Pageable pageable);
 
     /**
      * Returns contacts carrying the given tag (case-insensitive), optionally
@@ -79,6 +116,31 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
     Page<Contact> searchAndFilterByTag(@Param("q") String q, @Param("tag") String tag, Pageable pageable);
 
     /**
+     * Owner-scoped variant of {@link #searchAndFilterByTag(String, String, Pageable)}
+     * restricting the results to contacts owned by the given user.
+     *
+     * @param q        the free-text term, or {@code ""} to match all
+     * @param tag      the tag to require (case-insensitive)
+     * @param ownerId  the id of the owner to scope results to
+     * @param pageable pagination and sorting information
+     * @return a page of the owner's contacts that have the tag and match the term
+     */
+    @Query("""
+        SELECT c FROM Contact c
+        WHERE c.deletedAt IS NULL
+          AND c.ownerId = :ownerId
+          AND EXISTS (SELECT t FROM c.tags t WHERE LOWER(t) = LOWER(:tag))
+          AND (:q = ''
+               OR LOWER(c.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(c.lastName)  LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(c.email)     LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(c.company, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(c.phone, ''))   LIKE LOWER(CONCAT('%', :q, '%')))
+        """)
+    Page<Contact> searchAndFilterByTag(@Param("q") String q, @Param("tag") String tag,
+                                       @Param("ownerId") Long ownerId, Pageable pageable);
+
+    /**
      * Returns all distinct tags currently in use, sorted case-insensitively.
      * Used to populate the tag filter control.
      *
@@ -86,6 +148,20 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
      */
     @Query("SELECT DISTINCT t FROM Contact c JOIN c.tags t WHERE c.deletedAt IS NULL ORDER BY LOWER(t)")
     List<String> findDistinctTags();
+
+    /**
+     * Owner-scoped variant of {@link #findDistinctTags()} returning only the
+     * distinct tags in use across the given owner's contacts.
+     *
+     * @param ownerId the id of the owner to scope tags to
+     * @return the sorted list of distinct tag labels for that owner
+     */
+    @Query("""
+        SELECT DISTINCT t FROM Contact c JOIN c.tags t
+        WHERE c.deletedAt IS NULL AND c.ownerId = :ownerId
+        ORDER BY LOWER(t)
+        """)
+    List<String> findDistinctTagsByOwnerId(@Param("ownerId") Long ownerId);
 
     /**
      * Returns a page of active contacts (those whose {@code deletedAt} is
@@ -97,6 +173,16 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
     Page<Contact> findByDeletedAtIsNull(Pageable pageable);
 
     /**
+     * Owner-scoped variant of {@link #findByDeletedAtIsNull(Pageable)} returning
+     * only the active contacts owned by the given user.
+     *
+     * @param ownerId  the id of the owner to scope results to
+     * @param pageable pagination and sorting information
+     * @return a page of the owner's active contacts
+     */
+    Page<Contact> findByDeletedAtIsNullAndOwnerId(Long ownerId, Pageable pageable);
+
+    /**
      * Returns a page of soft-deleted contacts (those whose {@code deletedAt} is
      * non-null). Used to populate the Trash view.
      *
@@ -104,6 +190,16 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
      * @return a page of soft-deleted contacts
      */
     Page<Contact> findByDeletedAtIsNotNull(Pageable pageable);
+
+    /**
+     * Owner-scoped variant of {@link #findByDeletedAtIsNotNull(Pageable)}
+     * returning only the soft-deleted contacts owned by the given user.
+     *
+     * @param ownerId  the id of the owner to scope results to
+     * @param pageable pagination and sorting information
+     * @return a page of the owner's soft-deleted contacts
+     */
+    Page<Contact> findByDeletedAtIsNotNullAndOwnerId(Long ownerId, Pageable pageable);
 
     /**
      * Returns every active contact (those whose {@code deletedAt} is
@@ -114,4 +210,14 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
      * @return all active contacts in the requested order
      */
     List<Contact> findByDeletedAtIsNull(Sort sort);
+
+    /**
+     * Owner-scoped variant of {@link #findByDeletedAtIsNull(Sort)} returning only
+     * the active contacts owned by the given user, sorted as requested.
+     *
+     * @param ownerId the id of the owner to scope results to
+     * @param sort    the sort order to apply
+     * @return all of the owner's active contacts in the requested order
+     */
+    List<Contact> findByDeletedAtIsNullAndOwnerId(Long ownerId, Sort sort);
 }

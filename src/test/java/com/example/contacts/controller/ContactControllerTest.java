@@ -19,6 +19,7 @@ import com.example.contacts.dto.ContactRequest;
 import com.example.contacts.dto.ContactResponse;
 import com.example.contacts.exception.ResourceNotFoundException;
 import com.example.contacts.exception.StaleResourceException;
+import com.example.contacts.security.CurrentUserService;
 import com.example.contacts.service.ContactService;
 import com.example.contacts.service.PhotoData;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,9 +27,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.data.web.SpringDataWebAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -37,20 +40,34 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Web-layer slice tests for {@link ContactController}. Only the MVC
- * infrastructure is loaded; {@link ContactService} is mocked via
- * {@link MockBean}.
+ * infrastructure is loaded; {@link ContactService} and
+ * {@link CurrentUserService} are mocked via {@link MockBean}.
  *
  * <p>{@code @WebMvcTest} does not auto-register Spring Data's {@code Pageable}
  * argument resolver, so {@link SpringDataWebAutoConfiguration} is imported
  * explicitly to support the paginated list endpoint.
+ *
+ * <p>Security filters are disabled ({@code addFilters = false}), but the
+ * controller still receives an {@link Authentication} argument and resolves the
+ * owner context via {@link CurrentUserService}. The class-level
+ * {@link WithMockUser} makes that {@code Authentication} non-null, and the
+ * mocked {@code CurrentUserService} returns a fixed owner id (non-admin by
+ * default) so the assertions focus on the controller's wiring, not on scoping.
  */
 @WebMvcTest(ContactController.class)
 @Import(SpringDataWebAutoConfiguration.class)
+@AutoConfigureMockMvc(addFilters = false)
+@WithMockUser
 class ContactControllerTest {
+
+    /** Fixed owner id returned by the mocked {@link CurrentUserService}. */
+    private static final long OWNER_ID = 1000L;
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,6 +77,18 @@ class ContactControllerTest {
 
     @MockBean
     private ContactService contactService;
+
+    @MockBean
+    private CurrentUserService currentUserService;
+
+    @BeforeEach
+    void stubCurrentUser() {
+        // Default to a non-admin owner; admin-only tests override isAdmin below.
+        // Use any() (not any(Authentication.class)) so the stub still matches even
+        // when the resolved Authentication argument is null in the slice context.
+        when(currentUserService.currentUserId(any())).thenReturn(OWNER_ID);
+        when(currentUserService.isAdmin(any())).thenReturn(false);
+    }
 
     private ContactResponse sampleResponse() {
         Instant now = Instant.now();
@@ -72,7 +101,7 @@ class ContactControllerTest {
     void post_validBody_returns201WithLocationHeaderAndBody() throws Exception {
         ContactRequest req = new ContactRequest("Ada", "Lovelace", "ada@example.com",
                 "+44 20 7946 0958", "Analytical Engines", null, false, null, null);
-        when(contactService.create(any(ContactRequest.class))).thenReturn(sampleResponse());
+        when(contactService.create(any(ContactRequest.class), eq(OWNER_ID))).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/api/v1/contacts")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -109,7 +138,7 @@ class ContactControllerTest {
 
     @Test
     void get_existingId_returns200WithBody() throws Exception {
-        when(contactService.get(1L)).thenReturn(sampleResponse());
+        when(contactService.get(1L, OWNER_ID, false)).thenReturn(sampleResponse());
 
         mockMvc.perform(get("/api/v1/contacts/{id}", 1L))
                 .andExpect(status().isOk())
@@ -119,7 +148,7 @@ class ContactControllerTest {
 
     @Test
     void get_missingId_returns404() throws Exception {
-        when(contactService.get(99L))
+        when(contactService.get(99L, OWNER_ID, false))
                 .thenThrow(new ResourceNotFoundException("Contact not found with id: 99"));
 
         mockMvc.perform(get("/api/v1/contacts/{id}", 99L))
@@ -132,7 +161,8 @@ class ContactControllerTest {
     void get_list_returns200WithPagedContent() throws Exception {
         ContactResponse resp = sampleResponse();
         Page<ContactResponse> page = new PageImpl<>(List.of(resp));
-        when(contactService.list(any(), any(), any(Pageable.class))).thenReturn(page);
+        when(contactService.list(any(), any(), any(Pageable.class), eq(OWNER_ID), eq(false)))
+                .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/contacts"))
                 .andExpect(status().isOk())
@@ -145,7 +175,7 @@ class ContactControllerTest {
         mockMvc.perform(delete("/api/v1/contacts/{id}", 1L))
                 .andExpect(status().isNoContent());
 
-        verify(contactService).delete(eq(1L));
+        verify(contactService).delete(eq(1L), eq(OWNER_ID), eq(false));
     }
 
     // ---- Trash / restore / permanent -------------------------------------
@@ -154,7 +184,7 @@ class ContactControllerTest {
     void getTrash_returns200WithPagedContent() throws Exception {
         ContactResponse resp = sampleResponse();
         Page<ContactResponse> page = new PageImpl<>(List.of(resp));
-        when(contactService.listTrash(any(Pageable.class))).thenReturn(page);
+        when(contactService.listTrash(any(Pageable.class), eq(OWNER_ID), eq(false))).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/contacts/trash"))
                 .andExpect(status().isOk())
@@ -164,21 +194,25 @@ class ContactControllerTest {
 
     @Test
     void restore_returns200WithBody() throws Exception {
-        when(contactService.restore(1L)).thenReturn(sampleResponse());
+        when(contactService.restore(1L, OWNER_ID, false)).thenReturn(sampleResponse());
 
         mockMvc.perform(post("/api/v1/contacts/{id}/restore", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(contactService).restore(eq(1L));
+        verify(contactService).restore(eq(1L), eq(OWNER_ID), eq(false));
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void permanentDelete_returns204() throws Exception {
+        // Permanent delete is admin-only; the resolver reports an admin caller.
+        when(currentUserService.isAdmin(any())).thenReturn(true);
+
         mockMvc.perform(delete("/api/v1/contacts/{id}/permanent", 1L))
                 .andExpect(status().isNoContent());
 
-        verify(contactService).purge(eq(1L));
+        verify(contactService).purge(eq(1L), eq(OWNER_ID), eq(true));
     }
 
     // ---- Optimistic concurrency (412) ------------------------------------
@@ -187,7 +221,7 @@ class ContactControllerTest {
     void put_staleVersion_returns412() throws Exception {
         ContactRequest req = new ContactRequest("Ada", "Lovelace", "ada@example.com",
                 null, null, null, false, null, 99L);
-        when(contactService.update(eq(1L), any(ContactRequest.class)))
+        when(contactService.update(eq(1L), any(ContactRequest.class), eq(OWNER_ID), eq(false)))
                 .thenThrow(new StaleResourceException("Contact was modified by someone else"));
 
         mockMvc.perform(put("/api/v1/contacts/{id}", 1L)
@@ -201,7 +235,7 @@ class ContactControllerTest {
 
     @Test
     void bulkDelete_returns200WithAffectedCount() throws Exception {
-        when(contactService.bulkDelete(anyList())).thenReturn(2);
+        when(contactService.bulkDelete(anyList(), eq(OWNER_ID), eq(false))).thenReturn(2);
 
         mockMvc.perform(post("/api/v1/contacts/bulk/delete")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -212,7 +246,7 @@ class ContactControllerTest {
 
     @Test
     void bulkFavorite_returns200WithAffectedCount() throws Exception {
-        when(contactService.bulkSetFavorite(anyList(), eq(true))).thenReturn(3);
+        when(contactService.bulkSetFavorite(anyList(), eq(true), eq(OWNER_ID), eq(false))).thenReturn(3);
 
         mockMvc.perform(post("/api/v1/contacts/bulk/favorite")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -223,7 +257,8 @@ class ContactControllerTest {
 
     @Test
     void bulkTags_returns200WithAffectedCount() throws Exception {
-        when(contactService.bulkAddRemoveTags(anyList(), any(), any())).thenReturn(1);
+        when(contactService.bulkAddRemoveTags(anyList(), any(), any(), eq(OWNER_ID), eq(false)))
+                .thenReturn(1);
 
         mockMvc.perform(post("/api/v1/contacts/bulk/tags")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -239,13 +274,13 @@ class ContactControllerTest {
         byte[] bytes = {(byte) 0x89, 'P', 'N', 'G'};
         MockMultipartFile file = new MockMultipartFile(
                 "file", "a.png", "image/png", bytes);
-        when(contactService.get(1L)).thenReturn(sampleResponse());
+        when(contactService.get(1L, OWNER_ID, false)).thenReturn(sampleResponse());
 
         mockMvc.perform(multipart("/api/v1/contacts/{id}/photo", 1L).file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
 
-        verify(contactService).savePhoto(eq(1L), eq(bytes), eq("image/png"));
+        verify(contactService).savePhoto(eq(1L), eq(bytes), eq("image/png"), eq(OWNER_ID), eq(false));
     }
 
     @Test
@@ -261,7 +296,7 @@ class ContactControllerTest {
     @Test
     void getPhoto_existing_returns200WithImageContentType() throws Exception {
         byte[] bytes = {(byte) 0x89, 'P', 'N', 'G'};
-        when(contactService.getPhoto(1L)).thenReturn(new PhotoData(bytes, "image/png"));
+        when(contactService.getPhoto(1L, OWNER_ID, false)).thenReturn(new PhotoData(bytes, "image/png"));
 
         mockMvc.perform(get("/api/v1/contacts/{id}/photo", 1L))
                 .andExpect(status().isOk())
@@ -271,7 +306,7 @@ class ContactControllerTest {
 
     @Test
     void getPhoto_missing_returns404() throws Exception {
-        when(contactService.getPhoto(99L))
+        when(contactService.getPhoto(99L, OWNER_ID, false))
                 .thenThrow(new ResourceNotFoundException("No photo for contact with id: 99"));
 
         mockMvc.perform(get("/api/v1/contacts/{id}/photo", 99L))
@@ -284,6 +319,6 @@ class ContactControllerTest {
         mockMvc.perform(delete("/api/v1/contacts/{id}/photo", 1L))
                 .andExpect(status().isNoContent());
 
-        verify(contactService).deletePhoto(eq(1L));
+        verify(contactService).deletePhoto(eq(1L), eq(OWNER_ID), eq(false));
     }
 }

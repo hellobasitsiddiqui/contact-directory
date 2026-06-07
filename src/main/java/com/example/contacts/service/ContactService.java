@@ -34,6 +34,13 @@ import java.util.Set;
  * operations run in a read-write transaction. Entities are mapped to
  * {@link ContactResponse} before being returned so the persistence model
  * never leaks beyond this layer.
+ *
+ * <p>Every operation is owner-aware. Callers pass the id of the current user
+ * ({@code ownerId}) and whether that user is an administrator ({@code isAdmin}).
+ * Administrators operate unscoped across all owners (the historical behaviour);
+ * non-administrators are confined to the contacts they own, with a contact
+ * belonging to another owner treated exactly like a missing one (so its
+ * existence is never revealed).
  */
 @Service
 public class ContactService {
@@ -63,10 +70,13 @@ public class ContactService {
      * @param search   optional free-text search term
      * @param tag      optional tag to filter by
      * @param pageable pagination and sorting information
+     * @param ownerId  the id of the current user (used to scope non-admin queries)
+     * @param isAdmin  whether the current user is an administrator (unscoped)
      * @return a page of {@link ContactResponse} projections
      */
     @Transactional(readOnly = true)
-    public Page<ContactResponse> list(String search, String tag, Pageable pageable) {
+    public Page<ContactResponse> list(String search, String tag, Pageable pageable,
+                                      Long ownerId, boolean isAdmin) {
         String q = (search == null) ? "" : search.trim();
         boolean hasTag = tag != null && !tag.isBlank();
         // Favourites are always pinned to the top, before the caller's sort.
@@ -74,11 +84,17 @@ public class ContactService {
 
         Page<Contact> contacts;
         if (hasTag) {
-            contacts = repository.searchAndFilterByTag(q, tag.trim(), effective);
+            contacts = isAdmin
+                    ? repository.searchAndFilterByTag(q, tag.trim(), effective)
+                    : repository.searchAndFilterByTag(q, tag.trim(), ownerId, effective);
         } else if (q.isEmpty()) {
-            contacts = repository.findByDeletedAtIsNull(effective);
+            contacts = isAdmin
+                    ? repository.findByDeletedAtIsNull(effective)
+                    : repository.findByDeletedAtIsNullAndOwnerId(ownerId, effective);
         } else {
-            contacts = repository.search(q, effective);
+            contacts = isAdmin
+                    ? repository.search(q, effective)
+                    : repository.search(q, ownerId, effective);
         }
         return contacts.map(ContactResponse::from);
     }
@@ -97,14 +113,19 @@ public class ContactService {
     }
 
     /**
-     * Returns the distinct set of tags currently in use across all contacts,
-     * sorted case-insensitively. Used to populate the tag filter control.
+     * Returns the distinct set of tags currently in use, sorted case-insensitively.
+     * Used to populate the tag filter control. Admins see tags across all owners;
+     * non-admins see only the tags in use on their own contacts.
      *
+     * @param ownerId the id of the current user (used to scope non-admin queries)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the sorted list of distinct tags
      */
     @Transactional(readOnly = true)
-    public List<String> listTags() {
-        return repository.findDistinctTags();
+    public List<String> listTags(Long ownerId, boolean isAdmin) {
+        return isAdmin
+                ? repository.findDistinctTags()
+                : repository.findDistinctTagsByOwnerId(ownerId);
     }
 
     /* ----------------------------- Import / export ----------------------------- */
@@ -115,30 +136,38 @@ public class ContactService {
 
     /**
      * Returns every active (non-trashed) contact (unpaged), sorted by last then
-     * first name, for a full export. Soft-deleted contacts are excluded.
+     * first name, for a full export. Soft-deleted contacts are excluded. Admins
+     * export across all owners; non-admins export only their own contacts.
      *
+     * @param ownerId the id of the current user (used to scope non-admin queries)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return all active contacts as {@link ContactResponse} projections
      */
     @Transactional(readOnly = true)
-    public List<ContactResponse> exportAll() {
-        return repository.findByDeletedAtIsNull(
-                        Sort.by(Sort.Order.asc("lastName"), Sort.Order.asc("firstName")))
-                .stream()
+    public List<ContactResponse> exportAll(Long ownerId, boolean isAdmin) {
+        Sort sort = Sort.by(Sort.Order.asc("lastName"), Sort.Order.asc("firstName"));
+        List<Contact> contacts = isAdmin
+                ? repository.findByDeletedAtIsNull(sort)
+                : repository.findByDeletedAtIsNullAndOwnerId(ownerId, sort);
+        return contacts.stream()
                 .map(ContactResponse::from)
                 .toList();
     }
 
     /**
      * Renders every contact as a CSV document (header row + one row per contact;
-     * tags joined with {@code ;}). Uses CRLF line endings.
+     * tags joined with {@code ;}). Uses CRLF line endings. Scoped to the current
+     * user unless they are an administrator.
      *
+     * @param ownerId the id of the current user (used to scope non-admin queries)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the CSV text
      */
     @Transactional(readOnly = true)
-    public String exportCsv() {
+    public String exportCsv(Long ownerId, boolean isAdmin) {
         StringBuilder sb = new StringBuilder();
         sb.append(CsvSupport.toRow(CSV_COLUMNS)).append("\r\n");
-        for (ContactResponse c : exportAll()) {
+        for (ContactResponse c : exportAll(ownerId, isAdmin)) {
             sb.append(CsvSupport.toRow(Arrays.asList(
                     String.valueOf(c.id()),
                     c.firstName(),
@@ -158,13 +187,15 @@ public class ContactService {
      * Bulk-imports contacts from CSV text. Supports an optional header row
      * (columns matched by name) and falls back to positional order
      * {@code firstName,lastName,email,phone,company,tags,favorite}. Rows whose
-     * email already exists are skipped; invalid rows are reported in the summary.
+     * email already exists for the importing owner are skipped; invalid rows are
+     * reported in the summary. Every imported contact is owned by {@code ownerId}.
      *
      * @param content the raw CSV text
+     * @param ownerId the id of the user the imported contacts will belong to
      * @return a summary of imported / skipped counts and per-row errors
      */
     @Transactional
-    public ImportSummary importCsv(String content) {
+    public ImportSummary importCsv(String content, Long ownerId) {
         List<List<String>> rows = CsvSupport.parse(content);
         List<String> errors = new ArrayList<>();
         if (rows.isEmpty()) {
@@ -200,12 +231,13 @@ public class ContactService {
                 errors.add("Row " + lineNo + ": invalid email '" + email + "'");
                 continue;
             }
-            if (repository.existsByEmailIgnoreCase(email)) {
+            if (repository.existsByEmailIgnoreCaseAndOwnerId(email, ownerId)) {
                 skipped++;
                 continue;
             }
 
             Contact contact = new Contact();
+            contact.setOwnerId(ownerId);
             contact.setFirstName(firstName);
             contact.setLastName(lastName);
             contact.setEmail(email);
@@ -285,13 +317,17 @@ public class ContactService {
     /**
      * Retrieves a single contact by its identifier.
      *
-     * @param id the contact identifier
+     * @param id      the contact identifier
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the matching {@link ContactResponse}
      * @throws ResourceNotFoundException if no contact exists with the given id
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
      */
     @Transactional(readOnly = true)
-    public ContactResponse get(Long id) {
-        Contact contact = findByIdOrThrow(id);
+    public ContactResponse get(Long id, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         // A soft-deleted contact lives in the trash, not the active directory, so
         // the normal GET endpoint treats it as not found (use /trash or restore).
         if (contact.getDeletedAt() != null) {
@@ -301,19 +337,21 @@ public class ContactService {
     }
 
     /**
-     * Creates a new contact.
+     * Creates a new contact owned by the given user.
      *
-     * @param req the validated contact request body
+     * @param req     the validated contact request body
+     * @param ownerId the id of the user that will own the new contact
      * @return the persisted contact as a {@link ContactResponse}
-     * @throws DuplicateEmailException if a contact with the same email already exists
+     * @throws DuplicateEmailException if the owner already has a contact with the same email
      */
     @Transactional
-    public ContactResponse create(ContactRequest req) {
-        if (repository.existsByEmailIgnoreCase(req.email())) {
+    public ContactResponse create(ContactRequest req, Long ownerId) {
+        if (repository.existsByEmailIgnoreCaseAndOwnerId(req.email(), ownerId)) {
             throw new DuplicateEmailException(
                     "A contact with email '" + req.email() + "' already exists");
         }
         Contact contact = new Contact();
+        contact.setOwnerId(ownerId);
         applyRequest(contact, req);
         return ContactResponse.from(repository.save(contact));
     }
@@ -321,17 +359,22 @@ public class ContactService {
     /**
      * Fully replaces an existing contact with the supplied values.
      *
-     * @param id  the identifier of the contact to update
-     * @param req the validated contact request body
+     * @param id      the identifier of the contact to update
+     * @param req     the validated contact request body
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the updated contact as a {@link ContactResponse}
      * @throws ResourceNotFoundException if no contact exists with the given id
-     * @throws DuplicateEmailException   if another contact already uses the email
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
+     * @throws DuplicateEmailException   if another of the contact owner's contacts already uses the email
      */
     @Transactional
-    public ContactResponse update(Long id, ContactRequest req) {
-        Contact contact = findByIdOrThrow(id);
+    public ContactResponse update(Long id, ContactRequest req, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         checkVersion(req.version(), contact);
-        if (repository.existsByEmailIgnoreCaseAndIdNot(req.email(), id)) {
+        if (repository.existsByEmailIgnoreCaseAndOwnerIdAndIdNot(
+                req.email(), contact.getOwnerId(), id)) {
             throw new DuplicateEmailException(
                     "A contact with email '" + req.email() + "' already exists");
         }
@@ -344,18 +387,24 @@ public class ContactService {
      * Partially updates an existing contact, applying only the non-null fields
      * present in the patch request.
      *
-     * @param id  the identifier of the contact to patch
-     * @param req the patch request body (all fields optional)
+     * @param id      the identifier of the contact to patch
+     * @param req     the patch request body (all fields optional)
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the updated contact as a {@link ContactResponse}
      * @throws ResourceNotFoundException if no contact exists with the given id
-     * @throws DuplicateEmailException   if the supplied email is already in use by another contact
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
+     * @throws DuplicateEmailException   if the supplied email is already in use by
+     *                                   another of the contact owner's contacts
      */
     @Transactional
-    public ContactResponse patch(Long id, ContactPatchRequest req) {
-        Contact contact = findByIdOrThrow(id);
+    public ContactResponse patch(Long id, ContactPatchRequest req, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         checkVersion(req.version(), contact);
         if (req.email() != null
-                && repository.existsByEmailIgnoreCaseAndIdNot(req.email(), id)) {
+                && repository.existsByEmailIgnoreCaseAndOwnerIdAndIdNot(
+                        req.email(), contact.getOwnerId(), id)) {
             throw new DuplicateEmailException(
                     "A contact with email '" + req.email() + "' already exists");
         }
@@ -393,12 +442,16 @@ public class ContactService {
      * can later be restored or permanently purged. Re-stamping an
      * already-trashed contact is a no-op (its original {@code deletedAt} is kept).
      *
-     * @param id the identifier of the contact to soft-delete
+     * @param id      the identifier of the contact to soft-delete
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @throws ResourceNotFoundException if no contact exists with the given id
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
      */
     @Transactional
-    public void delete(Long id) {
-        Contact contact = findByIdOrThrow(id);
+    public void delete(Long id, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         if (contact.getDeletedAt() == null) {
             contact.setDeletedAt(Instant.now());
             repository.save(contact);
@@ -406,27 +459,37 @@ public class ContactService {
     }
 
     /**
-     * Returns a page of soft-deleted (trashed) contacts only.
+     * Returns a page of soft-deleted (trashed) contacts only. Admins see trashed
+     * contacts across all owners; non-admins see only their own.
      *
      * @param pageable pagination and sorting information
+     * @param ownerId  the id of the current user (used to scope non-admin queries)
+     * @param isAdmin  whether the current user is an administrator (unscoped)
      * @return a page of trashed contacts as {@link ContactResponse} projections
      */
     @Transactional(readOnly = true)
-    public Page<ContactResponse> listTrash(Pageable pageable) {
-        return repository.findByDeletedAtIsNotNull(pageable).map(ContactResponse::from);
+    public Page<ContactResponse> listTrash(Pageable pageable, Long ownerId, boolean isAdmin) {
+        Page<Contact> contacts = isAdmin
+                ? repository.findByDeletedAtIsNotNull(pageable)
+                : repository.findByDeletedAtIsNotNullAndOwnerId(ownerId, pageable);
+        return contacts.map(ContactResponse::from);
     }
 
     /**
      * Restores a soft-deleted contact by clearing its {@code deletedAt} stamp,
      * returning it to the active list.
      *
-     * @param id the identifier of the contact to restore
+     * @param id      the identifier of the contact to restore
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the restored contact as a {@link ContactResponse}
      * @throws ResourceNotFoundException if no contact exists with the given id
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
      */
     @Transactional
-    public ContactResponse restore(Long id) {
-        Contact contact = findByIdOrThrow(id);
+    public ContactResponse restore(Long id, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         contact.setDeletedAt(null);
         return ContactResponse.from(repository.save(contact));
     }
@@ -435,32 +498,42 @@ public class ContactService {
      * Permanently (hard) deletes a contact, removing the row and its associated
      * tags and photo blob. This cannot be undone.
      *
-     * @param id the identifier of the contact to purge
+     * <p>This operation is admin-only at the controller layer; the owner context
+     * is still honoured so a non-admin caller (should the role check be bypassed)
+     * may only purge contacts they own, and a contact belonging to another owner
+     * is treated as missing.
+     *
+     * @param id      the identifier of the contact to purge
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @throws ResourceNotFoundException if no contact exists with the given id
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
      */
     @Transactional
-    public void purge(Long id) {
-        if (!repository.existsById(id)) {
-            throw new ResourceNotFoundException("Contact not found with id: " + id);
-        }
-        repository.deleteById(id);
+    public void purge(Long id, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
+        repository.delete(contact);
     }
 
     /* ------------------------------- Bulk actions ------------------------------- */
 
     /**
      * Soft-deletes each of the given active contacts. Missing ids and ids that
-     * are already soft-deleted are skipped and not counted.
+     * are already soft-deleted are skipped and not counted. For non-admins, a
+     * contact owned by another user is treated as missing.
      *
-     * @param ids the contact identifiers to soft-delete
+     * @param ids     the contact identifiers to soft-delete
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the number of contacts actually soft-deleted
      */
     @Transactional
-    public int bulkDelete(List<Long> ids) {
+    public int bulkDelete(List<Long> ids, Long ownerId, boolean isAdmin) {
         Instant now = Instant.now();
         int affected = 0;
         for (Long id : distinctIds(ids)) {
-            Contact contact = repository.findById(id).orElse(null);
+            Contact contact = findScoped(id, ownerId, isAdmin);
             if (contact == null || contact.getDeletedAt() != null) {
                 continue;
             }
@@ -473,17 +546,20 @@ public class ContactService {
 
     /**
      * Sets the favourite flag on each of the given active contacts. Missing ids
-     * and ids that are already soft-deleted are skipped and not counted.
+     * and ids that are already soft-deleted are skipped and not counted. For
+     * non-admins, a contact owned by another user is treated as missing.
      *
      * @param ids      the contact identifiers to update
      * @param favorite the favourite value to apply
+     * @param ownerId  the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin  whether the current user is an administrator (unscoped)
      * @return the number of contacts actually updated
      */
     @Transactional
-    public int bulkSetFavorite(List<Long> ids, boolean favorite) {
+    public int bulkSetFavorite(List<Long> ids, boolean favorite, Long ownerId, boolean isAdmin) {
         int affected = 0;
         for (Long id : distinctIds(ids)) {
-            Contact contact = repository.findById(id).orElse(null);
+            Contact contact = findScoped(id, ownerId, isAdmin);
             if (contact == null || contact.getDeletedAt() != null) {
                 continue;
             }
@@ -498,15 +574,19 @@ public class ContactService {
      * Adds and/or removes tags on each of the given active contacts. Tag removal
      * is case-insensitive. Missing ids and ids that are already soft-deleted are
      * skipped and not counted; every existing active id processed counts as
-     * affected.
+     * affected. For non-admins, a contact owned by another user is treated as
+     * missing.
      *
      * @param ids        the contact identifiers to update
      * @param addTags    tags to add (may be {@code null} or empty)
      * @param removeTags tags to remove, case-insensitively (may be {@code null} or empty)
+     * @param ownerId    the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin    whether the current user is an administrator (unscoped)
      * @return the number of contacts actually processed
      */
     @Transactional
-    public int bulkAddRemoveTags(List<Long> ids, Set<String> addTags, Set<String> removeTags) {
+    public int bulkAddRemoveTags(List<Long> ids, Set<String> addTags, Set<String> removeTags,
+                                 Long ownerId, boolean isAdmin) {
         Set<String> toAdd = (addTags == null) ? Set.of() : addTags;
         Set<String> removeLower = new LinkedHashSet<>();
         if (removeTags != null) {
@@ -518,7 +598,7 @@ public class ContactService {
         }
         int affected = 0;
         for (Long id : distinctIds(ids)) {
-            Contact contact = repository.findById(id).orElse(null);
+            Contact contact = findScoped(id, ownerId, isAdmin);
             if (contact == null || contact.getDeletedAt() != null) {
                 continue;
             }
@@ -569,14 +649,18 @@ public class ContactService {
      * Loads the photo for a contact, reading the lazily-fetched blob inside the
      * transaction so it is fully materialised before being returned.
      *
-     * @param id the contact identifier
+     * @param id      the contact identifier
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the photo bytes and content type wrapped in a {@link PhotoData}
-     * @throws ResourceNotFoundException if no contact exists with the given id,
-     *                                   or if the contact has no photo
+     * @throws ResourceNotFoundException if no contact exists with the given id
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin), or if the contact
+     *                                   has no photo
      */
     @Transactional(readOnly = true)
-    public PhotoData getPhoto(Long id) {
-        Contact contact = findByIdOrThrow(id);
+    public PhotoData getPhoto(Long id, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         if (contact.getPhotoContentType() == null || contact.getPhoto() == null) {
             throw new ResourceNotFoundException("No photo for contact with id: " + id);
         }
@@ -591,11 +675,15 @@ public class ContactService {
      * @param id          the contact identifier
      * @param data        the raw image bytes
      * @param contentType the image MIME type
+     * @param ownerId     the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin     whether the current user is an administrator (unscoped)
      * @throws ResourceNotFoundException if no contact exists with the given id
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
      */
     @Transactional
-    public void savePhoto(Long id, byte[] data, String contentType) {
-        Contact contact = findByIdOrThrow(id);
+    public void savePhoto(Long id, byte[] data, String contentType, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         contact.setPhoto(data);
         contact.setPhotoContentType(contentType);
         repository.save(contact);
@@ -605,27 +693,56 @@ public class ContactService {
      * Removes the photo from a contact, clearing both the bytes and the
      * content-type flag.
      *
-     * @param id the contact identifier
+     * @param id      the contact identifier
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @throws ResourceNotFoundException if no contact exists with the given id
+     *                                   (or it belongs to another owner and the
+     *                                   caller is not an admin)
      */
     @Transactional
-    public void deletePhoto(Long id) {
-        Contact contact = findByIdOrThrow(id);
+    public void deletePhoto(Long id, Long ownerId, boolean isAdmin) {
+        Contact contact = findByIdOrThrow(id, ownerId, isAdmin);
         contact.setPhoto(null);
         contact.setPhotoContentType(null);
         repository.save(contact);
     }
 
     /**
-     * Loads a contact by id or throws a {@link ResourceNotFoundException}.
+     * Loads a contact by id, honouring owner scoping, or throws a
+     * {@link ResourceNotFoundException}. Admins look up unscoped; non-admins are
+     * confined to contacts they own, so a contact belonging to another owner is
+     * reported as not found (its existence is never revealed).
      *
-     * @param id the contact identifier
+     * @param id      the contact identifier
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
      * @return the matching entity
+     * @throws ResourceNotFoundException if no matching contact exists in scope
      */
-    private Contact findByIdOrThrow(Long id) {
-        return repository.findById(id)
+    private Contact findByIdOrThrow(Long id, Long ownerId, boolean isAdmin) {
+        return (isAdmin
+                ? repository.findById(id)
+                : repository.findByIdAndOwnerId(id, ownerId))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Contact not found with id: " + id));
+    }
+
+    /**
+     * Loads a contact by id, honouring owner scoping, returning {@code null} when
+     * none is in scope. Used by bulk operations, which silently skip contacts that
+     * are missing or owned by another user (for non-admins).
+     *
+     * @param id      the contact identifier
+     * @param ownerId the id of the current user (used to scope non-admin lookups)
+     * @param isAdmin whether the current user is an administrator (unscoped)
+     * @return the matching entity, or {@code null} if none is in scope
+     */
+    private Contact findScoped(Long id, Long ownerId, boolean isAdmin) {
+        return (isAdmin
+                ? repository.findById(id)
+                : repository.findByIdAndOwnerId(id, ownerId))
+                .orElse(null);
     }
 
     /**

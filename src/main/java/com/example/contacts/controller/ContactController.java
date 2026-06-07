@@ -10,6 +10,7 @@ import com.example.contacts.dto.ContactResponse;
 import com.example.contacts.dto.ImportSummary;
 import com.example.contacts.exception.InvalidFileException;
 import com.example.contacts.exception.InvalidImageException;
+import com.example.contacts.security.CurrentUserService;
 import com.example.contacts.service.ContactService;
 import com.example.contacts.service.PhotoData;
 
@@ -29,6 +30,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -61,14 +64,19 @@ import java.util.Set;
 public class ContactController {
 
     private final ContactService contactService;
+    private final CurrentUserService currentUserService;
 
     /**
-     * Creates the controller with its required {@link ContactService} collaborator.
+     * Creates the controller with its required collaborators.
      *
-     * @param contactService the service handling contact business logic
+     * @param contactService     the service handling contact business logic
+     * @param currentUserService resolves the owner id and admin flag for the
+     *                           authenticated request, used to scope operations
      */
-    public ContactController(ContactService contactService) {
+    public ContactController(ContactService contactService,
+                             CurrentUserService currentUserService) {
         this.contactService = contactService;
+        this.currentUserService = currentUserService;
     }
 
     /**
@@ -86,8 +94,9 @@ public class ContactController {
             @ApiResponse(responseCode = "400", description = "Validation failed", content = @Content),
             @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content)
     })
-    public ResponseEntity<ContactResponse> create(@Valid @RequestBody ContactRequest request) {
-        ContactResponse created = contactService.create(request);
+    public ResponseEntity<ContactResponse> create(@Valid @RequestBody ContactRequest request,
+                                                  Authentication auth) {
+        ContactResponse created = contactService.create(request, currentUserService.currentUserId(auth));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(created.id())
@@ -113,8 +122,10 @@ public class ContactController {
             @RequestParam(required = false)
             @Parameter(description = "Restrict results to contacts carrying this tag (case-insensitive)")
             String tag,
-            @ParameterObject @PageableDefault(size = 20, sort = "lastName") Pageable pageable) {
-        return ResponseEntity.ok(contactService.list(search, tag, pageable));
+            @ParameterObject @PageableDefault(size = 20, sort = "lastName") Pageable pageable,
+            Authentication auth) {
+        return ResponseEntity.ok(contactService.list(search, tag, pageable,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
@@ -127,8 +138,9 @@ public class ContactController {
     @Operation(summary = "List all tags in use",
             description = "Returns the distinct, sorted set of tags assigned to any contact.")
     @ApiResponse(responseCode = "200", description = "List of tags")
-    public ResponseEntity<List<String>> listTags() {
-        return ResponseEntity.ok(contactService.listTags());
+    public ResponseEntity<List<String>> listTags(Authentication auth) {
+        return ResponseEntity.ok(contactService.listTags(
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
@@ -144,8 +156,10 @@ public class ContactController {
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
     })
     public ResponseEntity<ContactResponse> get(
-            @PathVariable @Parameter(description = "Contact identifier") Long id) {
-        return ResponseEntity.ok(contactService.get(id));
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            Authentication auth) {
+        return ResponseEntity.ok(contactService.get(id,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
@@ -167,8 +181,10 @@ public class ContactController {
     })
     public ResponseEntity<ContactResponse> update(
             @PathVariable @Parameter(description = "Contact identifier") Long id,
-            @Valid @RequestBody ContactRequest request) {
-        return ResponseEntity.ok(contactService.update(id, request));
+            @Valid @RequestBody ContactRequest request,
+            Authentication auth) {
+        return ResponseEntity.ok(contactService.update(id, request,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
@@ -190,8 +206,10 @@ public class ContactController {
     })
     public ResponseEntity<ContactResponse> patch(
             @PathVariable @Parameter(description = "Contact identifier") Long id,
-            @Valid @RequestBody ContactPatchRequest request) {
-        return ResponseEntity.ok(contactService.patch(id, request));
+            @Valid @RequestBody ContactPatchRequest request,
+            Authentication auth) {
+        return ResponseEntity.ok(contactService.patch(id, request,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
@@ -209,8 +227,10 @@ public class ContactController {
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
     })
     public ResponseEntity<Void> delete(
-            @PathVariable @Parameter(description = "Contact identifier") Long id) {
-        contactService.delete(id);
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            Authentication auth) {
+        contactService.delete(id,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
         return ResponseEntity.noContent().build();
     }
 
@@ -225,8 +245,10 @@ public class ContactController {
             description = "Returns a paginated list of soft-deleted contacts.")
     @ApiResponse(responseCode = "200", description = "Page of trashed contacts")
     public ResponseEntity<Page<ContactResponse>> listTrash(
-            @ParameterObject @PageableDefault(size = 20, sort = "deletedAt") Pageable pageable) {
-        return ResponseEntity.ok(contactService.listTrash(pageable));
+            @ParameterObject @PageableDefault(size = 20, sort = "deletedAt") Pageable pageable,
+            Authentication auth) {
+        return ResponseEntity.ok(contactService.listTrash(pageable,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
@@ -243,26 +265,33 @@ public class ContactController {
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
     })
     public ResponseEntity<ContactResponse> restore(
-            @PathVariable @Parameter(description = "Contact identifier") Long id) {
-        return ResponseEntity.ok(contactService.restore(id));
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            Authentication auth) {
+        return ResponseEntity.ok(contactService.restore(id,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
-     * Permanently deletes a contact, removing the row entirely.
+     * Permanently deletes a contact, removing the row entirely. Irreversible, so
+     * restricted to administrators.
      *
      * @param id the contact identifier
      * @return {@code 204 No Content}
      */
     @DeleteMapping("/{id}/permanent")
-    @Operation(summary = "Permanently delete a contact",
-            description = "Hard-deletes the contact, removing it irreversibly.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Permanently delete a contact (admin only)",
+            description = "Hard-deletes the contact, removing it irreversibly. Requires the ADMIN role.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Contact permanently deleted"),
+            @ApiResponse(responseCode = "403", description = "Caller is not an admin", content = @Content),
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
     })
     public ResponseEntity<Void> purge(
-            @PathVariable @Parameter(description = "Contact identifier") Long id) {
-        contactService.purge(id);
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            Authentication auth) {
+        contactService.purge(id,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
         return ResponseEntity.noContent().build();
     }
 
@@ -287,8 +316,10 @@ public class ContactController {
             @ApiResponse(responseCode = "404", description = "Contact or photo not found", content = @Content)
     })
     public ResponseEntity<byte[]> getPhoto(
-            @PathVariable @Parameter(description = "Contact identifier") Long id) {
-        PhotoData photo = contactService.getPhoto(id);
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            Authentication auth) {
+        PhotoData photo = contactService.getPhoto(id,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(photo.contentType()))
                 .body(photo.data());
@@ -313,7 +344,8 @@ public class ContactController {
     })
     public ResponseEntity<ContactResponse> uploadPhoto(
             @PathVariable @Parameter(description = "Contact identifier") Long id,
-            @RequestParam("file") @Parameter(description = "Image file to upload") MultipartFile file)
+            @RequestParam("file") @Parameter(description = "Image file to upload") MultipartFile file,
+            Authentication auth)
             throws IOException {
         if (file == null || file.isEmpty()) {
             throw new InvalidImageException("No file provided");
@@ -326,8 +358,10 @@ public class ContactController {
         if (file.getSize() > MAX_PHOTO_SIZE) {
             throw new InvalidImageException("Image too large (max 2MB)");
         }
-        contactService.savePhoto(id, file.getBytes(), file.getContentType());
-        return ResponseEntity.ok(contactService.get(id));
+        Long ownerId = currentUserService.currentUserId(auth);
+        boolean isAdmin = currentUserService.isAdmin(auth);
+        contactService.savePhoto(id, file.getBytes(), file.getContentType(), ownerId, isAdmin);
+        return ResponseEntity.ok(contactService.get(id, ownerId, isAdmin));
     }
 
     /**
@@ -343,8 +377,10 @@ public class ContactController {
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
     })
     public ResponseEntity<Void> deletePhoto(
-            @PathVariable @Parameter(description = "Contact identifier") Long id) {
-        contactService.deletePhoto(id);
+            @PathVariable @Parameter(description = "Contact identifier") Long id,
+            Authentication auth) {
+        contactService.deletePhoto(id,
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
         return ResponseEntity.noContent().build();
     }
 
@@ -360,8 +396,10 @@ public class ContactController {
     @GetMapping(value = "/export.csv", produces = "text/csv")
     @Operation(summary = "Export all contacts as CSV")
     @ApiResponse(responseCode = "200", description = "CSV document")
-    public ResponseEntity<byte[]> exportCsv() {
-        byte[] body = contactService.exportCsv().getBytes(StandardCharsets.UTF_8);
+    public ResponseEntity<byte[]> exportCsv(Authentication auth) {
+        byte[] body = contactService.exportCsv(
+                        currentUserService.currentUserId(auth), currentUserService.isAdmin(auth))
+                .getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"contacts.csv\"")
@@ -376,10 +414,11 @@ public class ContactController {
     @GetMapping(value = "/export.json", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Export all contacts as JSON")
     @ApiResponse(responseCode = "200", description = "JSON array of contacts")
-    public ResponseEntity<List<ContactResponse>> exportJson() {
+    public ResponseEntity<List<ContactResponse>> exportJson(Authentication auth) {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"contacts.json\"")
-                .body(contactService.exportAll());
+                .body(contactService.exportAll(
+                        currentUserService.currentUserId(auth), currentUserService.isAdmin(auth)));
     }
 
     /**
@@ -399,7 +438,8 @@ public class ContactController {
             @ApiResponse(responseCode = "413", description = "File too large", content = @Content)
     })
     public ResponseEntity<ImportSummary> importCsv(
-            @RequestParam("file") @Parameter(description = "CSV file to import") MultipartFile file)
+            @RequestParam("file") @Parameter(description = "CSV file to import") MultipartFile file,
+            Authentication auth)
             throws IOException {
         if (file == null || file.isEmpty()) {
             throw new InvalidFileException("No file provided");
@@ -413,7 +453,7 @@ public class ContactController {
                     "Unsupported file type: " + type + ". Please upload a .csv file.");
         }
         String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-        return ResponseEntity.ok(contactService.importCsv(content));
+        return ResponseEntity.ok(contactService.importCsv(content, currentUserService.currentUserId(auth)));
     }
 
     /**
@@ -426,8 +466,10 @@ public class ContactController {
     @Operation(summary = "Bulk soft-delete contacts",
             description = "Soft-deletes the supplied contacts, skipping missing or already-deleted ids.")
     @ApiResponse(responseCode = "200", description = "Bulk delete result")
-    public ResponseEntity<BulkResult> bulkDelete(@RequestBody BulkIdsRequest request) {
-        int affected = contactService.bulkDelete(request.ids());
+    public ResponseEntity<BulkResult> bulkDelete(@RequestBody BulkIdsRequest request,
+                                                 Authentication auth) {
+        int affected = contactService.bulkDelete(request.ids(),
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
         return ResponseEntity.ok(new BulkResult(affected));
     }
 
@@ -441,8 +483,10 @@ public class ContactController {
     @Operation(summary = "Bulk set favorite on contacts",
             description = "Sets the favorite flag on the supplied contacts, skipping missing or already-deleted ids.")
     @ApiResponse(responseCode = "200", description = "Bulk favorite result")
-    public ResponseEntity<BulkResult> bulkFavorite(@RequestBody BulkFavoriteRequest request) {
-        int affected = contactService.bulkSetFavorite(request.ids(), request.favorite());
+    public ResponseEntity<BulkResult> bulkFavorite(@RequestBody BulkFavoriteRequest request,
+                                                   Authentication auth) {
+        int affected = contactService.bulkSetFavorite(request.ids(), request.favorite(),
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
         return ResponseEntity.ok(new BulkResult(affected));
     }
 
@@ -456,9 +500,11 @@ public class ContactController {
     @Operation(summary = "Bulk add/remove tags on contacts",
             description = "Adds and/or removes tags across the supplied contacts, skipping missing or already-deleted ids.")
     @ApiResponse(responseCode = "200", description = "Bulk tags result")
-    public ResponseEntity<BulkResult> bulkTags(@RequestBody BulkTagsRequest request) {
+    public ResponseEntity<BulkResult> bulkTags(@RequestBody BulkTagsRequest request,
+                                               Authentication auth) {
         int affected = contactService.bulkAddRemoveTags(
-                request.ids(), request.addTags(), request.removeTags());
+                request.ids(), request.addTags(), request.removeTags(),
+                currentUserService.currentUserId(auth), currentUserService.isAdmin(auth));
         return ResponseEntity.ok(new BulkResult(affected));
     }
 }

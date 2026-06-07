@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -32,6 +33,7 @@ import org.springframework.test.web.servlet.MvcResult;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser
 class SoftDeleteEdgeCaseTest {
 
     /** An id far above anything the suite will ever generate, used for "missing" cases. */
@@ -56,6 +58,7 @@ class SoftDeleteEdgeCaseTest {
     // ---- (1) permanent delete of a missing id -----------------------------
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void permanentDelete_missingId_returns404() throws Exception {
         mockMvc.perform(delete("/api/v1/contacts/{id}/permanent", MISSING_ID))
                 .andExpect(status().isNotFound());

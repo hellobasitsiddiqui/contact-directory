@@ -27,6 +27,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -40,6 +41,7 @@ import org.springframework.test.web.servlet.MvcResult;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser
 class ContactApiIntegrationTest {
 
     /**
@@ -451,6 +453,7 @@ class ContactApiIntegrationTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void permanentDelete_purgesRowAndSubsequentGetReturns404() throws Exception {
         long id = createContact("Purge", "Forever", uniqueEmail(), null);
 
@@ -474,6 +477,7 @@ class ContactApiIntegrationTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     void permanentDelete_missingId_returns404() throws Exception {
         mockMvc.perform(delete("/api/v1/contacts/{id}/permanent", 999999L))
                 .andExpect(status().isNotFound());

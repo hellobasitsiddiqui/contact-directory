@@ -35,13 +35,21 @@ public class Contact {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Id of the {@link User} who owns this contact. Every contact is owned by the
+     * user who created it; non-admin users may only see and act on their own
+     * contacts. Admins operate unscoped across all owners.
+     */
+    @Column(name = "owner_id", nullable = false)
+    private Long ownerId;
+
     @Column(nullable = false)
     private String firstName;
 
     @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String email;
 
     private String phone;
@@ -122,6 +130,14 @@ public class Contact {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(Long ownerId) {
+        this.ownerId = ownerId;
     }
 
     public String getFirstName() {
