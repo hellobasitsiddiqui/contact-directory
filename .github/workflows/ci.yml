@@ -4,9 +4,9 @@ name: CI
 # master also runs on merge. (Scoping push to master avoids double runs on PRs.)
 on:
   push:
-    branches: [ master ]
+    branches: [ master, develop ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, develop ]
   workflow_dispatch:
 
 # Cancel superseded runs on the same ref to save runner minutes.
