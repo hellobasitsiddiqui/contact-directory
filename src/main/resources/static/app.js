@@ -52,6 +52,19 @@ const state = {
 /** Preset tag suggestions offered in the modal (free-form tags also allowed). */
 const PRESET_TAGS = ['Friend', 'Work', 'Client', 'Family'];
 
+/**
+ * Whether the Trash view is active. When true, load() fetches GET /trash and
+ * rows show Restore / Delete-forever instead of Edit / Delete; the bulk bar and
+ * New Contact button are hidden.
+ */
+let viewingTrash = false;
+
+/**
+ * Ids of contacts currently selected via the row checkboxes (Set of String ids).
+ * Survives renderRows() (which rebuilds the tbody); reconciled after each load().
+ */
+const selectedIds = new Set();
+
 /* ------------------------------------------------------------------ *
  * 2. Element references
  * ------------------------------------------------------------------ */
@@ -70,6 +83,16 @@ const el = {
   tagFilter: $('tag-filter'),
   btnImport: $('btn-import'),
   importFile: $('import-file'),
+  btnTrash: $('btn-trash'),
+  // Bulk action bar
+  selectAll: $('select-all'),
+  bulkBar: $('bulk-bar'),
+  bulkCount: $('bulk-count'),
+  btnBulkFavorite: $('btn-bulk-favorite'),
+  btnBulkUnfavorite: $('btn-bulk-unfavorite'),
+  btnBulkTag: $('btn-bulk-tag'),
+  btnBulkDelete: $('btn-bulk-delete'),
+  btnBulkClear: $('btn-bulk-clear'),
   // List
   contactsBody: $('contacts-body'),
   // States
@@ -225,6 +248,49 @@ function updateContact(id, body) {
 
 function deleteContact(id) {
   return request(`${API_BASE}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/** Restore a soft-deleted contact (POST /{id}/restore -> 200 ContactResponse). */
+function restoreContact(id) {
+  return request(`${API_BASE}/${encodeURIComponent(id)}/restore`, {
+    method: 'POST',
+  });
+}
+
+/** Permanently (hard) delete a contact (DELETE /{id}/permanent -> 204). */
+function purgeContact(id) {
+  return request(`${API_BASE}/${encodeURIComponent(id)}/permanent`, {
+    method: 'DELETE',
+  });
+}
+
+/** List soft-deleted contacts (GET /trash). Trash has its own minimal URL. */
+function listTrash(s) {
+  const params = new URLSearchParams();
+  params.set('page', String(s.page));
+  params.set('size', String(s.size));
+  return request(`${API_BASE}/trash?${params.toString()}`, { method: 'GET' });
+}
+
+/** Bulk soft-delete contacts; returns BulkResult {affected}. */
+function bulkDelete(ids) {
+  return request(`${API_BASE}/bulk/delete`, { method: 'POST', body: { ids } });
+}
+
+/** Bulk set favourite flag; returns BulkResult {affected}. */
+function bulkFavorite(ids, favorite) {
+  return request(`${API_BASE}/bulk/favorite`, {
+    method: 'POST',
+    body: { ids, favorite },
+  });
+}
+
+/** Bulk add/remove tags; returns BulkResult {affected}. */
+function bulkTags(ids, addTags, removeTags) {
+  return request(`${API_BASE}/bulk/tags`, {
+    method: 'POST',
+    body: { ids, addTags, removeTags },
+  });
 }
 
 /** Partially update a contact (used by the favourite star toggle). */
@@ -442,11 +508,60 @@ function makeAvatarCell(contact) {
   return td;
 }
 
-/** Build the Edit/Delete action cell for a row. */
+/**
+ * Leading select cell holding a per-row checkbox. The checkbox reflects the
+ * current selectedIds membership; its change/click is handled via delegation and
+ * must NOT bubble up to open the row detail modal.
+ */
+function makeSelectCell(contact) {
+  const td = document.createElement('td');
+  td.className = 'cell-select';
+  td.setAttribute('data-label', 'Select');
+
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'row-select';
+  cb.dataset.id = String(contact.id);
+  cb.checked = selectedIds.has(String(contact.id));
+  cb.setAttribute('aria-label', `Select ${fullName(contact)}`);
+
+  td.appendChild(cb);
+  return td;
+}
+
+/**
+ * Build the action cell for a row. In the normal list this is Edit/Delete; in
+ * the Trash view it is Restore / Delete-forever (the latter reuses the confirm
+ * modal via the purge path).
+ */
 function makeActionsCell(contact) {
   const td = document.createElement('td');
   td.className = 'cell-actions';
   td.setAttribute('data-label', 'Actions');
+
+  if (viewingTrash) {
+    const restoreBtn = document.createElement('button');
+    restoreBtn.type = 'button';
+    restoreBtn.className = 'btn btn--ghost btn--sm';
+    restoreBtn.dataset.action = 'restore';
+    restoreBtn.dataset.id = String(contact.id);
+    restoreBtn.textContent = 'Restore';
+    restoreBtn.setAttribute('aria-label', `Restore ${fullName(contact)}`);
+
+    const purgeBtn = document.createElement('button');
+    purgeBtn.type = 'button';
+    purgeBtn.className = 'btn btn--ghost btn--danger btn--sm';
+    purgeBtn.dataset.action = 'purge';
+    purgeBtn.dataset.id = String(contact.id);
+    purgeBtn.textContent = 'Delete forever';
+    purgeBtn.setAttribute(
+      'aria-label',
+      `Permanently delete ${fullName(contact)}`
+    );
+
+    td.append(restoreBtn, purgeBtn);
+    return td;
+  }
 
   const editBtn = document.createElement('button');
   editBtn.type = 'button';
@@ -500,6 +615,7 @@ function makeRow(contact) {
   const tr = document.createElement('tr');
   tr.dataset.id = String(contact.id);
   tr.append(
+    makeSelectCell(contact),
     makeStarCell(contact),
     makeAvatarCell(contact),
     makeCell('Name', fullName(contact)),
@@ -520,6 +636,76 @@ function renderRows(contacts) {
     frag.appendChild(makeRow(contact));
   }
   tbody.appendChild(frag);
+}
+
+/* ------------------------------------------------------------------ *
+ * 4b. Bulk selection
+ * ------------------------------------------------------------------ */
+
+/** Ids of the contacts on the currently loaded page (as Strings). */
+function currentPageIds() {
+  if (!currentPage || !Array.isArray(currentPage.content)) return [];
+  return currentPage.content.map((c) => String(c.id));
+}
+
+/**
+ * Show/hide the bulk bar and sync its count + the select-all checkbox state to
+ * the current selection. The Trash view never shows the bulk bar.
+ */
+function refreshBulkBar() {
+  const n = selectedIds.size;
+
+  if (el.bulkBar) {
+    el.bulkBar.hidden = viewingTrash || n === 0;
+  }
+  if (el.bulkCount) {
+    el.bulkCount.textContent = `${n} selected`;
+  }
+
+  if (el.selectAll) {
+    const pageIds = currentPageIds();
+    const selectedOnPage = pageIds.filter((id) => selectedIds.has(id)).length;
+    el.selectAll.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
+    el.selectAll.indeterminate =
+      selectedOnPage > 0 && selectedOnPage < pageIds.length;
+  }
+}
+
+/** Reflect selectedIds onto the rendered row checkboxes (after a load/render). */
+function syncRowCheckboxes() {
+  const boxes = el.contactsBody.querySelectorAll('input.row-select');
+  boxes.forEach((cb) => {
+    cb.checked = selectedIds.has(String(cb.dataset.id));
+  });
+}
+
+/** Toggle a single row's selection. */
+function toggleRowSelect(id, checked) {
+  const key = String(id);
+  if (checked) selectedIds.add(key);
+  else selectedIds.delete(key);
+  refreshBulkBar();
+}
+
+/** Select / deselect every contact on the CURRENT page only. */
+function toggleSelectAll(checked) {
+  for (const id of currentPageIds()) {
+    if (checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+  }
+  syncRowCheckboxes();
+  refreshBulkBar();
+}
+
+/** Clear the whole selection and hide the bulk bar. */
+function clearSelection() {
+  selectedIds.clear();
+  syncRowCheckboxes();
+  if (el.selectAll) {
+    el.selectAll.checked = false;
+    el.selectAll.indeterminate = false;
+  }
+  refreshBulkBar();
 }
 
 /* ------------------------------------------------------------------ *
@@ -557,7 +743,9 @@ async function load() {
   el.btnNext.disabled = true;
 
   try {
-    const page = await listContacts(state);
+    const page = viewingTrash
+      ? await listTrash(state)
+      : await listContacts(state);
     currentPage = page;
 
     const content = Array.isArray(page.content) ? page.content : [];
@@ -567,11 +755,16 @@ async function load() {
     el.emptyState.hidden = !isEmpty;
 
     updatePagination(page);
+
+    // Rows were rebuilt: re-reflect any surviving selection and resync the bar.
+    syncRowCheckboxes();
+    refreshBulkBar();
   } catch (err) {
     currentPage = null;
     renderRows([]);
     el.emptyState.hidden = true;
     el.pageInfo.textContent = '';
+    refreshBulkBar();
     toast(err.message || 'Failed to load contacts.', 'error');
   } finally {
     setLoading(false);
@@ -587,10 +780,34 @@ let toastTimer = null;
 /**
  * Show a transient message. variant: 'success' | 'error'.
  * Reuses the single #toast element; restarts the fade timer on each call.
+ *
+ * Optional `action` = { label, fn } renders a button after the message (e.g. an
+ * "Undo" affordance). The label is set via textContent and the handler via
+ * addEventListener — never innerHTML — so it stays XSS-safe. 2-arg calls keep
+ * working: with no action the toast is just the message text.
  */
-function toast(message, variant = 'success') {
+function toast(message, variant = 'success', action) {
   const node = el.toast;
-  node.textContent = message;
+
+  // replaceChildren (not textContent) so we can append an action button without
+  // a later 2-arg call wiping it — each call rebuilds the toast contents.
+  const text = document.createTextNode(message);
+  node.replaceChildren(text);
+
+  if (action && action.label && typeof action.fn === 'function') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toast__action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      // Dismiss the toast immediately; the action decides what happens next.
+      if (toastTimer) clearTimeout(toastTimer);
+      node.classList.remove('toast--show');
+      action.fn();
+    });
+    node.appendChild(btn);
+  }
+
   node.classList.remove('toast--success', 'toast--error');
   node.classList.add(variant === 'error' ? 'toast--error' : 'toast--success');
   node.classList.add('toast--show');
@@ -686,6 +903,13 @@ let tagsTouched = false;
  */
 let currentFavorite = false;
 
+/**
+ * The optimistic-concurrency version of the contact being edited. Carried
+ * through the edit modal so a PUT/PATCH can send it for the server's stale-check.
+ * null for a brand-new contact (create) so no version assertion is sent.
+ */
+let currentVersion = null;
+
 /** Render the staged tags as removable chips inside #tag-chips (XSS-safe). */
 function renderTagChips() {
   const wrap = el.tagChips;
@@ -693,7 +917,7 @@ function renderTagChips() {
   wrap.replaceChildren();
   for (const tag of selectedTags) {
     const chip = document.createElement('span');
-    chip.className = 'tag-chip tag-chip--removable';
+    chip.className = 'tag-chip';
 
     const label = document.createElement('span');
     label.textContent = tag;
@@ -812,6 +1036,7 @@ function resetForm() {
   selectedTags = [];
   tagsTouched = false;
   currentFavorite = false;
+  currentVersion = null;
   if (el.fieldTagInput) el.fieldTagInput.value = '';
   renderTagChips();
 }
@@ -827,6 +1052,11 @@ function fillForm(contact) {
 
   // Carry the favourite flag through so a PUT (full replace) preserves it.
   currentFavorite = !!contact.favorite;
+
+  // Carry the version through for the optimistic-concurrency check. The fresh
+  // getContact() refill in openEdit lands last and wins, so we send the
+  // authoritative version. null when absent (e.g. a brand-new contact).
+  currentVersion = contact.version != null ? contact.version : null;
 
   // Reflect saved tags — but don't clobber edits the user already made (e.g.
   // the openEdit fresh-fetch landing after they started changing tags).
@@ -921,6 +1151,8 @@ function readForm() {
     tags: selectedTags.slice(),
     favorite: currentFavorite,
     notes: el.fieldNotes ? optional(el.fieldNotes.value) : null,
+    // null on create (no version) -> server skips the check; set on edit.
+    version: currentVersion,
   };
 }
 
@@ -1004,6 +1236,16 @@ async function submitForm(event) {
   } catch (err) {
     if (err.status === 400 && err.body && err.body.errors) {
       applyValidationErrors(err.body.errors);
+    } else if (err.status === 412) {
+      // Stale version — someone else changed this contact. Not a field error:
+      // close the modal, warn, and reload the authoritative data.
+      closeContactModal();
+      toast(
+        err.message || 'This contact was changed elsewhere. Reloading…',
+        'error'
+      );
+      load();
+      populateTagFilter();
     } else if (err.status === 409) {
       toast(err.message || 'A contact with that email already exists.', 'error');
     } else if (err.status === 404) {
@@ -1026,6 +1268,12 @@ async function submitForm(event) {
 /** Id of the contact currently queued for deletion. */
 let pendingDeleteId = null;
 
+/**
+ * What the confirm modal will do: 'soft' (move to trash, reversible via Undo) or
+ * 'purge' (permanent hard delete, no Undo). Set by openDelete / openPurge.
+ */
+let pendingDeleteMode = 'soft';
+
 function openConfirmModal() {
   if (typeof el.confirmModal.showModal === 'function') {
     el.confirmModal.showModal();
@@ -1042,41 +1290,74 @@ function closeConfirmModal() {
   }
 }
 
-function openDelete(id) {
-  lastTrigger = document.activeElement;
-  pendingDeleteId = id;
+/** Find a contact's display name on the current page, or a generic fallback. */
+function nameOnPage(id) {
   const row =
     currentPage &&
     Array.isArray(currentPage.content) &&
     currentPage.content.find((c) => String(c.id) === String(id));
-  const name = row ? fullName(row) : 'this contact';
+  return row ? fullName(row) : 'this contact';
+}
 
-  // textContent keeps the name XSS-safe.
-  el.confirmText.textContent = `Delete ${name}? This cannot be undone.`;
+function openDelete(id) {
+  lastTrigger = document.activeElement;
+  pendingDeleteId = id;
+  pendingDeleteMode = 'soft';
+  const name = nameOnPage(id);
+
+  // textContent keeps the name XSS-safe. Soft delete is reversible (Undo toast).
+  el.confirmText.textContent = `Delete ${name}? You can undo this from Trash.`;
   openConfirmModal();
   el.btnConfirmDelete.focus();
+}
+
+/** Queue a permanent (hard) delete via the same confirm modal. */
+function openPurge(id) {
+  lastTrigger = document.activeElement;
+  pendingDeleteId = id;
+  pendingDeleteMode = 'purge';
+  const name = nameOnPage(id);
+
+  el.confirmText.textContent = `Permanently delete ${name}? This cannot be undone.`;
+  openConfirmModal();
+  el.btnConfirmDelete.focus();
+}
+
+/** Step back one page if the just-removed row was the last on a non-first page. */
+function stepBackIfPageEmptied() {
+  const remaining =
+    currentPage && typeof currentPage.numberOfElements === 'number'
+      ? currentPage.numberOfElements - 1
+      : null;
+  if (remaining !== null && remaining <= 0 && state.page > 0) {
+    state.page -= 1;
+  }
 }
 
 async function confirmDelete() {
   if (pendingDeleteId == null) return;
   const id = pendingDeleteId;
+  const mode = pendingDeleteMode;
 
   el.btnConfirmDelete.disabled = true;
   el.btnCancelDelete.disabled = true;
 
   try {
-    await deleteContact(id);
-    closeConfirmModal();
-    toast('Contact deleted.', 'success');
-
-    // If we just removed the last row on a non-first page, step back one page.
-    const remaining =
-      currentPage && typeof currentPage.numberOfElements === 'number'
-        ? currentPage.numberOfElements - 1
-        : null;
-    if (remaining !== null && remaining <= 0 && state.page > 0) {
-      state.page -= 1;
+    if (mode === 'purge') {
+      await purgeContact(id);
+      closeConfirmModal();
+      toast('Contact permanently deleted.', 'success');
+    } else {
+      await deleteContact(id);
+      closeConfirmModal();
+      // Soft delete is reversible — offer an Undo that restores then reloads.
+      toast('Contact moved to Trash.', 'success', {
+        label: 'Undo',
+        fn: () => undoDelete([id]),
+      });
     }
+
+    stepBackIfPageEmptied();
     load();
     populateTagFilter();
   } catch (err) {
@@ -1089,8 +1370,41 @@ async function confirmDelete() {
     load();
   } finally {
     pendingDeleteId = null;
+    pendingDeleteMode = 'soft';
     el.btnConfirmDelete.disabled = false;
     el.btnCancelDelete.disabled = false;
+  }
+}
+
+/** Restore one or more soft-deleted ids (Undo handler), then reload + refresh tags. */
+async function undoDelete(ids) {
+  try {
+    await Promise.all(ids.map((id) => restoreContact(id)));
+    toast(ids.length === 1 ? 'Contact restored.' : `${ids.length} contacts restored.`, 'success');
+  } catch (err) {
+    toast(err.message || 'Failed to restore.', 'error');
+  } finally {
+    load();
+    populateTagFilter();
+  }
+}
+
+/** Restore a single contact from the Trash view, then reload + refresh tags. */
+async function restoreFromTrash(id) {
+  try {
+    await restoreContact(id);
+    toast('Contact restored.', 'success');
+  } catch (err) {
+    if (err.status === 404) {
+      toast(err.message || 'Contact no longer exists.', 'error');
+    } else {
+      toast(err.message || 'Failed to restore contact.', 'error');
+    }
+  } finally {
+    // Restoring the last row on a non-first trash page should step back too.
+    stepBackIfPageEmptied();
+    load();
+    populateTagFilter();
   }
 }
 
@@ -1141,6 +1455,91 @@ async function onImportFile() {
   } finally {
     if (el.importFile) el.importFile.value = '';
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * 8c2. Bulk actions
+ * ------------------------------------------------------------------ */
+
+/**
+ * Run a bulk operation over the current selection, then clear + reload.
+ * `op` returns a Promise of the BulkResult; `verb` describes the action for the
+ * toast. `refreshTags` re-syncs the tag filter for ops that change tags/active set.
+ * Optional `undoIds` enables an Undo toast (used by bulk delete).
+ */
+async function runBulk(op, verb, refreshTags, undoIds) {
+  const ids = [...selectedIds];
+  if (ids.length === 0) return;
+
+  try {
+    const result = await op(ids);
+    const affected = result && typeof result.affected === 'number' ? result.affected : 0;
+    const noun = affected === 1 ? 'contact' : 'contacts';
+    const message = `${affected} ${noun} ${verb}.`;
+
+    clearSelection();
+    if (undoIds) {
+      toast(message, 'success', {
+        label: 'Undo',
+        fn: () => undoDelete(undoIds),
+      });
+    } else {
+      toast(message, 'success');
+    }
+    load();
+    if (refreshTags) populateTagFilter();
+  } catch (err) {
+    toast(err.message || 'Bulk action failed.', 'error');
+  }
+}
+
+function onBulkFavorite() {
+  runBulk((ids) => bulkFavorite(ids, true), 'favourited', false);
+}
+
+function onBulkUnfavorite() {
+  runBulk((ids) => bulkFavorite(ids, false), 'unfavourited', false);
+}
+
+function onBulkTag() {
+  // Minimal UX: prompt for a tag to add to every selected contact.
+  const raw = typeof window.prompt === 'function' ? window.prompt('Tag to add to selected contacts:') : null;
+  if (raw == null) return; // cancelled
+  const tag = String(raw).trim();
+  if (!tag) return;
+  runBulk((ids) => bulkTags(ids, [tag], []), 'tagged', true);
+}
+
+function onBulkDelete() {
+  // Capture the ids BEFORE clearSelection() empties the Set, for the Undo toast.
+  const ids = [...selectedIds];
+  if (ids.length === 0) return;
+  runBulk((idList) => bulkDelete(idList), 'moved to Trash', true, ids);
+}
+
+/* ------------------------------------------------------------------ *
+ * 8c3. Trash view toggle
+ * ------------------------------------------------------------------ */
+
+/** Flip between the normal list and the Trash view, resetting page + selection. */
+function toggleTrashView() {
+  viewingTrash = !viewingTrash;
+  clearSelection();
+  state.page = 0;
+  applyTrashViewState();
+  load();
+}
+
+/** Sync chrome (New button, bulk bar, trash button label) to viewingTrash. */
+function applyTrashViewState() {
+  if (el.btnNew) el.btnNew.hidden = viewingTrash;
+  if (el.btnTrash) {
+    el.btnTrash.textContent = viewingTrash ? 'Back to contacts' : 'Trash';
+    el.btnTrash.setAttribute('aria-pressed', viewingTrash ? 'true' : 'false');
+  }
+  // Activates the .trash-active .btn-trash danger styling defined in styles.css.
+  document.body.classList.toggle('trash-active', viewingTrash);
+  refreshBulkBar();
 }
 
 /* ------------------------------------------------------------------ *
@@ -1376,6 +1775,23 @@ function wireEvents() {
     el.importFile.addEventListener('change', onImportFile);
   }
 
+  // Trash view toggle.
+  if (el.btnTrash) el.btnTrash.addEventListener('click', toggleTrashView);
+
+  // Select-all (current page only) + bulk action bar buttons.
+  if (el.selectAll) {
+    el.selectAll.addEventListener('change', () =>
+      toggleSelectAll(el.selectAll.checked)
+    );
+  }
+  if (el.btnBulkFavorite)
+    el.btnBulkFavorite.addEventListener('click', onBulkFavorite);
+  if (el.btnBulkUnfavorite)
+    el.btnBulkUnfavorite.addEventListener('click', onBulkUnfavorite);
+  if (el.btnBulkTag) el.btnBulkTag.addEventListener('click', onBulkTag);
+  if (el.btnBulkDelete) el.btnBulkDelete.addEventListener('click', onBulkDelete);
+  if (el.btnBulkClear) el.btnBulkClear.addEventListener('click', clearSelection);
+
   // Pagination.
   el.btnPrev.addEventListener('click', () => {
     if (state.page > 0) {
@@ -1389,9 +1805,20 @@ function wireEvents() {
     load();
   });
 
-  // Row actions via event delegation (no inline onclick). A click on a row
-  // button runs that action; a click elsewhere on the row opens the detail card.
+  // Row selection checkbox: toggle selection and stop the click bubbling so the
+  // detail modal never opens. Handled separately from the button delegation.
+  el.contactsBody.addEventListener('change', (event) => {
+    const cb = event.target.closest('input.row-select');
+    if (!cb || !el.contactsBody.contains(cb)) return;
+    event.stopPropagation();
+    toggleRowSelect(cb.dataset.id, cb.checked);
+  });
+  // A bare click on the checkbox must not bubble up to the row detail handler.
   el.contactsBody.addEventListener('click', (event) => {
+    if (event.target.closest('input.row-select')) {
+      event.stopPropagation();
+      return;
+    }
     const btn = event.target.closest('button[data-action]');
     if (btn && el.contactsBody.contains(btn)) {
       const id = btn.dataset.id;
@@ -1402,6 +1829,10 @@ function wireEvents() {
         openDelete(id);
       } else if (btn.dataset.action === 'favorite') {
         toggleFavorite(id);
+      } else if (btn.dataset.action === 'restore') {
+        restoreFromTrash(id);
+      } else if (btn.dataset.action === 'purge') {
+        openPurge(id);
       }
       return;
     }
@@ -1521,6 +1952,8 @@ function init() {
   wireEvents();
   updateThemeButton();
   renderTagChips();
+  applyTrashViewState();
+  refreshBulkBar();
   populateTagFilter();
   load();
 }

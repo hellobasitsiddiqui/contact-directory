@@ -54,6 +54,12 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
+        "404":
+          description: Contact not found
+        "412":
+          description: Stale version / concurrent modification
+        "400":
+          description: Validation failed
         "409":
           description: Email already exists
         "200":
@@ -62,14 +68,12 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "404":
-          description: Contact not found
-        "400":
-          description: Validation failed
     delete:
       tags:
       - Contacts
-      summary: Delete a contact
+      summary: Soft-delete a contact
+      description: Soft-deletes the contact (moves it to trash); it can be restored
+        or permanently deleted later.
       operationId: delete
       parameters:
       - name: id
@@ -81,7 +85,7 @@ paths:
           format: int64
       responses:
         "204":
-          description: Contact deleted
+          description: Contact moved to trash
         "404":
           description: Contact not found
     patch:
@@ -105,6 +109,12 @@ paths:
               $ref: "#/components/schemas/ContactPatchRequest"
         required: true
       responses:
+        "404":
+          description: Contact not found
+        "412":
+          description: Stale version / concurrent modification
+        "400":
+          description: Validation failed
         "409":
           description: Email already exists
         "200":
@@ -113,10 +123,6 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "404":
-          description: Contact not found
-        "400":
-          description: Validation failed
   /api/v1/contacts:
     get:
       tags:
@@ -186,6 +192,8 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
+        "400":
+          description: Validation failed
         "409":
           description: Email already exists
         "201":
@@ -194,8 +202,30 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
-        "400":
-          description: Validation failed
+  /api/v1/contacts/{id}/restore:
+    post:
+      tags:
+      - Contacts
+      summary: Restore a trashed contact
+      description: "Restores a soft-deleted contact, returning it to the active list."
+      operationId: restore
+      parameters:
+      - name: id
+        in: path
+        description: Contact identifier
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "404":
+          description: Contact not found
+        "200":
+          description: Contact restored
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ContactResponse"
   /api/v1/contacts/{id}/photo:
     get:
       tags:
@@ -249,6 +279,8 @@ paths:
                   description: Image file to upload
                   format: binary
       responses:
+        "404":
+          description: Contact not found
         "200":
           description: Photo uploaded
           content:
@@ -259,8 +291,6 @@ paths:
           description: Invalid image
         "413":
           description: File too large
-        "404":
-          description: Contact not found
     delete:
       tags:
       - Contacts
@@ -310,6 +340,111 @@ paths:
           description: Invalid file
         "413":
           description: File too large
+  /api/v1/contacts/bulk/tags:
+    post:
+      tags:
+      - Contacts
+      summary: Bulk add/remove tags on contacts
+      description: "Adds and/or removes tags across the supplied contacts, skipping\
+        \ missing or already-deleted ids."
+      operationId: bulkTags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkTagsRequest"
+        required: true
+      responses:
+        "200":
+          description: Bulk tags result
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+  /api/v1/contacts/bulk/favorite:
+    post:
+      tags:
+      - Contacts
+      summary: Bulk set favorite on contacts
+      description: "Sets the favorite flag on the supplied contacts, skipping missing\
+        \ or already-deleted ids."
+      operationId: bulkFavorite
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkFavoriteRequest"
+        required: true
+      responses:
+        "200":
+          description: Bulk favorite result
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+  /api/v1/contacts/bulk/delete:
+    post:
+      tags:
+      - Contacts
+      summary: Bulk soft-delete contacts
+      description: "Soft-deletes the supplied contacts, skipping missing or already-deleted\
+        \ ids."
+      operationId: bulkDelete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkIdsRequest"
+        required: true
+      responses:
+        "200":
+          description: Bulk delete result
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+  /api/v1/contacts/trash:
+    get:
+      tags:
+      - Contacts
+      summary: List trashed contacts
+      description: Returns a paginated list of soft-deleted contacts.
+      operationId: listTrash
+      parameters:
+      - name: page
+        in: query
+        description: Zero-based page index (0..N)
+        required: false
+        schema:
+          minimum: 0
+          type: integer
+          default: 0
+      - name: size
+        in: query
+        description: The size of the page to be returned
+        required: false
+        schema:
+          minimum: 1
+          type: integer
+          default: 20
+      - name: sort
+        in: query
+        description: "Sorting criteria in the format: property,(asc|desc). Default\
+          \ sort order is ascending. Multiple sort criteria are supported."
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          default:
+          - "deletedAt,ASC"
+      responses:
+        "200":
+          description: Page of trashed contacts
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageContactResponse"
   /api/v1/contacts/tags:
     get:
       tags:
@@ -355,6 +490,26 @@ paths:
               schema:
                 type: string
                 format: byte
+  /api/v1/contacts/{id}/permanent:
+    delete:
+      tags:
+      - Contacts
+      summary: Permanently delete a contact
+      description: "Hard-deletes the contact, removing it irreversibly."
+      operationId: purge
+      parameters:
+      - name: id
+        in: path
+        description: Contact identifier
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "404":
+          description: Contact not found
+        "204":
+          description: Contact permanently deleted
 components:
   schemas:
     ContactRequest:
@@ -384,6 +539,9 @@ components:
           type: boolean
         notes:
           type: string
+        version:
+          type: integer
+          format: int64
     ContactResponse:
       type: object
       properties:
@@ -417,6 +575,12 @@ components:
           type: boolean
         notes:
           type: string
+        deletedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
     ImportSummary:
       type: object
       properties:
@@ -430,6 +594,48 @@ components:
           type: array
           items:
             type: string
+    BulkTagsRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        addTags:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+        removeTags:
+          uniqueItems: true
+          type: array
+          items:
+            type: string
+    BulkResult:
+      type: object
+      properties:
+        affected:
+          type: integer
+          format: int32
+    BulkFavoriteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+        favorite:
+          type: boolean
+    BulkIdsRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            format: int64
     ContactPatchRequest:
       type: object
       properties:
@@ -452,17 +658,18 @@ components:
           type: boolean
         notes:
           type: string
+        version:
+          type: integer
+          format: int64
     PageContactResponse:
       type: object
       properties:
-        totalPages:
-          type: integer
-          format: int32
         totalElements:
           type: integer
           format: int64
-        pageable:
-          $ref: "#/components/schemas/PageableObject"
+        totalPages:
+          type: integer
+          format: int32
         numberOfElements:
           type: integer
           format: int32
@@ -470,6 +677,8 @@ components:
           type: boolean
         last:
           type: boolean
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
         size:
           type: integer
           format: int32
@@ -489,6 +698,8 @@ components:
     PageableObject:
       type: object
       properties:
+        unpaged:
+          type: boolean
         paged:
           type: boolean
         pageNumber:
@@ -497,8 +708,6 @@ components:
         pageSize:
           type: integer
           format: int32
-        unpaged:
-          type: boolean
         offset:
           type: integer
           format: int64

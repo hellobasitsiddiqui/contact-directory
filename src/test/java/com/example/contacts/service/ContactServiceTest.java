@@ -7,10 +7,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.contacts.dto.ContactPatchRequest;
 import com.example.contacts.dto.ContactRequest;
 import com.example.contacts.dto.ContactResponse;
 import com.example.contacts.exception.DuplicateEmailException;
 import com.example.contacts.exception.ResourceNotFoundException;
+import com.example.contacts.exception.StaleResourceException;
 import com.example.contacts.model.Contact;
 import com.example.contacts.repository.ContactRepository;
 
@@ -40,7 +42,7 @@ class ContactServiceTest {
 
     private ContactRequest validRequest() {
         return new ContactRequest("Ada", "Lovelace", "ada@example.com",
-                "+44 20 7946 0958", "Analytical Engines", null, false, null);
+                "+44 20 7946 0958", "Analytical Engines", null, false, null, null);
     }
 
     @Test
@@ -90,13 +92,209 @@ class ContactServiceTest {
 
     @Test
     void delete_missingId_throwsResourceNotFoundExceptionAndDoesNotDelete() {
-        when(repository.existsById(99L)).thenReturn(false);
+        when(repository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.delete(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("99");
 
         verify(repository, never()).deleteById(any());
+    }
+
+    // ---- Soft delete / restore / purge ------------------------------------
+
+    @Test
+    void delete_existingId_softDeletesByStampingDeletedAtAndSaving() {
+        Contact contact = new Contact();
+        contact.setId(7L);
+        when(repository.findById(7L)).thenReturn(Optional.of(contact));
+
+        service.delete(7L);
+
+        ArgumentCaptor<Contact> captor = ArgumentCaptor.forClass(Contact.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getDeletedAt()).isNotNull();
+        // Soft delete must never hard-delete the row.
+        verify(repository, never()).deleteById(any());
+    }
+
+    @Test
+    void restore_existingId_clearsDeletedAtAndReturnsResponse() {
+        Contact contact = new Contact();
+        contact.setId(7L);
+        contact.setDeletedAt(Instant.now());
+        when(repository.findById(7L)).thenReturn(Optional.of(contact));
+        when(repository.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ContactResponse response = service.restore(7L);
+
+        ArgumentCaptor<Contact> captor = ArgumentCaptor.forClass(Contact.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getDeletedAt()).isNull();
+        assertThat(response.deletedAt()).isNull();
+    }
+
+    @Test
+    void restore_missingId_throwsResourceNotFoundException() {
+        when(repository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.restore(99L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("99");
+
+        verify(repository, never()).save(any(Contact.class));
+    }
+
+    @Test
+    void purge_existingId_hardDeletes() {
+        when(repository.existsById(7L)).thenReturn(true);
+
+        service.purge(7L);
+
+        verify(repository).deleteById(7L);
+    }
+
+    @Test
+    void purge_missingId_throwsResourceNotFoundExceptionAndDoesNotDelete() {
+        when(repository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.purge(99L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("99");
+
+        verify(repository, never()).deleteById(any());
+    }
+
+    // ---- Optimistic concurrency (version check) ---------------------------
+
+    @Test
+    void update_staleVersion_throwsStaleResourceExceptionAndDoesNotSave() {
+        Contact contact = new Contact();
+        contact.setId(7L);
+        contact.setVersion(3L);
+        when(repository.findById(7L)).thenReturn(Optional.of(contact));
+
+        // Client supplies a different version than the persisted one.
+        ContactRequest req = new ContactRequest("Ada", "Lovelace", "ada@example.com",
+                null, null, null, false, null, 99L);
+
+        assertThatThrownBy(() -> service.update(7L, req))
+                .isInstanceOf(StaleResourceException.class);
+
+        verify(repository, never()).save(any(Contact.class));
+    }
+
+    @Test
+    void update_nullVersion_skipsCheckAndSaves() {
+        Contact contact = new Contact();
+        contact.setId(7L);
+        contact.setVersion(3L);
+        when(repository.findById(7L)).thenReturn(Optional.of(contact));
+        when(repository.existsByEmailIgnoreCaseAndIdNot(any(), any())).thenReturn(false);
+        // update() flushes so the @Version increment is reflected in the response.
+        when(repository.saveAndFlush(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Null version -> the optimistic check is skipped entirely.
+        ContactRequest req = new ContactRequest("Ada", "Lovelace", "ada@example.com",
+                null, null, null, false, null, null);
+
+        service.update(7L, req);
+
+        verify(repository).saveAndFlush(any(Contact.class));
+    }
+
+    @Test
+    void patch_staleVersion_throwsStaleResourceExceptionAndDoesNotSave() {
+        Contact contact = new Contact();
+        contact.setId(7L);
+        contact.setVersion(2L);
+        when(repository.findById(7L)).thenReturn(Optional.of(contact));
+
+        ContactPatchRequest req = new ContactPatchRequest(
+                "NewName", null, null, null, null, null, null, null, 99L);
+
+        assertThatThrownBy(() -> service.patch(7L, req))
+                .isInstanceOf(StaleResourceException.class);
+
+        verify(repository, never()).save(any(Contact.class));
+    }
+
+    // ---- Bulk operations --------------------------------------------------
+
+    @Test
+    void bulkDelete_softDeletesExistingActiveIdsAndSkipsMissing() {
+        Contact a = new Contact();
+        a.setId(1L);
+        Contact b = new Contact();
+        b.setId(2L);
+        when(repository.findById(1L)).thenReturn(Optional.of(a));
+        when(repository.findById(2L)).thenReturn(Optional.of(b));
+        when(repository.findById(99L)).thenReturn(Optional.empty());
+        when(repository.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        int affected = service.bulkDelete(java.util.List.of(1L, 2L, 99L));
+
+        assertThat(affected).isEqualTo(2);
+        assertThat(a.getDeletedAt()).isNotNull();
+        assertThat(b.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void bulkDelete_skipsAlreadySoftDeleted() {
+        Contact active = new Contact();
+        active.setId(1L);
+        Contact trashed = new Contact();
+        trashed.setId(2L);
+        trashed.setDeletedAt(Instant.now());
+        when(repository.findById(1L)).thenReturn(Optional.of(active));
+        when(repository.findById(2L)).thenReturn(Optional.of(trashed));
+        when(repository.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        int affected = service.bulkDelete(java.util.List.of(1L, 2L));
+
+        // Only the still-active contact is counted.
+        assertThat(affected).isEqualTo(1);
+    }
+
+    @Test
+    void bulkSetFavorite_setsFlagOnActiveIdsAndCountsAffected() {
+        Contact a = new Contact();
+        a.setId(1L);
+        Contact b = new Contact();
+        b.setId(2L);
+        when(repository.findById(1L)).thenReturn(Optional.of(a));
+        when(repository.findById(2L)).thenReturn(Optional.of(b));
+        when(repository.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        int affected = service.bulkSetFavorite(java.util.List.of(1L, 2L), true);
+
+        assertThat(affected).isEqualTo(2);
+        assertThat(a.isFavorite()).isTrue();
+        assertThat(b.isFavorite()).isTrue();
+    }
+
+    @Test
+    void bulkAddRemoveTags_addsAndRemovesTagsOnActiveIds() {
+        Contact a = new Contact();
+        a.setId(1L);
+        a.setTags(new java.util.LinkedHashSet<>(java.util.Set.of("Old")));
+        when(repository.findById(1L)).thenReturn(Optional.of(a));
+        when(repository.save(any(Contact.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        int affected = service.bulkAddRemoveTags(
+                java.util.List.of(1L), java.util.Set.of("New"), java.util.Set.of("Old"));
+
+        assertThat(affected).isEqualTo(1);
+        assertThat(a.getTags()).contains("New");
+        assertThat(a.getTags()).doesNotContain("Old");
+    }
+
+    @Test
+    void bulkDelete_emptyList_returnsZeroAndDoesNotSave() {
+        int affected = service.bulkDelete(java.util.List.of());
+
+        assertThat(affected).isZero();
+        verify(repository, never()).save(any(Contact.class));
     }
 
     // ---- Photo operations -------------------------------------------------

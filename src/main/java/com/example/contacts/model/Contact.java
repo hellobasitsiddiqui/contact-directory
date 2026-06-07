@@ -14,6 +14,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.hibernate.annotations.ColumnDefault;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -72,6 +73,22 @@ public class Contact {
 
     @Column(nullable = false)
     private Instant updatedAt;
+
+    /**
+     * Timestamp marking when this contact was soft-deleted (moved to trash).
+     * {@code null} means the contact is active. Set explicitly by the service
+     * on soft delete / cleared on restore; not managed by lifecycle callbacks.
+     */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    /**
+     * Optimistic-locking version. Managed by JPA; new rows start at {@code 0}
+     * and the value is incremented on each dirty flush. Primitive {@code long}
+     * so the generated column is NOT NULL with an implicit default of 0.
+     */
+    @Version
+    private long version;
 
     /**
      * Creates an empty contact. Required by JPA.
@@ -209,5 +226,21 @@ public class Contact {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public void setVersion(long version) {
+        this.version = version;
     }
 }

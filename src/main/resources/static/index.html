@@ -82,12 +82,24 @@
 
         <div class="toolbar__io">
           <input type="file" id="import-file" accept=".csv,text/csv" hidden />
+          <button type="button" id="btn-trash" class="btn btn--secondary btn-trash">Trash</button>
           <button type="button" id="btn-import" class="btn btn--secondary">Import CSV</button>
           <a id="link-export-csv" class="btn btn--secondary" href="/api/v1/contacts/export.csv" download>Export CSV</a>
           <a id="link-export-json" class="btn btn--secondary" href="/api/v1/contacts/export.json" download>Export JSON</a>
         </div>
       </div>
     </section>
+
+    <div id="bulk-bar" class="bulk-bar" role="region" aria-label="Bulk actions" hidden>
+      <span id="bulk-count" class="bulk-bar__count" aria-live="polite"></span>
+      <div class="bulk-bar__actions">
+        <button type="button" id="btn-bulk-favorite" class="btn btn--secondary btn--sm">★ Favourite</button>
+        <button type="button" id="btn-bulk-unfavorite" class="btn btn--secondary btn--sm">☆ Unfavourite</button>
+        <button type="button" id="btn-bulk-tag" class="btn btn--secondary btn--sm">Tag…</button>
+        <button type="button" id="btn-bulk-delete" class="btn btn--danger btn--sm">Delete</button>
+        <button type="button" id="btn-bulk-clear" class="btn btn--ghost btn--sm">Clear</button>
+      </div>
+    </div>
 
     <section class="list-panel" aria-label="Contacts">
       <div id="loading" class="loading" role="status" aria-live="polite" hidden>
@@ -99,6 +111,9 @@
         <table class="contacts-table">
           <thead>
             <tr>
+              <th scope="col" class="col-select">
+                <input type="checkbox" id="select-all" aria-label="Select all on this page" />
+              </th>
               <th scope="col" class="col-star"><span class="sr-only">Favourite</span></th>
               <th scope="col" class="col-avatar"><span class="sr-only">Photo</span></th>
               <th scope="col">Name</th>
@@ -106,7 +121,7 @@
               <th scope="col">Phone</th>
               <th scope="col">Company</th>
               <th scope="col">Tags</th>
-              <th scope="col" class="col-actions">Actions</th>
+              <th scope="col">Actions</th>
             </tr>
           </thead>
           <tbody id="contacts-body"></tbody>

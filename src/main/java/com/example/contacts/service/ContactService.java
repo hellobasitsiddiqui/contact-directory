@@ -6,6 +6,7 @@ import com.example.contacts.dto.ContactResponse;
 import com.example.contacts.dto.ImportSummary;
 import com.example.contacts.exception.DuplicateEmailException;
 import com.example.contacts.exception.ResourceNotFoundException;
+import com.example.contacts.exception.StaleResourceException;
 import com.example.contacts.model.Contact;
 import com.example.contacts.repository.ContactRepository;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -74,7 +76,7 @@ public class ContactService {
         if (hasTag) {
             contacts = repository.searchAndFilterByTag(q, tag.trim(), effective);
         } else if (q.isEmpty()) {
-            contacts = repository.findAll(effective);
+            contacts = repository.findByDeletedAtIsNull(effective);
         } else {
             contacts = repository.search(q, effective);
         }
@@ -112,14 +114,15 @@ public class ContactService {
             List.of("id", "firstName", "lastName", "email", "phone", "company", "tags", "favorite", "notes");
 
     /**
-     * Returns every contact (unpaged), sorted by last then first name, for a
-     * full export.
+     * Returns every active (non-trashed) contact (unpaged), sorted by last then
+     * first name, for a full export. Soft-deleted contacts are excluded.
      *
-     * @return all contacts as {@link ContactResponse} projections
+     * @return all active contacts as {@link ContactResponse} projections
      */
     @Transactional(readOnly = true)
     public List<ContactResponse> exportAll() {
-        return repository.findAll(Sort.by(Sort.Order.asc("lastName"), Sort.Order.asc("firstName")))
+        return repository.findByDeletedAtIsNull(
+                        Sort.by(Sort.Order.asc("lastName"), Sort.Order.asc("firstName")))
                 .stream()
                 .map(ContactResponse::from)
                 .toList();
@@ -289,6 +292,11 @@ public class ContactService {
     @Transactional(readOnly = true)
     public ContactResponse get(Long id) {
         Contact contact = findByIdOrThrow(id);
+        // A soft-deleted contact lives in the trash, not the active directory, so
+        // the normal GET endpoint treats it as not found (use /trash or restore).
+        if (contact.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Contact not found with id: " + id);
+        }
         return ContactResponse.from(contact);
     }
 
@@ -322,12 +330,14 @@ public class ContactService {
     @Transactional
     public ContactResponse update(Long id, ContactRequest req) {
         Contact contact = findByIdOrThrow(id);
+        checkVersion(req.version(), contact);
         if (repository.existsByEmailIgnoreCaseAndIdNot(req.email(), id)) {
             throw new DuplicateEmailException(
                     "A contact with email '" + req.email() + "' already exists");
         }
         applyRequest(contact, req);
-        return ContactResponse.from(repository.save(contact));
+        // Flush so the @Version increment is applied and reflected in the response.
+        return ContactResponse.from(repository.saveAndFlush(contact));
     }
 
     /**
@@ -343,6 +353,7 @@ public class ContactService {
     @Transactional
     public ContactResponse patch(Long id, ContactPatchRequest req) {
         Contact contact = findByIdOrThrow(id);
+        checkVersion(req.version(), contact);
         if (req.email() != null
                 && repository.existsByEmailIgnoreCaseAndIdNot(req.email(), id)) {
             throw new DuplicateEmailException(
@@ -372,21 +383,186 @@ public class ContactService {
         if (req.notes() != null) {
             contact.setNotes(req.notes());
         }
-        return ContactResponse.from(repository.save(contact));
+        // Flush so the @Version increment is applied and reflected in the response.
+        return ContactResponse.from(repository.saveAndFlush(contact));
     }
 
     /**
-     * Deletes a contact by its identifier.
+     * Soft-deletes a contact by its identifier, stamping {@code deletedAt} with
+     * the current instant and moving it to the trash. The row is retained so it
+     * can later be restored or permanently purged. Re-stamping an
+     * already-trashed contact is a no-op (its original {@code deletedAt} is kept).
      *
-     * @param id the identifier of the contact to delete
+     * @param id the identifier of the contact to soft-delete
      * @throws ResourceNotFoundException if no contact exists with the given id
      */
     @Transactional
     public void delete(Long id) {
+        Contact contact = findByIdOrThrow(id);
+        if (contact.getDeletedAt() == null) {
+            contact.setDeletedAt(Instant.now());
+            repository.save(contact);
+        }
+    }
+
+    /**
+     * Returns a page of soft-deleted (trashed) contacts only.
+     *
+     * @param pageable pagination and sorting information
+     * @return a page of trashed contacts as {@link ContactResponse} projections
+     */
+    @Transactional(readOnly = true)
+    public Page<ContactResponse> listTrash(Pageable pageable) {
+        return repository.findByDeletedAtIsNotNull(pageable).map(ContactResponse::from);
+    }
+
+    /**
+     * Restores a soft-deleted contact by clearing its {@code deletedAt} stamp,
+     * returning it to the active list.
+     *
+     * @param id the identifier of the contact to restore
+     * @return the restored contact as a {@link ContactResponse}
+     * @throws ResourceNotFoundException if no contact exists with the given id
+     */
+    @Transactional
+    public ContactResponse restore(Long id) {
+        Contact contact = findByIdOrThrow(id);
+        contact.setDeletedAt(null);
+        return ContactResponse.from(repository.save(contact));
+    }
+
+    /**
+     * Permanently (hard) deletes a contact, removing the row and its associated
+     * tags and photo blob. This cannot be undone.
+     *
+     * @param id the identifier of the contact to purge
+     * @throws ResourceNotFoundException if no contact exists with the given id
+     */
+    @Transactional
+    public void purge(Long id) {
         if (!repository.existsById(id)) {
             throw new ResourceNotFoundException("Contact not found with id: " + id);
         }
         repository.deleteById(id);
+    }
+
+    /* ------------------------------- Bulk actions ------------------------------- */
+
+    /**
+     * Soft-deletes each of the given active contacts. Missing ids and ids that
+     * are already soft-deleted are skipped and not counted.
+     *
+     * @param ids the contact identifiers to soft-delete
+     * @return the number of contacts actually soft-deleted
+     */
+    @Transactional
+    public int bulkDelete(List<Long> ids) {
+        Instant now = Instant.now();
+        int affected = 0;
+        for (Long id : distinctIds(ids)) {
+            Contact contact = repository.findById(id).orElse(null);
+            if (contact == null || contact.getDeletedAt() != null) {
+                continue;
+            }
+            contact.setDeletedAt(now);
+            repository.save(contact);
+            affected++;
+        }
+        return affected;
+    }
+
+    /**
+     * Sets the favourite flag on each of the given active contacts. Missing ids
+     * and ids that are already soft-deleted are skipped and not counted.
+     *
+     * @param ids      the contact identifiers to update
+     * @param favorite the favourite value to apply
+     * @return the number of contacts actually updated
+     */
+    @Transactional
+    public int bulkSetFavorite(List<Long> ids, boolean favorite) {
+        int affected = 0;
+        for (Long id : distinctIds(ids)) {
+            Contact contact = repository.findById(id).orElse(null);
+            if (contact == null || contact.getDeletedAt() != null) {
+                continue;
+            }
+            contact.setFavorite(favorite);
+            repository.save(contact);
+            affected++;
+        }
+        return affected;
+    }
+
+    /**
+     * Adds and/or removes tags on each of the given active contacts. Tag removal
+     * is case-insensitive. Missing ids and ids that are already soft-deleted are
+     * skipped and not counted; every existing active id processed counts as
+     * affected.
+     *
+     * @param ids        the contact identifiers to update
+     * @param addTags    tags to add (may be {@code null} or empty)
+     * @param removeTags tags to remove, case-insensitively (may be {@code null} or empty)
+     * @return the number of contacts actually processed
+     */
+    @Transactional
+    public int bulkAddRemoveTags(List<Long> ids, Set<String> addTags, Set<String> removeTags) {
+        Set<String> toAdd = (addTags == null) ? Set.of() : addTags;
+        Set<String> removeLower = new LinkedHashSet<>();
+        if (removeTags != null) {
+            for (String t : removeTags) {
+                if (t != null) {
+                    removeLower.add(t.toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        int affected = 0;
+        for (Long id : distinctIds(ids)) {
+            Contact contact = repository.findById(id).orElse(null);
+            if (contact == null || contact.getDeletedAt() != null) {
+                continue;
+            }
+            Set<String> tags = new LinkedHashSet<>(contact.getTags());
+            for (String t : toAdd) {
+                if (t != null && !t.isBlank()) {
+                    tags.add(t.trim());
+                }
+            }
+            if (!removeLower.isEmpty()) {
+                tags.removeIf(t -> removeLower.contains(t.toLowerCase(Locale.ROOT)));
+            }
+            contact.setTags(tags);
+            repository.save(contact);
+            affected++;
+        }
+        return affected;
+    }
+
+    /**
+     * Returns the distinct, non-null ids from the given list, preserving order.
+     * A {@code null} list yields an empty list so bulk operations safely no-op.
+     */
+    private List<Long> distinctIds(List<Long> ids) {
+        if (ids == null) {
+            return List.of();
+        }
+        return ids.stream().filter(id -> id != null).distinct().toList();
+    }
+
+    /**
+     * Throws a {@link StaleResourceException} when a client-supplied version is
+     * present and does not match the entity's current version. A {@code null}
+     * requested version skips the check (opt-in optimistic concurrency).
+     *
+     * @param requestedVersion the version sent by the client, or {@code null}
+     * @param contact          the entity being modified
+     * @throws StaleResourceException if the versions differ
+     */
+    private void checkVersion(Long requestedVersion, Contact contact) {
+        if (requestedVersion != null && requestedVersion != contact.getVersion()) {
+            throw new StaleResourceException(
+                    "Contact was modified by someone else; reload and try again");
+        }
     }
 
     /**

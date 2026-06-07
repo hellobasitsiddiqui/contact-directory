@@ -1,5 +1,9 @@
 package com.example.contacts.controller;
 
+import com.example.contacts.dto.BulkFavoriteRequest;
+import com.example.contacts.dto.BulkIdsRequest;
+import com.example.contacts.dto.BulkResult;
+import com.example.contacts.dto.BulkTagsRequest;
 import com.example.contacts.dto.ContactPatchRequest;
 import com.example.contacts.dto.ContactRequest;
 import com.example.contacts.dto.ContactResponse;
@@ -158,7 +162,8 @@ public class ContactController {
             @ApiResponse(responseCode = "200", description = "Contact updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed", content = @Content),
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content)
+            @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content),
+            @ApiResponse(responseCode = "412", description = "Stale version / concurrent modification", content = @Content)
     })
     public ResponseEntity<ContactResponse> update(
             @PathVariable @Parameter(description = "Contact identifier") Long id,
@@ -180,7 +185,8 @@ public class ContactController {
             @ApiResponse(responseCode = "200", description = "Contact updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed", content = @Content),
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content)
+            @ApiResponse(responseCode = "409", description = "Email already exists", content = @Content),
+            @ApiResponse(responseCode = "412", description = "Stale version / concurrent modification", content = @Content)
     })
     public ResponseEntity<ContactResponse> patch(
             @PathVariable @Parameter(description = "Contact identifier") Long id,
@@ -189,20 +195,74 @@ public class ContactController {
     }
 
     /**
-     * Deletes a contact by id.
+     * Soft-deletes a contact by id, moving it to the trash. The row is retained
+     * (stamped with a deletion timestamp) and can later be restored or purged.
      *
      * @param id the contact identifier
      * @return {@code 204 No Content}
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a contact")
+    @Operation(summary = "Soft-delete a contact",
+            description = "Soft-deletes the contact (moves it to trash); it can be restored or permanently deleted later.")
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Contact deleted"),
+            @ApiResponse(responseCode = "204", description = "Contact moved to trash"),
             @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
     })
     public ResponseEntity<Void> delete(
             @PathVariable @Parameter(description = "Contact identifier") Long id) {
         contactService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Lists soft-deleted (trashed) contacts.
+     *
+     * @param pageable pagination and sorting (defaults to size 20, sorted by {@code deletedAt})
+     * @return {@code 200 OK} with a page of soft-deleted {@link ContactResponse}
+     */
+    @GetMapping("/trash")
+    @Operation(summary = "List trashed contacts",
+            description = "Returns a paginated list of soft-deleted contacts.")
+    @ApiResponse(responseCode = "200", description = "Page of trashed contacts")
+    public ResponseEntity<Page<ContactResponse>> listTrash(
+            @ParameterObject @PageableDefault(size = 20, sort = "deletedAt") Pageable pageable) {
+        return ResponseEntity.ok(contactService.listTrash(pageable));
+    }
+
+    /**
+     * Restores a soft-deleted contact, clearing its deletion timestamp.
+     *
+     * @param id the contact identifier
+     * @return {@code 200 OK} with the restored {@link ContactResponse}
+     */
+    @PostMapping("/{id}/restore")
+    @Operation(summary = "Restore a trashed contact",
+            description = "Restores a soft-deleted contact, returning it to the active list.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Contact restored"),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
+    })
+    public ResponseEntity<ContactResponse> restore(
+            @PathVariable @Parameter(description = "Contact identifier") Long id) {
+        return ResponseEntity.ok(contactService.restore(id));
+    }
+
+    /**
+     * Permanently deletes a contact, removing the row entirely.
+     *
+     * @param id the contact identifier
+     * @return {@code 204 No Content}
+     */
+    @DeleteMapping("/{id}/permanent")
+    @Operation(summary = "Permanently delete a contact",
+            description = "Hard-deletes the contact, removing it irreversibly.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Contact permanently deleted"),
+            @ApiResponse(responseCode = "404", description = "Contact not found", content = @Content)
+    })
+    public ResponseEntity<Void> purge(
+            @PathVariable @Parameter(description = "Contact identifier") Long id) {
+        contactService.purge(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -354,5 +414,51 @@ public class ContactController {
         }
         String content = new String(file.getBytes(), StandardCharsets.UTF_8);
         return ResponseEntity.ok(contactService.importCsv(content));
+    }
+
+    /**
+     * Soft-deletes multiple contacts in one request.
+     *
+     * @param request the bulk request carrying the contact ids to delete
+     * @return {@code 200 OK} with a {@link BulkResult} reporting how many were affected
+     */
+    @PostMapping("/bulk/delete")
+    @Operation(summary = "Bulk soft-delete contacts",
+            description = "Soft-deletes the supplied contacts, skipping missing or already-deleted ids.")
+    @ApiResponse(responseCode = "200", description = "Bulk delete result")
+    public ResponseEntity<BulkResult> bulkDelete(@RequestBody BulkIdsRequest request) {
+        int affected = contactService.bulkDelete(request.ids());
+        return ResponseEntity.ok(new BulkResult(affected));
+    }
+
+    /**
+     * Sets the favorite flag on multiple contacts in one request.
+     *
+     * @param request the bulk request carrying the contact ids and the desired favorite state
+     * @return {@code 200 OK} with a {@link BulkResult} reporting how many were affected
+     */
+    @PostMapping("/bulk/favorite")
+    @Operation(summary = "Bulk set favorite on contacts",
+            description = "Sets the favorite flag on the supplied contacts, skipping missing or already-deleted ids.")
+    @ApiResponse(responseCode = "200", description = "Bulk favorite result")
+    public ResponseEntity<BulkResult> bulkFavorite(@RequestBody BulkFavoriteRequest request) {
+        int affected = contactService.bulkSetFavorite(request.ids(), request.favorite());
+        return ResponseEntity.ok(new BulkResult(affected));
+    }
+
+    /**
+     * Adds and/or removes tags across multiple contacts in one request.
+     *
+     * @param request the bulk request carrying the contact ids and the tags to add/remove
+     * @return {@code 200 OK} with a {@link BulkResult} reporting how many were affected
+     */
+    @PostMapping("/bulk/tags")
+    @Operation(summary = "Bulk add/remove tags on contacts",
+            description = "Adds and/or removes tags across the supplied contacts, skipping missing or already-deleted ids.")
+    @ApiResponse(responseCode = "200", description = "Bulk tags result")
+    public ResponseEntity<BulkResult> bulkTags(@RequestBody BulkTagsRequest request) {
+        int affected = contactService.bulkAddRemoveTags(
+                request.ids(), request.addTags(), request.removeTags());
+        return ResponseEntity.ok(new BulkResult(affected));
     }
 }

@@ -20,6 +20,8 @@ import java.util.Set;
  * @param tags      the set of labels to assign; optional ({@code null} is treated as no tags)
  * @param favorite  whether the contact is a favourite; defaults to {@code false}
  * @param notes     freetext notes about the contact; optional
+ * @param version   the expected optimistic-locking version; optional
+ *                  ({@code null} skips the concurrency check)
  */
 public record ContactRequest(
 
@@ -42,5 +44,7 @@ public record ContactRequest(
 
         boolean favorite,
 
-        String notes) {
+        String notes,
+
+        Long version) {
 }

@@ -3,6 +3,7 @@ package com.example.contacts.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -44,6 +45,39 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDuplicateEmail(
             DuplicateEmailException ex, HttpServletRequest req) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), req);
+    }
+
+    /**
+     * Handles stale-version (optimistic concurrency) conflicts, returning
+     * {@code 412 Precondition Failed}.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 412} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(StaleResourceException.class)
+    public ResponseEntity<ApiError> handleStaleResource(
+            StaleResourceException ex, HttpServletRequest req) {
+        return build(HttpStatus.PRECONDITION_FAILED, ex.getMessage(), req);
+    }
+
+    /**
+     * Handles Hibernate optimistic-locking failures that fire at flush time when
+     * two concurrent transactions load the same row at the same version and both
+     * commit. The application-level version check passes for both, but the losing
+     * transaction trips the {@code @Version} lock; this maps that to
+     * {@code 412 Precondition Failed} with the same wording as
+     * {@link #handleStaleResource}, rather than letting it surface as a 500.
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 412} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiError> handleOptimisticLockingFailure(
+            ObjectOptimisticLockingFailureException ex, HttpServletRequest req) {
+        return build(HttpStatus.PRECONDITION_FAILED,
+                "Contact was modified by someone else; reload and try again", req);
     }
 
     /**

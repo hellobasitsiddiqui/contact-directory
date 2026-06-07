@@ -26,6 +26,10 @@ import java.util.Set;
  *                  empty when the contact has no tags)
  * @param favorite  whether the contact is marked as a favourite
  * @param notes     freetext notes about the contact, may be {@code null}
+ * @param deletedAt the instant the contact was soft-deleted (moved to trash),
+ *                  or {@code null} when the contact is active
+ * @param version   the optimistic-locking version of the contact; new rows
+ *                  start at {@code 0} and increment on each persisted update
  */
 public record ContactResponse(
         Long id,
@@ -39,7 +43,9 @@ public record ContactResponse(
         String photoUrl,
         Set<String> tags,
         boolean favorite,
-        String notes) {
+        String notes,
+        Instant deletedAt,
+        long version) {
 
     /**
      * Maps a {@link Contact} entity to a {@link ContactResponse} DTO,
@@ -72,6 +78,8 @@ public record ContactResponse(
                 photoUrl,
                 tags,
                 c.isFavorite(),
-                c.getNotes());
+                c.getNotes(),
+                c.getDeletedAt(),
+                c.getVersion());
     }
 }

@@ -19,6 +19,8 @@ import java.util.Set;
  * @param tags      new set of tags, or {@code null} to leave unchanged
  * @param favorite  new favourite flag, or {@code null} to leave unchanged
  * @param notes     new notes, or {@code null} to leave unchanged
+ * @param version   the expected optimistic-locking version; optional
+ *                  ({@code null} skips the concurrency check)
  */
 public record ContactPatchRequest(
 
@@ -37,5 +39,7 @@ public record ContactPatchRequest(
 
         Boolean favorite,
 
-        String notes) {
+        String notes,
+
+        Long version) {
 }

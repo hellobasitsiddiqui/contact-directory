@@ -16,3 +16,13 @@ Rolling out one feature at a time, committing each. Status updated as work lands
 | 10 | Dark / light mode toggle — saved to localStorage | ✅ done |
 
 Legend: ⬜ pending · 🔄 in progress · ✅ done · ⏭️ skipped (with reason)
+
+## Post-rollout — "safe-management" pack (one-shot multi-agent build)
+
+| Feature | Status |
+|---------|--------|
+| Soft delete + Trash + Undo — `DELETE` soft-deletes; `GET /trash`, restore, delete-forever; Undo toast | ✅ done |
+| Bulk actions — multi-select rows; bulk favourite / tag / delete (`POST /bulk/*`) | ✅ done |
+| Optimistic concurrency — `@Version` on contacts; stale edits return `412` | ✅ done |
+
+Also: persistence switched to **H2 file mode** (`./data/contacts.mv.db`); tests stay on isolated in-memory H2. Suite: **75 tests passing**.
