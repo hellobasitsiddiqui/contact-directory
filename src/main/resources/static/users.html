@@ -46,6 +46,37 @@
   <main class="app-main">
     <p id="users-error" class="login-error" role="alert" hidden></p>
 
+    <section class="toolbar" aria-label="Filters">
+      <div class="toolbar__inner">
+        <div class="toolbar__controls">
+          <div class="toolbar__control">
+            <label for="filter-username">Username</label>
+            <input type="search" id="filter-username" class="input"
+                   placeholder="Search username…" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="toolbar__control">
+            <label for="filter-role">Role</label>
+            <select id="filter-role" class="select">
+              <option value="">All roles</option>
+              <option value="USER">USER</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </div>
+          <div class="toolbar__control">
+            <label for="filter-status">Status</label>
+            <select id="filter-status" class="select">
+              <option value="">All statuses</option>
+              <option value="enabled">Enabled</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </div>
+          <div class="toolbar__control">
+            <button type="button" id="btn-clear-filters" class="btn btn--secondary">Clear</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="users-panel" aria-label="User accounts">
       <div id="users-loading" class="users-status">Loading users…</div>
       <table class="users-table" id="users-table" hidden>
@@ -60,6 +91,7 @@
         </thead>
         <tbody id="users-body"></tbody>
       </table>
+      <div id="users-empty" class="users-status" hidden>No users yet.</div>
     </section>
   </main>
 

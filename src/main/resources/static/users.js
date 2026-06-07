@@ -28,6 +28,14 @@ const auth = {
   },
 };
 
+/** All users fetched from the API, plus the current client-side filters. */
+const state = {
+  users: [],
+  username: '',
+  role: '',
+  status: '',
+};
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -139,15 +147,43 @@ function rowHtml(user, currentUsername) {
     </tr>`;
 }
 
-async function loadUsers() {
+/** Apply the current filters to the fetched list (all client-side, no API call). */
+function filteredUsers() {
+  const term = state.username.trim().toLowerCase();
+  const users = Array.isArray(state.users) ? state.users : [];
+  return users.filter((u) => {
+    if (term && !String(u.username || '').toLowerCase().includes(term)) return false;
+    if (state.role && u.role !== state.role) return false;
+    if (state.status === 'enabled' && !u.enabled) return false;
+    if (state.status === 'disabled' && u.enabled) return false;
+    return true;
+  });
+}
+
+/** True when any client-side filter is currently narrowing the list. */
+function hasActiveFilter() {
+  return !!(state.username.trim() || state.role || state.status);
+}
+
+/** Render the table from the fetched list + current filters; shows an empty state. */
+function renderUsers() {
   const current = auth.user();
   const currentUsername = current ? current.username : '';
+  const matches = filteredUsers();
+  $('users-body').innerHTML = matches.map((u) => rowHtml(u, currentUsername)).join('');
+  $('users-table').hidden = matches.length === 0;
+  const empty = $('users-empty');
+  empty.hidden = matches.length !== 0;
+  empty.textContent = hasActiveFilter()
+    ? 'No users match your filters.'
+    : 'No users yet.';
+}
+
+async function loadUsers() {
   try {
-    const users = await request(USERS_API, { method: 'GET' });
-    const body = $('users-body');
-    body.innerHTML = users.map((u) => rowHtml(u, currentUsername)).join('');
+    state.users = await request(USERS_API, { method: 'GET' });
     $('users-loading').hidden = true;
-    $('users-table').hidden = false;
+    renderUsers();
   } catch (err) {
     $('users-loading').hidden = true;
     showError('Could not load users: ' + err.message);
@@ -223,6 +259,38 @@ function onTableChange(event) {
   changeRole(select.dataset.id, select.value);
 }
 
+/** Debounce so typing in the username box doesn't re-render on every keystroke. */
+let usernameTimer = null;
+function onUsernameInput(event) {
+  if (usernameTimer) clearTimeout(usernameTimer);
+  const value = event.target.value;
+  usernameTimer = setTimeout(() => {
+    state.username = value;
+    renderUsers();
+  }, 200);
+}
+
+function onRoleFilterChange(event) {
+  state.role = event.target.value;
+  renderUsers();
+}
+
+function onStatusFilterChange(event) {
+  state.status = event.target.value;
+  renderUsers();
+}
+
+function onClearFilters() {
+  if (usernameTimer) clearTimeout(usernameTimer);
+  state.username = '';
+  state.role = '';
+  state.status = '';
+  $('filter-username').value = '';
+  $('filter-role').value = '';
+  $('filter-status').value = '';
+  renderUsers();
+}
+
 function init() {
   const user = auth.user();
   if (user && user.username) {
@@ -233,6 +301,10 @@ function init() {
   $('btn-logout').addEventListener('click', () => auth.logout());
   $('users-body').addEventListener('click', onTableClick);
   $('users-body').addEventListener('change', onTableChange);
+  $('filter-username').addEventListener('input', onUsernameInput);
+  $('filter-role').addEventListener('change', onRoleFilterChange);
+  $('filter-status').addEventListener('change', onStatusFilterChange);
+  $('btn-clear-filters').addEventListener('click', onClearFilters);
   loadUsers();
 }
 
