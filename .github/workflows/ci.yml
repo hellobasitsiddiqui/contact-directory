@@ -1,15 +1,26 @@
 name: CI
 
-# Build and run the full test suite on every push and pull request.
+# Build, test and package on every push and pull request.
 on:
   push:
   pull_request:
 
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege by default; jobs widen scope where needed.
+permissions:
+  contents: read
+
 jobs:
   test:
-    name: Build & test (Java 21)
+    name: Build, test & coverage gate (Java 21)
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      checks: write          # publish the test report / inline annotations
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -21,8 +32,16 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build & run tests
-        run: ./mvnw -B clean test
+      - name: Build, test & verify coverage
+        run: ./mvnw -B clean verify
+
+      - name: Publish test report
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: '**/target/surefire-reports/TEST-*.xml'
+          check_name: Test results
+          include_passed: false
 
       - name: Upload JaCoCo coverage report
         if: always()
@@ -31,3 +50,93 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco
           if-no-files-found: ignore
+
+  openapi-drift:
+    name: OpenAPI spec drift check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build app (skip tests)
+        run: ./mvnw -B -q -DskipTests package
+
+      - name: Start app and wait for it
+        run: |
+          java -jar target/*.jar > /tmp/app.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/v3/api-docs >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:8080/v3/api-docs >/dev/null || { echo "app did not start"; cat /tmp/app.log; exit 1; }
+
+      - name: Regenerate the OpenAPI spec and compare to the committed copy
+        run: |
+          TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"admin123"}' \
+            | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+          curl -s http://localhost:8080/v3/api-docs | python3 -m json.tool > openapi.json
+          curl -s http://localhost:8080/v3/api-docs.yaml -H "Authorization: Bearer $TOKEN" > openapi.yaml
+          if ! git diff --quiet -- openapi.json openapi.yaml; then
+            echo "::error::Committed OpenAPI spec is stale. Regenerate openapi.json/openapi.yaml from /v3/api-docs and commit them."
+            git --no-pager diff -- openapi.json openapi.yaml | head -120
+            exit 1
+          fi
+          echo "OpenAPI spec is up to date."
+
+  package:
+    name: Package JAR + Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # push image to GHCR (on master only)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build bootable JAR
+        run: ./mvnw -B -q -DskipTests clean package
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: contact-directory-jar
+          path: target/*.jar
+          if-no-files-found: error
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (and push to GHCR on master)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
