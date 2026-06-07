@@ -55,6 +55,13 @@ logins/registrations). It can be filtered by actor and action.
 
 ![Activity log](screenshots/05-activity.png)
 
+## Dark mode
+
+Every page supports a **dark / light** theme via the 🌙 / ☀️ toggle in the header; your choice is
+saved per browser.
+
+![Contacts in dark mode](screenshots/06-dark-mode.png)
+
 ---
 
 > Screenshots are generated from the running app. To refresh them, re-run the app and recapture the

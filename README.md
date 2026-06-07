@@ -19,6 +19,10 @@ a persistent file-mode **H2** database and covered by **178 automated tests**.
 
 ![Activity log](docs/screenshots/05-activity.png)
 
+**Dark mode** (theme toggle, saved per browser)
+
+![Contacts in dark mode](docs/screenshots/06-dark-mode.png)
+
 > A step-by-step walkthrough with these screens lives in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 ## Features

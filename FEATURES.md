@@ -1,28 +1,99 @@
-# Contact Directory — Feature Roadmap
+# Contact Directory — Features
 
-Rolling out one feature at a time, committing each. Status updated as work lands.
+A complete map of what the app does, grouped by area. Built incrementally, each area committed
+separately. **205 tests passing.** For setup and API reference see the [README](README.md); for a
+click-through tour see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
+
+Legend: ✅ done · 🔄 in progress · ⬜ planned
+
+---
+
+## Core contact management
 
 | # | Feature | Status |
 |---|---------|--------|
-| 1 | Search & filter — live search by name, company, phone, email | ✅ done |
-| 2 | Tags / categories — label contacts (Friend, Work, Client, Family) + filter | ✅ done |
-| 3 | Favourite / star — pin important contacts to the top | ✅ done |
-| 4 | Import / export — CSV import (bulk add), export CSV/JSON | ✅ done |
-| 5 | Avatar / initials — auto coloured initials circle, or photo upload | ✅ done |
-| 6 | Sort controls — name A–Z, recently added, last contacted | ✅ done |
-| 7 | Contact detail modal — full profile card (details, notes, social links) | ✅ done |
-| 8 | Notes field — freetext notes per contact | ✅ done |
-| 9 | Click-to-action — tel:/mailto:/maps links | ✅ done |
-| 10 | Dark / light mode toggle — saved to localStorage | ✅ done |
+| 1 | Search & filter — live search by name, company, phone, email | ✅ |
+| 2 | Tags / categories — label contacts (Friend, Work, Client, Family) + filter | ✅ |
+| 3 | Favourite / star — pin important contacts to the top | ✅ |
+| 4 | Import / export — CSV import (bulk add), export CSV/JSON | ✅ |
+| 5 | Avatar / initials — auto-coloured initials circle, or photo upload | ✅ |
+| 6 | Sort controls — name A–Z, recently added, etc. | ✅ |
+| 7 | Contact detail modal — full profile card (details, notes, links) | ✅ |
+| 8 | Notes field — free-text notes per contact | ✅ |
+| 9 | Click-to-action — `tel:` / `mailto:` links | ✅ |
+| 10 | Dark / light mode toggle — saved to `localStorage` | ✅ |
 
-Legend: ⬜ pending · 🔄 in progress · ✅ done · ⏭️ skipped (with reason)
+![Contacts list](docs/screenshots/02-contacts.png)
 
-## Post-rollout — "safe-management" pack (one-shot multi-agent build)
+Same screen in **dark mode** (toggle saved per browser):
+
+![Contacts in dark mode](docs/screenshots/06-dark-mode.png)
+
+## Safe management
 
 | Feature | Status |
 |---------|--------|
-| Soft delete + Trash + Undo — `DELETE` soft-deletes; `GET /trash`, restore, delete-forever; Undo toast | ✅ done |
-| Bulk actions — multi-select rows; bulk favourite / tag / delete (`POST /bulk/*`) | ✅ done |
-| Optimistic concurrency — `@Version` on contacts; stale edits return `412` | ✅ done |
+| Soft delete + Trash + Undo — `DELETE` soft-deletes; `GET /trash`, restore, delete-forever; Undo toast | ✅ |
+| Bulk actions — multi-select rows; bulk favourite / tag / delete (`POST /bulk/*`) | ✅ |
+| Optimistic concurrency — `@Version` on contacts; stale edits return `412 Precondition Failed` | ✅ |
 
-Also: persistence switched to **H2 file mode** (`./data/contacts.mv.db`); tests stay on isolated in-memory H2. Suite: **75 tests passing**.
+## Authentication
+
+| Feature | Status |
+|---------|--------|
+| JWT login & registration — stateless bearer tokens; styled sign-in / create-account page | ✅ |
+| Spring Security — protected REST API; JSON `401` / `403` responses | ✅ |
+| Brute-force lockout — repeated failed logins lock an account (`423 Locked`) | ✅ |
+
+![Sign in](docs/screenshots/01-login.png)
+
+## Roles & access control
+
+| Feature | Status |
+|---------|--------|
+| Roles — `USER` and `ADMIN`, enforced with method security | ✅ |
+| Per-user ownership — a `USER` sees/manages only their own contacts; an `ADMIN` sees all | ✅ |
+| Per-owner email uniqueness — two users can each have the same email; cross-user access → `404` | ✅ |
+| Admin-only permanent delete — irreversible purge restricted to admins | ✅ |
+| Admin user management — list users, change role, enable/disable, reset password, delete | ✅ |
+| Self-protection — an admin can't demote, disable or delete their own account | ✅ |
+
+![Admin user management](docs/screenshots/03-users.png)
+
+## Account self-service
+
+| Feature | Status |
+|---------|--------|
+| Change password — current + new with confirmation | ✅ |
+| Profile page — username, role and member-since | ✅ |
+
+![Profile & change password](docs/screenshots/04-profile.png)
+
+## Audit log (edit history)
+
+| Feature | Status |
+|---------|--------|
+| Append-only audit trail — records who did what and when | ✅ |
+| Coverage — contact create/edit/delete/restore/bulk/import, user-management actions, logins & registrations | ✅ |
+| Admin Activity page — `GET /api/v1/audit`, newest-first, filterable by actor and action | ✅ |
+| Resilient recording — an audit-write failure never breaks the underlying action | ✅ |
+
+![Admin activity log](docs/screenshots/05-activity.png)
+
+---
+
+## Platform notes
+
+- **Stack:** Spring Boot 3.3.5, Java 21, Spring Data JPA + Hibernate, Spring Security + JWT, vanilla
+  HTML/CSS/JS frontend, springdoc OpenAPI.
+- **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) — data survives restarts; tests use an
+  isolated in-memory H2.
+- **Tests:** **205** across 14 classes (unit + full-stack), incl. cross-user isolation, role
+  enforcement, optimistic concurrency, account self-service, lockout and audit coverage.
+
+## Possible next steps
+
+- ⬜ Hibernate Envers — field-level revision history with one-click restore
+- ⬜ Forgot-password flow (needs SMTP wired)
+- ⬜ GitHub Actions CI — run the 205 tests on every push
+- ⬜ Richer contacts — multiple emails/phones/addresses, vCard import/export
