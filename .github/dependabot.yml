@@ -1,14 +1,29 @@
 version: 2
 updates:
-  # Maven dependencies (pom.xml)
+  # Maven dependencies (pom.xml).
+  # Minor + patch updates are grouped into a single PR; major bumps are ignored
+  # (breaking — review and raise them manually) to keep PR volume low.
   - package-ecosystem: maven
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      maven:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # GitHub Actions used in workflows
+  # GitHub Actions — all updates collapsed into one grouped PR.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
