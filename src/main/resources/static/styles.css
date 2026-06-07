@@ -1505,6 +1505,48 @@ a.btn {
 /* ------------------------------------------------------------------ *
  * Admin: user-management table
  * ------------------------------------------------------------------ */
+/* At-a-glance counts above the table; mirrors the panel's surface treatment. */
+.users-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.users-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.users-stat__value {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.users-stat__label {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Stats bar: two columns on narrow screens.
+   Declared after the base .users-stats rule so source order lets it win
+   (both selectors have equal specificity; a media query adds no specificity). */
+@media (max-width: 640px) {
+  .users-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .users-panel {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
