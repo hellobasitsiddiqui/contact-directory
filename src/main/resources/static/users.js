@@ -84,10 +84,12 @@ async function request(url, options = {}) {
 }
 
 let toastTimer = null;
-function toast(message) {
+function toast(message, variant = 'success') {
   const t = $('toast');
   t.textContent = message;
   t.hidden = false;
+  t.classList.remove('toast--success', 'toast--error');
+  t.classList.add(variant === 'error' ? 'toast--error' : 'toast--success');
   t.classList.add('toast--show');
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.classList.remove('toast--show'); }, 3000);
@@ -97,6 +99,62 @@ function showError(message) {
   const e = $('users-error');
   e.textContent = message;
   e.hidden = false;
+}
+
+/**
+ * Copy text to the clipboard, resolving to true on success. Prefers the async
+ * Clipboard API; falls back to a hidden textarea + execCommand('copy') where
+ * navigator.clipboard is unavailable (older browsers / non-secure contexts).
+ */
+function copyToClipboard(text) {
+  const value = String(text == null ? '' : text);
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(value).then(() => true).catch(() => false);
+  }
+  return new Promise((resolve) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = value;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      resolve(ok);
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Copy the button's data-copy value and give brief feedback: a "Copied" state on
+ * the button plus a toast. Shows an error toast when the clipboard is blocked.
+ */
+function handleCopy(btn) {
+  const value = btn.dataset.copy || '';
+  copyToClipboard(value).then((ok) => {
+    if (!ok) {
+      toast('Could not copy to clipboard', 'error');
+      return;
+    }
+    btn.classList.add('btn-copy--done');
+    btn.textContent = '✓';
+    btn.setAttribute('aria-label', 'Copied');
+    btn.title = 'Copied';
+    if (btn._copyTimer) clearTimeout(btn._copyTimer);
+    btn._copyTimer = setTimeout(() => {
+      btn.classList.remove('btn-copy--done');
+      btn.textContent = '⧉';
+      const original = btn.dataset.copyLabel || 'Copy';
+      btn.setAttribute('aria-label', original);
+      btn.title = original;
+    }, 1500);
+    toast('Copied to clipboard');
+  });
 }
 
 /** Absolute, localised timestamp used for the hover title (and as a fallback). */
@@ -179,9 +237,17 @@ function rowHtml(user, currentUsername) {
       Delete
     </button>`;
 
+  const copyBtn = `
+    <button type="button" class="btn-copy" data-action="copy"
+            data-copy="${escapeHtml(user.username)}"
+            data-copy-label="Copy username"
+            aria-label="Copy username" title="Copy username">⧉</button>`;
+
   return `
     <tr data-id="${user.id}">
-      <td class="users-username">${escapeHtml(user.username)}${selfTag}</td>
+      <td class="users-username">
+        <span class="cell-copyable">${escapeHtml(user.username)}${selfTag}${copyBtn}</span>
+      </td>
       <td>${roleSelect}</td>
       <td>${statusBadge}</td>
       <td class="users-muted">${timeCell(user.createdAt)}</td>
@@ -354,6 +420,10 @@ function onTableClick(event) {
   const btn = event.target.closest('button[data-action]');
   if (!btn) return;
   $('users-error').hidden = true;
+  if (btn.dataset.action === 'copy') {
+    handleCopy(btn);
+    return;
+  }
   const id = btn.dataset.id;
   if (btn.dataset.action === 'toggle') {
     toggleEnabled(id, btn.dataset.enabled === 'true');

@@ -415,11 +415,89 @@ function actionHref(value, scheme) {
 }
 
 /**
+ * Copy text to the clipboard, returning a Promise that resolves to true on
+ * success. Prefers the async Clipboard API; falls back to a hidden textarea +
+ * execCommand('copy') for older browsers or non-secure contexts where
+ * navigator.clipboard is unavailable.
+ */
+function copyToClipboard(text) {
+  const value = String(text == null ? '' : text);
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(value).then(() => true).catch(() => false);
+  }
+  // Legacy fallback: a transient off-screen textarea.
+  return new Promise((resolve) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = value;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      resolve(ok);
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * A small icon button that copies `value` to the clipboard. The click is wired
+ * via delegation (data-action="copy" / data-copy) and must not bubble up to the
+ * row detail handler. `label` describes what is being copied for the aria-label.
+ */
+function makeCopyButton(value, label) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-copy';
+  btn.dataset.action = 'copy';
+  btn.dataset.copy = String(value == null ? '' : value);
+  btn.textContent = '⧉';
+  btn.dataset.copyLabel = `Copy ${label}`;
+  btn.setAttribute('aria-label', `Copy ${label}`);
+  btn.title = `Copy ${label}`;
+  return btn;
+}
+
+/**
+ * Handle a click on a copy button: copy its data-copy value, then give brief
+ * visual feedback (a "Copied" state on the button plus a toast). Falls back to
+ * an error toast when the clipboard is unavailable.
+ */
+function handleCopy(btn) {
+  const value = btn.dataset.copy || '';
+  copyToClipboard(value).then((ok) => {
+    if (!ok) {
+      toast('Could not copy to clipboard', 'error');
+      return;
+    }
+    btn.classList.add('btn-copy--done');
+    btn.textContent = '✓';
+    btn.setAttribute('aria-label', 'Copied');
+    btn.title = 'Copied';
+    if (btn._copyTimer) clearTimeout(btn._copyTimer);
+    btn._copyTimer = setTimeout(() => {
+      btn.classList.remove('btn-copy--done');
+      btn.textContent = '⧉';
+      const original = btn.dataset.copyLabel || 'Copy';
+      btn.setAttribute('aria-label', original);
+      btn.title = original;
+    }, 1500);
+    toast('Copied to clipboard');
+  });
+}
+
+/**
  * A table cell rendering email/phone as a click-to-action link. The href is set
  * via the .href PROPERTY (never an HTML string) so values can't inject markup.
- * Clicking the link does not also open the row's detail modal.
+ * Clicking the link does not also open the row's detail modal. When `copyLabel`
+ * is given, a copy-to-clipboard button is rendered alongside the link.
  */
-function makeContactLinkCell(label, value, scheme) {
+function makeContactLinkCell(label, value, scheme, copyLabel) {
   const td = document.createElement('td');
   td.setAttribute('data-label', label);
   const v = value == null ? '' : String(value).trim();
@@ -427,12 +505,18 @@ function makeContactLinkCell(label, value, scheme) {
     td.textContent = '—';
     return td;
   }
+  const wrap = document.createElement('span');
+  wrap.className = 'cell-copyable';
   const a = document.createElement('a');
   a.className = 'link';
   a.href = actionHref(v, scheme);
   a.textContent = v;
   a.addEventListener('click', (e) => e.stopPropagation());
-  td.appendChild(a);
+  wrap.appendChild(a);
+  if (copyLabel) {
+    wrap.appendChild(makeCopyButton(v, copyLabel));
+  }
+  td.appendChild(wrap);
   return td;
 }
 
@@ -663,7 +747,7 @@ function makeRow(contact) {
     makeStarCell(contact),
     makeAvatarCell(contact),
     makeCell('Name', fullName(contact)),
-    makeContactLinkCell('Email', contact.email, 'mailto'),
+    makeContactLinkCell('Email', contact.email, 'mailto', 'email'),
     makeContactLinkCell('Phone', contact.phone, 'tel'),
     makeCell('Company', display(contact.company)),
     makeTagsCell(contact),
@@ -1865,6 +1949,13 @@ function wireEvents() {
     }
     const btn = event.target.closest('button[data-action]');
     if (btn && el.contactsBody.contains(btn)) {
+      // Copy buttons live in the email cell — they carry data-copy, not data-id,
+      // and must not bubble up to open the row detail.
+      if (btn.dataset.action === 'copy') {
+        event.stopPropagation();
+        handleCopy(btn);
+        return;
+      }
       const id = btn.dataset.id;
       if (!id) return;
       if (btn.dataset.action === 'edit') {
