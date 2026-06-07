@@ -1640,6 +1640,13 @@ a.btn {
   color: var(--color-text-muted);
 }
 
+/* Relative timestamps: hint that the exact time is available on hover. */
+.users-muted time {
+  cursor: help;
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: 2px;
+}
+
 .users-role {
   padding: var(--space-1) var(--space-2);
   font: inherit;
