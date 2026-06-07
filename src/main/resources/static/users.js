@@ -220,11 +220,27 @@ function renderSortHeaders() {
   });
 }
 
+/**
+ * Update the summary stats bar. Counts always reflect the full fetched list
+ * (state.users), not the current filter, so they read as totals for the account.
+ */
+function renderStats() {
+  const users = Array.isArray(state.users) ? state.users : [];
+  const admins = users.filter((u) => u.role === 'ADMIN').length;
+  const enabled = users.filter((u) => u.enabled).length;
+  $('stat-total').textContent = users.length;
+  $('stat-admins').textContent = admins;
+  $('stat-enabled').textContent = enabled;
+  $('stat-disabled').textContent = users.length - enabled;
+  $('users-stats').hidden = users.length === 0;
+}
+
 /** Render the table from the fetched list + current filters; shows an empty state. */
 function renderUsers() {
   const current = auth.user();
   const currentUsername = current ? current.username : '';
   const matches = sortedUsers(filteredUsers());
+  renderStats();
   renderSortHeaders();
   $('users-body').innerHTML = matches.map((u) => rowHtml(u, currentUsername)).join('');
   $('users-table').hidden = matches.length === 0;
