@@ -1,0 +1,21 @@
+# Test profile: isolated, in-memory H2 recreated for every test context, seeded
+# from data.sql. This shadows the main application.yml during tests so the
+# persistent file database is never touched (or locked) by the test suite.
+spring:
+  datasource:
+    url: jdbc:h2:mem:contacts-test;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    defer-datasource-initialization: true
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB

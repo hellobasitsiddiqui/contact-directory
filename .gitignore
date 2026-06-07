@@ -15,5 +15,10 @@ target/
 # Local tooling / editor config
 .claude/
 
+# H2 file-mode database (persistent local data)
+/data/
+*.mv.db
+*.trace.db
+
 # Keep the Maven Wrapper jar checked in (do not ignore it)
 !.mvn/wrapper/maven-wrapper.jar

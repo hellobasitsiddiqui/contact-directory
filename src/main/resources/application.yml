@@ -3,13 +3,15 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:contacts;DB_CLOSE_DELAY=-1
+    # Persistent, file-based H2 (data survives restarts) -> ./data/contacts.mv.db
+    url: jdbc:h2:file:./data/contacts
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # Create the schema on first run, then preserve it across restarts.
+      ddl-auto: update
     defer-datasource-initialization: true
     open-in-view: false
     properties:
@@ -17,7 +19,9 @@ spring:
         format_sql: true
   sql:
     init:
-      mode: always
+      # Do not re-run data.sql on every boot (it would duplicate seed rows on a
+      # persistent DB). Seed data is loaded only by the in-memory test profile.
+      mode: never
   h2:
     console:
       enabled: true
