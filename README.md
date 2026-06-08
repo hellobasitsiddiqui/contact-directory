@@ -14,11 +14,11 @@ end-to-end walkthrough).
 |---|---|
 | ![Login screen](docs/screenshots/01-login.png) | ![Contacts list](docs/screenshots/02-contacts.png) |
 
-| Admin user management | My profile |
+| Admin user management — search, filters, stats, bulk & pagination | My profile |
 |---|---|
 | ![User management](docs/screenshots/03-users.png) | ![Profile & change password](docs/screenshots/04-profile.png) |
 
-**Admin activity log (audit trail)**
+**Admin activity log — filter by actor / action / date range**
 
 ![Activity log](docs/screenshots/05-activity.png)
 
