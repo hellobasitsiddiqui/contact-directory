@@ -140,6 +140,20 @@ cheapest → heaviest.
 | HA / failover | Patroni + replicas — auto-promote on primary failure (uptime, not throughput) | ⬜ |
 | Sharding / multi-primary | Citus or app-level sharding to scale **writes** — last resort, rarely needed | ⬜ |
 
+**Service decomposition — split API by domain (microservices)** ⬜ — break the monolith into
+independently-scalable services behind an API gateway, so each domain scales/deploys on its own
+(a *different axis* from the horizontal scale-out above):
+
+| Service | Owns | Endpoints |
+|---|---|---|
+| auth-service | login / register / token validate | `/api/v1/auth/*` |
+| contacts-service | contact CRUD, import/export, photos | `/api/v1/contacts/*` |
+| admin-service | user management + audit log | `/api/v1/users/*`, `/api/v1/audit/*` |
+| api-gateway | path routing, shared JWT validation, rate limiting | — |
+
+*Trade-off: only worth it at real scale / multiple teams. Prefer horizontal scale-out (above) first;
+the DB split (shared vs per-service) is the hard part.*
+
 ## Possible next steps
 
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
