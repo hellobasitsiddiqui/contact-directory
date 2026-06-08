@@ -7,8 +7,12 @@
  * ------------------------------------------------------------------ */
 
 const USERS_API = '/api/v1/users';
+const AUDIT_API = '/api/v1/audit';
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
+
+/** How many recent activity events to show in the user detail modal. */
+const ACTIVITY_LIMIT = 10;
 
 const auth = {
   token() {
@@ -503,6 +507,127 @@ async function deleteUser(id, username) {
 }
 
 /* ------------------------------------------------------------------ *
+ * User detail modal (details + recent activity)
+ *
+ * A row click opens a read-only card with the user's details and their most
+ * recent audit events (GET /api/v1/audit?actor=<username>). Reuses the shared
+ * .modal / .detail__* styling; Esc and a backdrop click both close it. Clicks
+ * on the row's interactive controls (buttons, selects, checkboxes) are handled
+ * elsewhere and never reach here, so the modal won't open on those.
+ * ------------------------------------------------------------------ */
+
+/** The element focused before the modal opened, restored on close. */
+let modalTrigger = null;
+
+/**
+ * The username whose activity is currently being requested. A late/slow
+ * response only renders if it still matches — so closing the modal or opening
+ * another row's detail before the fetch resolves won't render stale activity.
+ */
+let requestedActivityUser = null;
+
+function openUserModal() {
+  const dialog = $('user-modal');
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+}
+
+function closeUserModal() {
+  // Drop any in-flight activity request so a late response can't render into
+  // the closed (or subsequently reopened) modal.
+  requestedActivityUser = null;
+  const dialog = $('user-modal');
+  if (typeof dialog.close === 'function') dialog.close();
+  else dialog.removeAttribute('open');
+}
+
+/**
+ * Return focus to whatever opened the modal. Wired to the dialog's 'close'
+ * event so every close path (button, backdrop, Esc) restores focus uniformly,
+ * matching the contacts page (app.js).
+ */
+function restoreTriggerFocus() {
+  const target = modalTrigger && document.body.contains(modalTrigger) ? modalTrigger : null;
+  modalTrigger = null;
+  if (target && typeof target.focus === 'function') target.focus();
+}
+
+/** A single recent-activity <li>: action token, summary, relative time. */
+function activityItemHtml(event) {
+  const summary = event.summary ? `<span class="user-activity__summary">${escapeHtml(event.summary)}</span>` : '';
+  return `
+    <li class="user-activity__item">
+      <span class="audit-action">${escapeHtml(event.action)}</span>
+      ${summary}
+      <span class="user-activity__time">${timeCell(event.timestamp)}</span>
+    </li>`;
+}
+
+/**
+ * Fetch and render the actor's most recent audit events into the modal,
+ * toggling the loading / empty / error states. Best-effort: a failed fetch
+ * shows an inline message but leaves the details above intact.
+ */
+async function loadUserActivity(username) {
+  const loading = $('user-activity-loading');
+  const list = $('user-activity-list');
+  const empty = $('user-activity-empty');
+  const error = $('user-activity-error');
+  loading.hidden = false;
+  list.hidden = true;
+  empty.hidden = true;
+  error.hidden = true;
+  list.innerHTML = '';
+
+  requestedActivityUser = username;
+  try {
+    const params = new URLSearchParams({
+      actor: username,
+      page: '0',
+      size: String(ACTIVITY_LIMIT),
+    });
+    const page = await request(`${AUDIT_API}?${params.toString()}`, { method: 'GET' });
+    // Bail if the modal moved on (closed, or another row opened) while we waited.
+    if (requestedActivityUser !== username) return;
+    const events = (page && page.content) || [];
+    loading.hidden = true;
+    if (events.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+    list.innerHTML = events.map((e) => activityItemHtml(e)).join('');
+    list.hidden = false;
+  } catch (err) {
+    if (requestedActivityUser !== username) return;
+    loading.hidden = true;
+    error.textContent = `Could not load activity: ${err.message}`;
+    error.hidden = false;
+  }
+}
+
+/** Populate the modal's detail rows for the given user (XSS-safe). */
+function renderUserDetail(user) {
+  $('user-modal-title').textContent = user.username || 'User';
+  $('user-modal-username').textContent = user.username || '—';
+  $('user-modal-role').textContent = user.role || '—';
+  $('user-modal-status').innerHTML = user.enabled
+    ? '<span class="users-badge users-badge--on">Enabled</span>'
+    : '<span class="users-badge users-badge--off">Disabled</span>';
+  // Created: relative label with the absolute timestamp on hover (via timeCell).
+  $('user-modal-created').innerHTML = timeCell(user.createdAt);
+}
+
+/** Open the detail modal for a user id from the fetched list. */
+function openUserDetail(id) {
+  const user = (state.users || []).find((u) => String(u.id) === String(id));
+  if (!user) return;
+  modalTrigger = document.activeElement;
+  renderUserDetail(user);
+  openUserModal();
+  loadUserActivity(user.username);
+}
+
+/* ------------------------------------------------------------------ *
  * Bulk actions
  *
  * No bulk API exists, so each action loops the existing per-user endpoint over
@@ -599,19 +724,30 @@ async function onBulkDelete() {
 
 function onTableClick(event) {
   const btn = event.target.closest('button[data-action]');
-  if (!btn) return;
-  $('users-error').hidden = true;
-  if (btn.dataset.action === 'copy') {
-    handleCopy(btn);
+  if (btn) {
+    $('users-error').hidden = true;
+    if (btn.dataset.action === 'copy') {
+      handleCopy(btn);
+      return;
+    }
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'toggle') {
+      toggleEnabled(id, btn.dataset.enabled === 'true');
+    } else if (btn.dataset.action === 'reset') {
+      resetPassword(id, btn.dataset.username);
+    } else if (btn.dataset.action === 'delete') {
+      deleteUser(id, btn.dataset.username);
+    }
     return;
   }
-  const id = btn.dataset.id;
-  if (btn.dataset.action === 'toggle') {
-    toggleEnabled(id, btn.dataset.enabled === 'true');
-  } else if (btn.dataset.action === 'reset') {
-    resetPassword(id, btn.dataset.username);
-  } else if (btn.dataset.action === 'delete') {
-    deleteUser(id, btn.dataset.username);
+
+  // A click anywhere else on a row opens the detail modal — unless it landed on
+  // an interactive control (the role <select> or the row checkbox), which carry
+  // their own behaviour and must not also open the modal.
+  if (event.target.closest('select, input, label')) return;
+  const row = event.target.closest('tr[data-id]');
+  if (row && $('users-body').contains(row)) {
+    openUserDetail(row.dataset.id);
   }
 }
 
@@ -700,6 +836,18 @@ function init() {
   $('btn-bulk-user').addEventListener('click', () => onBulkRole('USER'));
   $('btn-bulk-delete').addEventListener('click', onBulkDelete);
   $('btn-bulk-clear').addEventListener('click', clearSelection);
+
+  // User detail modal: close via header ×, footer button, backdrop click, or Esc
+  // (native <dialog> handles Esc itself). Focus restore lives on the 'close'
+  // event so every close path funnels through one canonical handler.
+  const userModal = $('user-modal');
+  $('btn-user-modal-close').addEventListener('click', closeUserModal);
+  $('btn-user-modal-done').addEventListener('click', closeUserModal);
+  userModal.addEventListener('click', (event) => {
+    if (event.target === userModal) closeUserModal();
+  });
+  userModal.addEventListener('close', restoreTriggerFocus);
+
   loadUsers();
 }
 

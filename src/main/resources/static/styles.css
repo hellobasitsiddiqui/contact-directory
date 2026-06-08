@@ -1777,6 +1777,73 @@ tr:hover .btn-copy,
 }
 
 /* ------------------------------------------------------------------ *
+ * User detail modal (details + recent activity)
+ * ------------------------------------------------------------------ */
+
+/* Rows are clickable (open the read-only detail modal). The role <select>,
+ * action buttons and checkbox keep their own pointer affordance. */
+.users-table tbody tr {
+  cursor: pointer;
+}
+
+/* Recent-activity block sits below the detail list inside the modal body. */
+.user-activity {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.user-activity__title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.user-activity__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.user-activity__item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.user-activity__summary {
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+/* Push the relative time to the right edge of the row. */
+.user-activity__time {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.user-activity__status {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.user-activity__status--error {
+  color: var(--color-danger);
+}
+
+/* ------------------------------------------------------------------ *
  * Profile (account self-service) page
  * ------------------------------------------------------------------ */
 .profile-main {
