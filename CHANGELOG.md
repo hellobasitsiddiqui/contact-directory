@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-08
+
 ### Added
 - **Contacts** — CRUD, paginated/sortable listing, free-text search, tags, favourites, notes,
   per-contact photo, CSV/JSON import & export, soft-delete + Trash + restore + Undo, bulk actions,
@@ -26,5 +28,6 @@ All notable changes to this project are documented here. The format is based on
   (grouped, majors ignored), Docker image, and a Git Flow workflow with protected `master`/`develop`.
 
 ### Notes
-- No tagged release yet; `master` is the release branch. The first tagged version will move the
-  items above into a dated `## [x.y.z]` section.
+- First tagged release. `master` is the release branch; `v1.0.0` is cut from the `develop` → `master`
+  release merge. Persistence is H2 file-mode and secrets default to dev values — see
+  `docs/RELEASE-AND-DEPLOYMENT.md` for the durable-deploy roadmap (Postgres + Flyway, real secrets).
