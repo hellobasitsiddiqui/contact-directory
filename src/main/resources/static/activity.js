@@ -4,12 +4,18 @@
  * Self-contained: shares the localStorage auth keys with app.js / login.js but
  * has its own minimal API layer. Every call here hits the admin-only
  * /api/v1/audit endpoint; a non-admin is bounced by the guard in activity.html.
+ *
+ * Filtering is entirely client-side: a single larger window of recent events
+ * is fetched once, then narrowed by actor, action (multi-select) and date range
+ * without further round-trips. No backend/spec change.
  * ------------------------------------------------------------------ */
 
 const AUDIT_API = '/api/v1/audit';
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
-const PAGE_SIZE = 20;
+
+/** How many recent events to pull in one go and then filter in the browser. */
+const FETCH_WINDOW = 500;
 
 /** The auditable actions, kept in sync with model/AuditAction.java. */
 const AUDIT_ACTIONS = [
@@ -51,12 +57,16 @@ const auth = {
   },
 };
 
-/** Current view state: page is zero-based, mirroring Spring's Pageable. */
+/**
+ * View state. `events` is the full fetched window; the filter fields narrow it
+ * client-side. `actions` is a Set of selected action names (empty = all).
+ */
 const state = {
-  page: 0,
-  totalPages: 0,
+  events: [],
   actor: '',
-  action: '',
+  actions: new Set(),
+  from: '',
+  to: '',
 };
 
 function $(id) {
@@ -185,93 +195,154 @@ function rowHtml(event) {
     </tr>`;
 }
 
-/** Build the /api/v1/audit query string from the current state. */
-function buildQuery() {
-  const params = new URLSearchParams();
-  params.set('page', String(state.page));
-  params.set('size', String(PAGE_SIZE));
-  if (state.actor) params.set('actor', state.actor);
-  if (state.action) params.set('action', state.action);
-  return `${AUDIT_API}?${params.toString()}`;
+/**
+ * Narrow the fetched window by the active filters. The date range is inclusive
+ * and interpreted in the viewer's local timezone (the date inputs are local
+ * calendar days): `from` is the start of that day, `to` the end of it.
+ */
+function filteredEvents() {
+  const actor = state.actor.toLowerCase();
+  const fromMs = state.from ? new Date(`${state.from}T00:00:00`).getTime() : null;
+  const toMs = state.to ? new Date(`${state.to}T23:59:59.999`).getTime() : null;
+
+  return state.events.filter((e) => {
+    if (actor && !String(e.actor || '').toLowerCase().includes(actor)) return false;
+    if (state.actions.size && !state.actions.has(e.action)) return false;
+    if (fromMs != null || toMs != null) {
+      const t = new Date(e.timestamp).getTime();
+      if (Number.isNaN(t)) return false;
+      if (fromMs != null && t < fromMs) return false;
+      if (toMs != null && t > toMs) return false;
+    }
+    return true;
+  });
+}
+
+/** Render the table + "N of M" count from the fetched window and active filters. */
+function render() {
+  const total = state.events.length;
+  const matches = filteredEvents();
+
+  $('audit-body').innerHTML = matches.map((e) => rowHtml(e)).join('');
+  $('audit-table').hidden = matches.length === 0;
+
+  const count = $('audit-count');
+  count.textContent = `Showing ${matches.length} of ${total} event${total === 1 ? '' : 's'}`;
+  count.hidden = total === 0;
+
+  const empty = $('audit-empty');
+  empty.hidden = matches.length !== 0;
+  empty.textContent = total === 0
+    ? 'No activity recorded.'
+    : 'No activity matches your filters.';
 }
 
 async function loadEvents() {
   $('audit-error').hidden = true;
   try {
-    const page = await request(buildQuery(), { method: 'GET' });
-    const events = (page && page.content) || [];
-    state.totalPages = (page && page.totalPages) || 0;
-
-    const body = $('audit-body');
-    body.innerHTML = events.map((e) => rowHtml(e)).join('');
+    const url = `${AUDIT_API}?page=0&size=${FETCH_WINDOW}`
+      + '&sort=timestamp,desc';
+    const page = await request(url, { method: 'GET' });
+    state.events = (page && page.content) || [];
     $('audit-loading').hidden = true;
-    $('audit-table').hidden = events.length === 0;
-    $('audit-empty').hidden = events.length !== 0;
-
-    updatePagination(page);
+    render();
   } catch (err) {
     $('audit-loading').hidden = true;
     showError('Could not load activity: ' + err.message);
   }
 }
 
-function updatePagination(page) {
-  const totalElements = (page && page.totalElements) || 0;
-  const totalPages = state.totalPages;
-  const human = totalPages === 0 ? 0 : state.page + 1;
-  $('page-info').textContent =
-    `Page ${human} of ${totalPages} · ${totalElements} event${totalElements === 1 ? '' : 's'}`;
-  $('btn-prev').disabled = state.page <= 0;
-  $('btn-next').disabled = totalPages === 0 || state.page >= totalPages - 1;
+/* ---------- Action multi-select ----------------------------------------- */
+
+/**
+ * Build the checkbox list inside the action dropdown.
+ * `a` is interpolated unescaped: values come only from the hardcoded
+ * AUDIT_ACTIONS constant (trusted), never user/API data. If AUDIT_ACTIONS
+ * ever becomes server-driven, wrap it in escapeHtml(a).
+ */
+function populateActionMenu() {
+  const menu = $('action-menu');
+  menu.innerHTML = AUDIT_ACTIONS.map((a) => `
+    <label class="multiselect__option">
+      <input type="checkbox" value="${a}" />
+      <span class="audit-action">${a}</span>
+    </label>`).join('');
 }
 
-function populateActionFilter() {
-  const select = $('filter-action');
-  const options = AUDIT_ACTIONS
-    .map((a) => `<option value="${a}">${a}</option>`)
-    .join('');
-  select.insertAdjacentHTML('beforeend', options);
+/** Sync the toggle button label to the current selection. */
+function updateActionToggleLabel() {
+  const n = state.actions.size;
+  $('action-toggle').textContent = n === 0
+    ? 'All actions'
+    : `${n} action${n === 1 ? '' : 's'}`;
 }
 
-/** Debounce so typing in the actor box doesn't fire a request per keystroke. */
+function setActionMenuOpen(open) {
+  $('action-menu').hidden = !open;
+  $('action-toggle').setAttribute('aria-expanded', String(open));
+}
+
+function onActionToggleClick() {
+  setActionMenuOpen($('action-menu').hidden);
+}
+
+function onActionMenuChange(event) {
+  const box = event.target.closest('input[type="checkbox"]');
+  if (!box) return;
+  if (box.checked) state.actions.add(box.value);
+  else state.actions.delete(box.value);
+  updateActionToggleLabel();
+  render();
+}
+
+/** Close the dropdown when clicking outside it. */
+function onDocumentClick(event) {
+  if (!event.target.closest('#action-multiselect')) setActionMenuOpen(false);
+}
+
+/** Escape closes the dropdown and returns focus to the toggle. */
+function onMultiselectKeydown(event) {
+  if (event.key !== 'Escape' || $('action-menu').hidden) return;
+  setActionMenuOpen(false);
+  $('action-toggle').focus();
+}
+
+/* ---------- Other filters ----------------------------------------------- */
+
+/** Debounce so typing in the actor box doesn't re-render per keystroke. */
 let actorTimer = null;
 function onActorInput(event) {
   if (actorTimer) clearTimeout(actorTimer);
   const value = event.target.value.trim();
   actorTimer = setTimeout(() => {
     state.actor = value;
-    state.page = 0;
-    loadEvents();
-  }, 300);
+    render();
+  }, 200);
 }
 
-function onActionChange(event) {
-  state.action = event.target.value;
-  state.page = 0;
-  loadEvents();
+function onFromChange(event) {
+  state.from = event.target.value;
+  render();
+}
+
+function onToChange(event) {
+  state.to = event.target.value;
+  render();
 }
 
 function onClearFilters() {
   state.actor = '';
-  state.action = '';
-  state.page = 0;
+  state.actions.clear();
+  state.from = '';
+  state.to = '';
   $('filter-actor').value = '';
-  $('filter-action').value = '';
-  loadEvents();
-}
-
-function onPrev() {
-  if (state.page > 0) {
-    state.page -= 1;
-    loadEvents();
-  }
-}
-
-function onNext() {
-  if (state.page < state.totalPages - 1) {
-    state.page += 1;
-    loadEvents();
-  }
+  $('filter-from').value = '';
+  $('filter-to').value = '';
+  $('action-menu').querySelectorAll('input[type="checkbox"]')
+    .forEach((box) => { box.checked = false; });
+  updateActionToggleLabel();
+  setActionMenuOpen(false);
+  render();
 }
 
 function init() {
@@ -281,13 +352,17 @@ function init() {
     pill.textContent = user.username;
     pill.hidden = false;
   }
-  populateActionFilter();
+  populateActionMenu();
+  updateActionToggleLabel();
   $('btn-logout').addEventListener('click', () => auth.logout());
   $('filter-actor').addEventListener('input', onActorInput);
-  $('filter-action').addEventListener('change', onActionChange);
+  $('action-toggle').addEventListener('click', onActionToggleClick);
+  $('action-menu').addEventListener('change', onActionMenuChange);
+  $('filter-from').addEventListener('change', onFromChange);
+  $('filter-to').addEventListener('change', onToChange);
   $('btn-clear-filters').addEventListener('click', onClearFilters);
-  $('btn-prev').addEventListener('click', onPrev);
-  $('btn-next').addEventListener('click', onNext);
+  $('action-multiselect').addEventListener('keydown', onMultiselectKeydown);
+  document.addEventListener('click', onDocumentClick);
   loadEvents();
 }
 
