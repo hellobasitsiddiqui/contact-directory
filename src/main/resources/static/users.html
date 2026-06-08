@@ -97,11 +97,26 @@
       </div>
     </section>
 
+    <div id="bulk-bar" class="bulk-bar" role="region" aria-label="Bulk actions" hidden>
+      <span id="bulk-count" class="bulk-bar__count" aria-live="polite"></span>
+      <div class="bulk-bar__actions">
+        <button type="button" id="btn-bulk-disable" class="btn btn--secondary btn--sm">Disable</button>
+        <button type="button" id="btn-bulk-enable" class="btn btn--secondary btn--sm">Enable</button>
+        <button type="button" id="btn-bulk-admin" class="btn btn--secondary btn--sm">Make ADMIN</button>
+        <button type="button" id="btn-bulk-user" class="btn btn--secondary btn--sm">Make USER</button>
+        <button type="button" id="btn-bulk-delete" class="btn btn--danger btn--sm">Delete</button>
+        <button type="button" id="btn-bulk-clear" class="btn btn--ghost btn--sm">Clear</button>
+      </div>
+    </div>
+
     <section class="users-panel" aria-label="User accounts">
       <div id="users-loading" class="users-status">Loading users…</div>
       <table class="users-table" id="users-table" hidden>
         <thead>
           <tr>
+            <th scope="col" class="col-select">
+              <input type="checkbox" id="select-all" aria-label="Select all shown users" />
+            </th>
             <th scope="col" aria-sort="none">
               <button type="button" class="users-sort" data-sort="username">
                 Username<span class="users-sort__indicator" aria-hidden="true"></span>
