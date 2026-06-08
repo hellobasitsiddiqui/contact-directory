@@ -1,5 +1,5 @@
 {
-    "openapi": "3.0.1",
+    "openapi": "3.1.0",
     "info": {
         "title": "Contact Directory API",
         "description": "REST API for managing contacts in the Contact Directory. Most endpoints require a JWT bearer token obtained from POST /api/v1/auth/login or /api/v1/auth/register.",
@@ -55,9 +55,6 @@
                     }
                 ],
                 "responses": {
-                    "404": {
-                        "description": "Contact not found"
-                    },
                     "200": {
                         "description": "Contact found",
                         "content": {
@@ -67,6 +64,9 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Contact not found"
                     }
                 }
             },
@@ -100,6 +100,16 @@
                     "required": true
                 },
                 "responses": {
+                    "200": {
+                        "description": "Contact updated",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactResponse"
+                                }
+                            }
+                        }
+                    },
                     "400": {
                         "description": "Validation failed"
                     },
@@ -111,16 +121,6 @@
                     },
                     "412": {
                         "description": "Stale version / concurrent modification"
-                    },
-                    "200": {
-                        "description": "Contact updated",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ContactResponse"
-                                }
-                            }
-                        }
                     }
                 }
             },
@@ -130,7 +130,7 @@
                 ],
                 "summary": "Soft-delete a contact",
                 "description": "Soft-deletes the contact (moves it to trash); it can be restored or permanently deleted later.",
-                "operationId": "delete_1",
+                "operationId": "delete",
                 "parameters": [
                     {
                         "name": "id",
@@ -182,6 +182,16 @@
                     "required": true
                 },
                 "responses": {
+                    "200": {
+                        "description": "Contact updated",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactResponse"
+                                }
+                            }
+                        }
+                    },
                     "400": {
                         "description": "Validation failed"
                     },
@@ -193,16 +203,6 @@
                     },
                     "412": {
                         "description": "Stale version / concurrent modification"
-                    },
-                    "200": {
-                        "description": "Contact updated",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ContactResponse"
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -256,7 +256,7 @@
                 ],
                 "summary": "List contacts",
                 "description": "Returns a paginated list of contacts, optionally filtered by a search term and/or a tag.",
-                "operationId": "list_1",
+                "operationId": "list",
                 "parameters": [
                     {
                         "name": "search",
@@ -282,9 +282,9 @@
                         "description": "Zero-based page index (0..N)",
                         "required": false,
                         "schema": {
-                            "minimum": 0,
                             "type": "integer",
-                            "default": 0
+                            "default": 0,
+                            "minimum": 0
                         }
                     },
                     {
@@ -293,9 +293,9 @@
                         "description": "The size of the page to be returned",
                         "required": false,
                         "schema": {
-                            "minimum": 1,
                             "type": "integer",
-                            "default": 20
+                            "default": 20,
+                            "minimum": 1
                         }
                     },
                     {
@@ -305,12 +305,12 @@
                         "required": false,
                         "schema": {
                             "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
                             "default": [
                                 "lastName,ASC"
-                            ]
+                            ],
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 ],
@@ -345,12 +345,6 @@
                     "required": true
                 },
                 "responses": {
-                    "400": {
-                        "description": "Validation failed"
-                    },
-                    "409": {
-                        "description": "Email already exists"
-                    },
                     "201": {
                         "description": "Contact created",
                         "content": {
@@ -360,6 +354,12 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Validation failed"
+                    },
+                    "409": {
+                        "description": "Email already exists"
                     }
                 }
             }
@@ -385,9 +385,6 @@
                     }
                 ],
                 "responses": {
-                    "404": {
-                        "description": "Contact not found"
-                    },
                     "200": {
                         "description": "Contact restored",
                         "content": {
@@ -397,6 +394,9 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Contact not found"
                     }
                 }
             }
@@ -461,31 +461,22 @@
                     "content": {
                         "multipart/form-data": {
                             "schema": {
-                                "required": [
-                                    "file"
-                                ],
                                 "type": "object",
                                 "properties": {
                                     "file": {
                                         "type": "string",
-                                        "description": "Image file to upload",
-                                        "format": "binary"
+                                        "format": "binary",
+                                        "description": "Image file to upload"
                                     }
-                                }
+                                },
+                                "required": [
+                                    "file"
+                                ]
                             }
                         }
                     }
                 },
                 "responses": {
-                    "413": {
-                        "description": "File too large"
-                    },
-                    "404": {
-                        "description": "Contact not found"
-                    },
-                    "400": {
-                        "description": "Invalid image"
-                    },
                     "200": {
                         "description": "Photo uploaded",
                         "content": {
@@ -495,6 +486,15 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Invalid image"
+                    },
+                    "404": {
+                        "description": "Contact not found"
+                    },
+                    "413": {
+                        "description": "File too large"
                     }
                 }
             },
@@ -517,11 +517,11 @@
                     }
                 ],
                 "responses": {
-                    "404": {
-                        "description": "Contact not found"
-                    },
                     "204": {
                         "description": "Photo deleted"
+                    },
+                    "404": {
+                        "description": "Contact not found"
                     }
                 }
             }
@@ -538,17 +538,17 @@
                     "content": {
                         "multipart/form-data": {
                             "schema": {
-                                "required": [
-                                    "file"
-                                ],
                                 "type": "object",
                                 "properties": {
                                     "file": {
                                         "type": "string",
-                                        "description": "CSV file to import",
-                                        "format": "binary"
+                                        "format": "binary",
+                                        "description": "CSV file to import"
                                     }
-                                }
+                                },
+                                "required": [
+                                    "file"
+                                ]
                             }
                         }
                     }
@@ -564,11 +564,11 @@
                             }
                         }
                     },
-                    "413": {
-                        "description": "File too large"
-                    },
                     "400": {
                         "description": "Invalid file"
+                    },
+                    "413": {
+                        "description": "File too large"
                     }
                 }
             }
@@ -855,7 +855,7 @@
                     "User management"
                 ],
                 "summary": "List all user accounts",
-                "operationId": "list",
+                "operationId": "list_1",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -888,9 +888,9 @@
                         "description": "Zero-based page index (0..N)",
                         "required": false,
                         "schema": {
-                            "minimum": 0,
                             "type": "integer",
-                            "default": 0
+                            "default": 0,
+                            "minimum": 0
                         }
                     },
                     {
@@ -899,9 +899,9 @@
                         "description": "The size of the page to be returned",
                         "required": false,
                         "schema": {
-                            "minimum": 1,
                             "type": "integer",
-                            "default": 20
+                            "default": 20,
+                            "minimum": 1
                         }
                     },
                     {
@@ -911,12 +911,12 @@
                         "required": false,
                         "schema": {
                             "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
                             "default": [
                                 "deletedAt,ASC"
-                            ]
+                            ],
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 ],
@@ -1019,9 +1019,7 @@
                             "*/*": {
                                 "schema": {
                                     "type": "object",
-                                    "additionalProperties": {
-                                        "type": "object"
-                                    }
+                                    "additionalProperties": {}
                                 }
                             }
                         }
@@ -1082,9 +1080,9 @@
                         "description": "Zero-based page index (0..N)",
                         "required": false,
                         "schema": {
-                            "minimum": 0,
                             "type": "integer",
-                            "default": 0
+                            "default": 0,
+                            "minimum": 0
                         }
                     },
                     {
@@ -1093,9 +1091,9 @@
                         "description": "The size of the page to be returned",
                         "required": false,
                         "schema": {
-                            "minimum": 1,
                             "type": "integer",
-                            "default": 20
+                            "default": 20,
+                            "minimum": 1
                         }
                     },
                     {
@@ -1105,12 +1103,12 @@
                         "required": false,
                         "schema": {
                             "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
                             "default": [
                                 "timestamp,DESC"
-                            ]
+                            ],
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 ],
@@ -1134,7 +1132,7 @@
                     "User management"
                 ],
                 "summary": "Delete a user account",
-                "operationId": "delete",
+                "operationId": "delete_1",
                 "parameters": [
                     {
                         "name": "id",
@@ -1174,14 +1172,14 @@
                     }
                 ],
                 "responses": {
+                    "204": {
+                        "description": "Contact permanently deleted"
+                    },
                     "403": {
                         "description": "Caller is not an admin"
                     },
                     "404": {
                         "description": "Contact not found"
-                    },
-                    "204": {
-                        "description": "Contact permanently deleted"
                     }
                 }
             }
@@ -1190,35 +1188,34 @@
     "components": {
         "schemas": {
             "ContactRequest": {
-                "required": [
-                    "email",
-                    "firstName",
-                    "lastName"
-                ],
                 "type": "object",
                 "properties": {
                     "firstName": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "lastName": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "email": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "email",
+                        "minLength": 1
                     },
                     "phone": {
-                        "pattern": "^[+0-9 ()\\-]{7,20}$",
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^[+0-9 ()\\-]{7,20}$"
                     },
                     "company": {
                         "type": "string"
                     },
                     "tags": {
-                        "uniqueItems": true,
                         "type": "array",
                         "items": {
                             "type": "string"
-                        }
+                        },
+                        "uniqueItems": true
                     },
                     "favorite": {
                         "type": "boolean"
@@ -1230,7 +1227,12 @@
                         "type": "integer",
                         "format": "int64"
                     }
-                }
+                },
+                "required": [
+                    "email",
+                    "firstName",
+                    "lastName"
+                ]
             },
             "ContactResponse": {
                 "type": "object",
@@ -1266,11 +1268,11 @@
                         "type": "string"
                     },
                     "tags": {
-                        "uniqueItems": true,
                         "type": "array",
                         "items": {
                             "type": "string"
-                        }
+                        },
+                        "uniqueItems": true
                     },
                     "favorite": {
                         "type": "boolean"
@@ -1289,17 +1291,17 @@
                 }
             },
             "ResetPasswordRequest": {
-                "required": [
-                    "password"
-                ],
                 "type": "object",
                 "properties": {
                     "password": {
+                        "type": "string",
                         "maxLength": 100,
-                        "minLength": 6,
-                        "type": "string"
+                        "minLength": 6
                     }
-                }
+                },
+                "required": [
+                    "password"
+                ]
             },
             "UserResponse": {
                 "type": "object",
@@ -1353,18 +1355,18 @@
                         }
                     },
                     "addTags": {
-                        "uniqueItems": true,
                         "type": "array",
                         "items": {
                             "type": "string"
-                        }
+                        },
+                        "uniqueItems": true
                     },
                     "removeTags": {
-                        "uniqueItems": true,
                         "type": "array",
                         "items": {
                             "type": "string"
-                        }
+                        },
+                        "uniqueItems": true
                     }
                 }
             },
@@ -1405,23 +1407,23 @@
                 }
             },
             "RegisterRequest": {
-                "required": [
-                    "password",
-                    "username"
-                ],
                 "type": "object",
                 "properties": {
                     "username": {
+                        "type": "string",
                         "maxLength": 50,
-                        "minLength": 3,
-                        "type": "string"
+                        "minLength": 3
                     },
                     "password": {
+                        "type": "string",
                         "maxLength": 100,
-                        "minLength": 6,
-                        "type": "string"
+                        "minLength": 6
                     }
-                }
+                },
+                "required": [
+                    "password",
+                    "username"
+                ]
             },
             "AuthResponse": {
                 "type": "object",
@@ -1445,41 +1447,41 @@
                 }
             },
             "LoginRequest": {
-                "required": [
-                    "password",
-                    "username"
-                ],
                 "type": "object",
                 "properties": {
                     "username": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "password": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     }
-                }
+                },
+                "required": [
+                    "password",
+                    "username"
+                ]
             },
             "ChangePasswordRequest": {
-                "required": [
-                    "currentPassword",
-                    "newPassword"
-                ],
                 "type": "object",
                 "properties": {
                     "currentPassword": {
-                        "type": "string"
+                        "type": "string",
+                        "minLength": 1
                     },
                     "newPassword": {
+                        "type": "string",
                         "maxLength": 100,
-                        "minLength": 6,
-                        "type": "string"
+                        "minLength": 6
                     }
-                }
+                },
+                "required": [
+                    "currentPassword",
+                    "newPassword"
+                ]
             },
             "UpdateRoleRequest": {
-                "required": [
-                    "role"
-                ],
                 "type": "object",
                 "properties": {
                     "role": {
@@ -1489,18 +1491,21 @@
                             "ADMIN"
                         ]
                     }
-                }
+                },
+                "required": [
+                    "role"
+                ]
             },
             "UpdateEnabledRequest": {
-                "required": [
-                    "enabled"
-                ],
                 "type": "object",
                 "properties": {
                     "enabled": {
                         "type": "boolean"
                     }
-                }
+                },
+                "required": [
+                    "enabled"
+                ]
             },
             "ContactPatchRequest": {
                 "type": "object",
@@ -1512,7 +1517,8 @@
                         "type": "string"
                     },
                     "email": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "email"
                     },
                     "phone": {
                         "type": "string"
@@ -1521,11 +1527,11 @@
                         "type": "string"
                     },
                     "tags": {
-                        "uniqueItems": true,
                         "type": "array",
                         "items": {
                             "type": "string"
-                        }
+                        },
+                        "uniqueItems": true
                     },
                     "favorite": {
                         "type": "boolean"
@@ -1550,19 +1556,6 @@
                         "type": "integer",
                         "format": "int32"
                     },
-                    "numberOfElements": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "first": {
-                        "type": "boolean"
-                    },
-                    "last": {
-                        "type": "boolean"
-                    },
-                    "pageable": {
-                        "$ref": "#/components/schemas/PageableObject"
-                    },
                     "size": {
                         "type": "integer",
                         "format": "int32"
@@ -1578,10 +1571,20 @@
                         "format": "int32"
                     },
                     "sort": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/SortObject"
-                        }
+                        "$ref": "#/components/schemas/SortObject"
+                    },
+                    "numberOfElements": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageable": {
+                        "$ref": "#/components/schemas/PageableObject"
+                    },
+                    "first": {
+                        "type": "boolean"
+                    },
+                    "last": {
+                        "type": "boolean"
                     },
                     "empty": {
                         "type": "boolean"
@@ -1591,6 +1594,13 @@
             "PageableObject": {
                 "type": "object",
                 "properties": {
+                    "offset": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
+                    },
                     "paged": {
                         "type": "boolean"
                     },
@@ -1604,35 +1614,19 @@
                     },
                     "unpaged": {
                         "type": "boolean"
-                    },
-                    "offset": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "sort": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/SortObject"
-                        }
                     }
                 }
             },
             "SortObject": {
                 "type": "object",
                 "properties": {
-                    "direction": {
-                        "type": "string"
-                    },
-                    "nullHandling": {
-                        "type": "string"
-                    },
-                    "ascending": {
+                    "empty": {
                         "type": "boolean"
                     },
-                    "property": {
-                        "type": "string"
+                    "sorted": {
+                        "type": "boolean"
                     },
-                    "ignoreCase": {
+                    "unsorted": {
                         "type": "boolean"
                     }
                 }
@@ -1677,19 +1671,6 @@
                         "type": "integer",
                         "format": "int32"
                     },
-                    "numberOfElements": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "first": {
-                        "type": "boolean"
-                    },
-                    "last": {
-                        "type": "boolean"
-                    },
-                    "pageable": {
-                        "$ref": "#/components/schemas/PageableObject"
-                    },
                     "size": {
                         "type": "integer",
                         "format": "int32"
@@ -1705,10 +1686,20 @@
                         "format": "int32"
                     },
                     "sort": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/SortObject"
-                        }
+                        "$ref": "#/components/schemas/SortObject"
+                    },
+                    "numberOfElements": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "pageable": {
+                        "$ref": "#/components/schemas/PageableObject"
+                    },
+                    "first": {
+                        "type": "boolean"
+                    },
+                    "last": {
+                        "type": "boolean"
                     },
                     "empty": {
                         "type": "boolean"

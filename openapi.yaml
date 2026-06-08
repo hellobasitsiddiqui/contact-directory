@@ -1,4 +1,4 @@
-openapi: 3.0.1
+openapi: 3.1.0
 info:
   title: Contact Directory API
   description: REST API for managing contacts in the Contact Directory. Most endpoints
@@ -34,14 +34,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
-          description: Contact not found
         "200":
           description: Contact found
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "404":
+          description: Contact not found
     put:
       tags:
       - Contacts
@@ -63,6 +63,12 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
+        "200":
+          description: Contact updated
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ContactResponse"
         "400":
           description: Validation failed
         "404":
@@ -71,19 +77,13 @@ paths:
           description: Email already exists
         "412":
           description: Stale version / concurrent modification
-        "200":
-          description: Contact updated
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ContactResponse"
     delete:
       tags:
       - Contacts
       summary: Soft-delete a contact
       description: Soft-deletes the contact (moves it to trash); it can be restored
         or permanently deleted later.
-      operationId: delete_1
+      operationId: delete
       parameters:
       - name: id
         in: path
@@ -118,6 +118,12 @@ paths:
               $ref: "#/components/schemas/ContactPatchRequest"
         required: true
       responses:
+        "200":
+          description: Contact updated
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ContactResponse"
         "400":
           description: Validation failed
         "404":
@@ -126,12 +132,6 @@ paths:
           description: Email already exists
         "412":
           description: Stale version / concurrent modification
-        "200":
-          description: Contact updated
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/ContactResponse"
   /api/v1/users/{id}/reset-password:
     post:
       tags:
@@ -165,7 +165,7 @@ paths:
       summary: List contacts
       description: "Returns a paginated list of contacts, optionally filtered by a\
         \ search term and/or a tag."
-      operationId: list_1
+      operationId: list
       parameters:
       - name: search
         in: query
@@ -185,17 +185,17 @@ paths:
         description: Zero-based page index (0..N)
         required: false
         schema:
-          minimum: 0
           type: integer
           default: 0
+          minimum: 0
       - name: size
         in: query
         description: The size of the page to be returned
         required: false
         schema:
-          minimum: 1
           type: integer
           default: 20
+          minimum: 1
       - name: sort
         in: query
         description: "Sorting criteria in the format: property,(asc|desc). Default\
@@ -203,10 +203,10 @@ paths:
         required: false
         schema:
           type: array
-          items:
-            type: string
           default:
           - "lastName,ASC"
+          items:
+            type: string
       responses:
         "200":
           description: Page of contacts
@@ -227,16 +227,16 @@ paths:
               $ref: "#/components/schemas/ContactRequest"
         required: true
       responses:
-        "400":
-          description: Validation failed
-        "409":
-          description: Email already exists
         "201":
           description: Contact created
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "400":
+          description: Validation failed
+        "409":
+          description: Email already exists
   /api/v1/contacts/{id}/restore:
     post:
       tags:
@@ -253,14 +253,14 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
-          description: Contact not found
         "200":
           description: Contact restored
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "404":
+          description: Contact not found
   /api/v1/contacts/{id}/photo:
     get:
       tags:
@@ -305,27 +305,27 @@ paths:
         content:
           multipart/form-data:
             schema:
-              required:
-              - file
               type: object
               properties:
                 file:
                   type: string
-                  description: Image file to upload
                   format: binary
+                  description: Image file to upload
+              required:
+              - file
       responses:
-        "413":
-          description: File too large
-        "404":
-          description: Contact not found
-        "400":
-          description: Invalid image
         "200":
           description: Photo uploaded
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ContactResponse"
+        "400":
+          description: Invalid image
+        "404":
+          description: Contact not found
+        "413":
+          description: File too large
     delete:
       tags:
       - Contacts
@@ -340,10 +340,10 @@ paths:
           type: integer
           format: int64
       responses:
-        "404":
-          description: Contact not found
         "204":
           description: Photo deleted
+        "404":
+          description: Contact not found
   /api/v1/contacts/import:
     post:
       tags:
@@ -356,14 +356,14 @@ paths:
         content:
           multipart/form-data:
             schema:
-              required:
-              - file
               type: object
               properties:
                 file:
                   type: string
-                  description: CSV file to import
                   format: binary
+                  description: CSV file to import
+              required:
+              - file
       responses:
         "200":
           description: Import summary
@@ -371,10 +371,10 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ImportSummary"
-        "413":
-          description: File too large
         "400":
           description: Invalid file
+        "413":
+          description: File too large
   /api/v1/contacts/bulk/tags:
     post:
       tags:
@@ -554,7 +554,7 @@ paths:
       tags:
       - User management
       summary: List all user accounts
-      operationId: list
+      operationId: list_1
       responses:
         "200":
           description: OK
@@ -577,17 +577,17 @@ paths:
         description: Zero-based page index (0..N)
         required: false
         schema:
-          minimum: 0
           type: integer
           default: 0
+          minimum: 0
       - name: size
         in: query
         description: The size of the page to be returned
         required: false
         schema:
-          minimum: 1
           type: integer
           default: 20
+          minimum: 1
       - name: sort
         in: query
         description: "Sorting criteria in the format: property,(asc|desc). Default\
@@ -595,10 +595,10 @@ paths:
         required: false
         schema:
           type: array
-          items:
-            type: string
           default:
           - "deletedAt,ASC"
+          items:
+            type: string
       responses:
         "200":
           description: Page of trashed contacts
@@ -664,8 +664,7 @@ paths:
             '*/*':
               schema:
                 type: object
-                additionalProperties:
-                  type: object
+                additionalProperties: {}
   /api/v1/audit:
     get:
       tags:
@@ -711,17 +710,17 @@ paths:
         description: Zero-based page index (0..N)
         required: false
         schema:
-          minimum: 0
           type: integer
           default: 0
+          minimum: 0
       - name: size
         in: query
         description: The size of the page to be returned
         required: false
         schema:
-          minimum: 1
           type: integer
           default: 20
+          minimum: 1
       - name: sort
         in: query
         description: "Sorting criteria in the format: property,(asc|desc). Default\
@@ -729,10 +728,10 @@ paths:
         required: false
         schema:
           type: array
-          items:
-            type: string
           default:
           - "timestamp,DESC"
+          items:
+            type: string
       responses:
         "200":
           description: Page of audit events
@@ -745,7 +744,7 @@ paths:
       tags:
       - User management
       summary: Delete a user account
-      operationId: delete
+      operationId: delete_1
       parameters:
       - name: id
         in: path
@@ -773,37 +772,37 @@ paths:
           type: integer
           format: int64
       responses:
+        "204":
+          description: Contact permanently deleted
         "403":
           description: Caller is not an admin
         "404":
           description: Contact not found
-        "204":
-          description: Contact permanently deleted
 components:
   schemas:
     ContactRequest:
-      required:
-      - email
-      - firstName
-      - lastName
       type: object
       properties:
         firstName:
           type: string
+          minLength: 1
         lastName:
           type: string
+          minLength: 1
         email:
           type: string
+          format: email
+          minLength: 1
         phone:
-          pattern: "^[+0-9 ()\\-]{7,20}$"
           type: string
+          pattern: "^[+0-9 ()\\-]{7,20}$"
         company:
           type: string
         tags:
-          uniqueItems: true
           type: array
           items:
             type: string
+          uniqueItems: true
         favorite:
           type: boolean
         notes:
@@ -811,6 +810,10 @@ components:
         version:
           type: integer
           format: int64
+      required:
+      - email
+      - firstName
+      - lastName
     ContactResponse:
       type: object
       properties:
@@ -836,10 +839,10 @@ components:
         photoUrl:
           type: string
         tags:
-          uniqueItems: true
           type: array
           items:
             type: string
+          uniqueItems: true
         favorite:
           type: boolean
         notes:
@@ -851,14 +854,14 @@ components:
           type: integer
           format: int64
     ResetPasswordRequest:
-      required:
-      - password
       type: object
       properties:
         password:
+          type: string
           maxLength: 100
           minLength: 6
-          type: string
+      required:
+      - password
     UserResponse:
       type: object
       properties:
@@ -896,15 +899,15 @@ components:
             type: integer
             format: int64
         addTags:
-          uniqueItems: true
           type: array
           items:
             type: string
+          uniqueItems: true
         removeTags:
-          uniqueItems: true
           type: array
           items:
             type: string
+          uniqueItems: true
     BulkResult:
       type: object
       properties:
@@ -930,19 +933,19 @@ components:
             type: integer
             format: int64
     RegisterRequest:
-      required:
-      - password
-      - username
       type: object
       properties:
         username:
+          type: string
           maxLength: 50
           minLength: 3
-          type: string
         password:
+          type: string
           maxLength: 100
           minLength: 6
-          type: string
+      required:
+      - password
+      - username
     AuthResponse:
       type: object
       properties:
@@ -958,30 +961,31 @@ components:
           type: integer
           format: int64
     LoginRequest:
-      required:
-      - password
-      - username
       type: object
       properties:
         username:
           type: string
+          minLength: 1
         password:
           type: string
-    ChangePasswordRequest:
+          minLength: 1
       required:
-      - currentPassword
-      - newPassword
+      - password
+      - username
+    ChangePasswordRequest:
       type: object
       properties:
         currentPassword:
           type: string
+          minLength: 1
         newPassword:
+          type: string
           maxLength: 100
           minLength: 6
-          type: string
-    UpdateRoleRequest:
       required:
-      - role
+      - currentPassword
+      - newPassword
+    UpdateRoleRequest:
       type: object
       properties:
         role:
@@ -989,13 +993,15 @@ components:
           enum:
           - USER
           - ADMIN
-    UpdateEnabledRequest:
       required:
-      - enabled
+      - role
+    UpdateEnabledRequest:
       type: object
       properties:
         enabled:
           type: boolean
+      required:
+      - enabled
     ContactPatchRequest:
       type: object
       properties:
@@ -1005,15 +1011,16 @@ components:
           type: string
         email:
           type: string
+          format: email
         phone:
           type: string
         company:
           type: string
         tags:
-          uniqueItems: true
           type: array
           items:
             type: string
+          uniqueItems: true
         favorite:
           type: boolean
         notes:
@@ -1050,9 +1057,7 @@ components:
           type: integer
           format: int32
         sort:
-          type: array
-          items:
-            $ref: "#/components/schemas/SortObject"
+          $ref: "#/components/schemas/SortObject"
         empty:
           type: boolean
     PageableObject:
@@ -1072,21 +1077,15 @@ components:
           type: integer
           format: int64
         sort:
-          type: array
-          items:
-            $ref: "#/components/schemas/SortObject"
+          $ref: "#/components/schemas/SortObject"
     SortObject:
       type: object
       properties:
-        direction:
-          type: string
-        nullHandling:
-          type: string
-        ascending:
+        unsorted:
           type: boolean
-        property:
-          type: string
-        ignoreCase:
+        sorted:
+          type: boolean
+        empty:
           type: boolean
     AuditEventResponse:
       type: object
@@ -1137,9 +1136,7 @@ components:
           type: integer
           format: int32
         sort:
-          type: array
-          items:
-            $ref: "#/components/schemas/SortObject"
+          $ref: "#/components/schemas/SortObject"
         empty:
           type: boolean
   securitySchemes:
