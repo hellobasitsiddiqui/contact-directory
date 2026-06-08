@@ -38,6 +38,9 @@ const state = {
   sortDir: 'asc',
 };
 
+/** Ids of users currently ticked via the row checkboxes (Set of String ids). */
+const selectedIds = new Set();
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -243,8 +246,18 @@ function rowHtml(user, currentUsername) {
             data-copy-label="Copy username"
             aria-label="Copy username" title="Copy username">⧉</button>`;
 
+  // Own row is excluded from bulk selection: it renders an empty cell, no checkbox.
+  const selectCell = isSelf
+    ? '<td class="cell-select"></td>'
+    : `<td class="cell-select">
+        <input type="checkbox" class="row-select" data-id="${user.id}"
+               ${selectedIds.has(String(user.id)) ? 'checked' : ''}
+               aria-label="Select ${escapeHtml(user.username)}" />
+      </td>`;
+
   return `
     <tr data-id="${user.id}">
+      ${selectCell}
       <td class="users-username">
         <span class="cell-copyable">${escapeHtml(user.username)}${selfTag}${copyBtn}</span>
       </td>
@@ -271,6 +284,69 @@ function filteredUsers() {
 /** True when any client-side filter is currently narrowing the list. */
 function hasActiveFilter() {
   return !!(state.username.trim() || state.role || state.status);
+}
+
+/**
+ * Ids of the rows currently shown that are eligible for bulk selection, i.e. the
+ * filtered list minus the signed-in admin's own row (which has no checkbox).
+ */
+function selectableIds() {
+  const current = auth.user();
+  const currentUsername = current ? current.username : '';
+  return filteredUsers()
+    .filter((u) => u.username !== currentUsername)
+    .map((u) => String(u.id));
+}
+
+/** Drop any selected ids that are no longer visible under the current filters. */
+function pruneSelection() {
+  const visible = new Set(selectableIds());
+  for (const id of [...selectedIds]) {
+    if (!visible.has(id)) selectedIds.delete(id);
+  }
+}
+
+/**
+ * Show/hide the bulk bar and sync its count + the select-all checkbox state to
+ * the current selection (scoped to the rows currently shown).
+ */
+function refreshBulkBar() {
+  const n = selectedIds.size;
+  const bar = $('bulk-bar');
+  if (bar) bar.hidden = n === 0;
+  const count = $('bulk-count');
+  if (count) count.textContent = `${n} selected`;
+
+  const selectAll = $('select-all');
+  if (selectAll) {
+    const ids = selectableIds();
+    const selectedShown = ids.filter((id) => selectedIds.has(id)).length;
+    selectAll.checked = ids.length > 0 && selectedShown === ids.length;
+    selectAll.indeterminate = selectedShown > 0 && selectedShown < ids.length;
+  }
+}
+
+/** Toggle a single row's selection. */
+function toggleRowSelect(id, checked) {
+  const key = String(id);
+  if (checked) selectedIds.add(key);
+  else selectedIds.delete(key);
+  refreshBulkBar();
+}
+
+/** Select / deselect every currently-shown (filtered, non-self) row. */
+function toggleSelectAll(checked) {
+  for (const id of selectableIds()) {
+    if (checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+  }
+  renderUsers();
+}
+
+/** Clear the whole selection and hide the bulk bar. */
+function clearSelection() {
+  selectedIds.clear();
+  renderUsers();
 }
 
 /** Comparable value for a user under the given sort key. */
@@ -355,6 +431,10 @@ function renderUsers() {
   empty.textContent = hasActiveFilter()
     ? 'No users match your filters.'
     : 'No users yet.';
+  // Selection may reference rows that filtering has hidden; drop them, then
+  // resync the bulk bar + select-all checkbox to what is actually shown.
+  pruneSelection();
+  refreshBulkBar();
 }
 
 async function loadUsers() {
@@ -422,6 +502,101 @@ async function deleteUser(id, username) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Bulk actions
+ *
+ * No bulk API exists, so each action loops the existing per-user endpoint over
+ * the current selection (sequentially, to keep server load predictable), tallies
+ * successes/failures, then clears + reloads and toasts a summary.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Run `op(id, user)` for every selected user, returning {ok, failed, skipped}.
+ * `op` may skip a user by returning false (counted as skipped, neither ok nor
+ * failed) — used to avoid no-op calls, e.g. enabling an already-enabled account.
+ */
+async function runBulk(op) {
+  const ids = [...selectedIds];
+  const byId = new Map((state.users || []).map((u) => [String(u.id), u]));
+  let ok = 0;
+  let failed = 0;
+  let skipped = 0;
+  for (const id of ids) {
+    const user = byId.get(String(id));
+    try {
+      const did = await op(id, user);
+      if (did === false) skipped += 1;
+      else ok += 1;
+    } catch (_) {
+      failed += 1;
+    }
+  }
+  return { ok, failed, skipped };
+}
+
+/**
+ * Toast a summary line for a finished bulk run. `verb` describes the action as
+ * {past, fail}, e.g. {past:'enabled', fail:'enable'}, so success and failure
+ * copy each read naturally regardless of tense (e.g. role's 'set to ADMIN').
+ */
+function bulkSummary(result, verb) {
+  const { ok, failed, skipped = 0 } = result;
+  const noun = ok === 1 ? 'user' : 'users';
+  if (ok === 0 && failed === 0 && skipped > 0) {
+    toast('No changes needed.');
+  } else if (failed === 0) {
+    toast(`${ok} ${noun} ${verb.past}.`);
+  } else if (ok === 0) {
+    toast(`Could not ${verb.fail} ${failed} ${failed === 1 ? 'user' : 'users'}.`, 'error');
+  } else {
+    toast(`${ok} ${noun} ${verb.past}; ${failed} failed.`, 'error');
+  }
+}
+
+/** Apply a bulk run, then clear the selection, reload, and report the outcome. */
+async function applyBulk(op, verb) {
+  if (selectedIds.size === 0) return;
+  $('users-error').hidden = true;
+  const result = await runBulk(op);
+  selectedIds.clear();
+  await loadUsers();
+  bulkSummary(result, verb);
+}
+
+function onBulkEnable() {
+  applyBulk((id, user) => {
+    if (user && user.enabled) return false; // already enabled
+    return request(`${USERS_API}/${id}/enabled`, { method: 'PATCH', body: { enabled: true } });
+  }, { past: 'enabled', fail: 'enable' });
+}
+
+function onBulkDisable() {
+  applyBulk((id, user) => {
+    if (user && !user.enabled) return false; // already disabled
+    return request(`${USERS_API}/${id}/enabled`, { method: 'PATCH', body: { enabled: false } });
+  }, { past: 'disabled', fail: 'disable' });
+}
+
+function onBulkRole(role) {
+  applyBulk((id, user) => {
+    if (user && user.role === role) return false; // already that role
+    return request(`${USERS_API}/${id}/role`, { method: 'PATCH', body: { role } });
+  }, { past: `set to ${role}`, fail: 'update' });
+}
+
+async function onBulkDelete() {
+  if (selectedIds.size === 0) return;
+  const n = selectedIds.size;
+  const ok = await confirmDialog({
+    title: 'Delete users',
+    message: `Delete ${n} selected ${n === 1 ? 'user' : 'users'}? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!ok) return;
+  await applyBulk((id) => request(`${USERS_API}/${id}`, { method: 'DELETE' }), { past: 'deleted', fail: 'delete' });
+}
+
 function onTableClick(event) {
   const btn = event.target.closest('button[data-action]');
   if (!btn) return;
@@ -441,6 +616,11 @@ function onTableClick(event) {
 }
 
 function onTableChange(event) {
+  const checkbox = event.target.closest('input.row-select');
+  if (checkbox) {
+    toggleRowSelect(checkbox.dataset.id, checkbox.checked);
+    return;
+  }
   const select = event.target.closest('select.users-role');
   if (!select) return;
   $('users-error').hidden = true;
@@ -513,6 +693,13 @@ function init() {
   $('filter-role').addEventListener('change', onRoleFilterChange);
   $('filter-status').addEventListener('change', onStatusFilterChange);
   $('btn-clear-filters').addEventListener('click', onClearFilters);
+  $('select-all').addEventListener('change', (e) => toggleSelectAll(e.target.checked));
+  $('btn-bulk-enable').addEventListener('click', onBulkEnable);
+  $('btn-bulk-disable').addEventListener('click', onBulkDisable);
+  $('btn-bulk-admin').addEventListener('click', () => onBulkRole('ADMIN'));
+  $('btn-bulk-user').addEventListener('click', () => onBulkRole('USER'));
+  $('btn-bulk-delete').addEventListener('click', onBulkDelete);
+  $('btn-bulk-clear').addEventListener('click', clearSelection);
   loadUsers();
 }
 
