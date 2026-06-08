@@ -1,7 +1,7 @@
 # Contact Directory — Features
 
 A complete map of what the app does, grouped by area. Built incrementally, each area committed
-separately. **205 tests passing.** For setup and API reference see the [README](README.md); for a
+separately. **219 tests passing** (plus a Playwright browser e2e walkthrough). For setup and API reference see the [README](README.md); for a
 click-through tour see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 Legend: ✅ done · 🔄 in progress · ⬜ planned
@@ -80,7 +80,33 @@ Same screen in **dark mode** (toggle saved per browser):
 
 ![Admin activity log](docs/screenshots/05-activity.png)
 
+## Observability (health & metrics)
+
+| Feature | Status |
+|---------|--------|
+| Spring Boot Actuator — `health`, `info`, `metrics` exposed over HTTP | ✅ |
+| `/actuator/health` public — orchestration liveness/readiness probes (no token) | ✅ |
+| `/actuator/metrics` secured — requires a bearer token | ✅ |
+| Health detail shown to authenticated callers only (`show-details: when-authorized`) | ✅ |
+
 ---
+
+## Admin & UI enhancements
+
+Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
+
+| Feature | Status |
+|---------|--------|
+| Users table — search + role/status filter | ✅ |
+| Users table — sortable columns | ✅ |
+| Users page — summary stats bar (total / admins / enabled / disabled) | ✅ |
+| Relative timestamps (absolute on hover) across Users + Activity | ✅ |
+| Copy-to-clipboard buttons (username / email) | ✅ |
+| Styled confirmation dialog (replaces native confirm) | ✅ |
+| Users table — bulk select + bulk actions | ✅ |
+| User detail modal (details + recent activity) | ✅ |
+| Activity log — actor + multi-select action + date-range filters | ✅ |
+| Users table — client-side pagination (page-size + Prev/Next) | ✅ |
 
 ## Platform notes
 
@@ -88,12 +114,14 @@ Same screen in **dark mode** (toggle saved per browser):
   HTML/CSS/JS frontend, springdoc OpenAPI.
 - **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) — data survives restarts; tests use an
   isolated in-memory H2.
-- **Tests:** **205** across 14 classes (unit + full-stack), incl. cross-user isolation, role
-  enforcement, optimistic concurrency, account self-service, lockout and audit coverage.
+- **Tests:** **219** across 18 classes (unit + full-stack + HTTP e2e), incl. cross-user isolation,
+  role enforcement, optimistic concurrency, account self-service, lockout, audit and Actuator
+  health/metrics coverage. A separate Playwright **browser e2e** (`PlaywrightE2eTest`, tag-excluded
+  from the default build) drives the real UI and saves screenshots + video; it runs only on
+  `master`/`develop` via [`e2e.yml`](.github/workflows/e2e.yml).
 
 ## Possible next steps
 
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
 - ⬜ Forgot-password flow (needs SMTP wired)
-- ⬜ GitHub Actions CI — run the 205 tests on every push
 - ⬜ Richer contacts — multiple emails/phones/addresses, vCard import/export

@@ -33,7 +33,9 @@ Ownership is enforced server-side:
 ## 3. Admin: user management
 
 Admins get a **Users** link in the header opening the user-management screen. Here an admin can
-change a user's role, enable/disable an account, reset a password, or delete a user.
+change a user's role, enable/disable an account, reset a password, or delete a user. The table also
+offers **search + role/status filters**, **sortable columns**, a **summary stats bar**,
+**bulk select + bulk actions**, **client-side pagination**, and a **detail modal** (click a row).
 
 ![User management](screenshots/03-users.png)
 
@@ -51,7 +53,7 @@ Every signed-in user has a **Profile** page showing their account details and a 
 
 Admins also get an **Activity** link opening the audit trail — an append-only log of who did what
 and when (contact create/edit/delete/restore, bulk and import actions, user-management changes, and
-logins/registrations). It can be filtered by actor and action.
+logins/registrations). It can be filtered by actor, **action (multi-select)** and a **date range**.
 
 ![Activity log](screenshots/05-activity.png)
 
