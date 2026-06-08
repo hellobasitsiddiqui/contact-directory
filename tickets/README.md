@@ -36,3 +36,13 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-023](CD-023-runbook.md) | Operations runbook | Open |
 | [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Open |
 | [CD-025](CD-025-deploy-target.md) | Deploy target + optional deploy.yml | Open |
+| [CD-026](CD-026-mobile-api-findings.md) | Save mobile API readiness findings (docs/MOBILE-API-READINESS.md) | In review |
+| [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | Open |
+| [CD-028](CD-028-refresh-tokens.md) | Refresh tokens + server-side revocation + logout | Open |
+| [CD-029](CD-029-users-pagination-api.md) | Server-side pagination/filter/sort for /api/v1/users | Open |
+| [CD-030](CD-030-upload-limits-photo-url.md) | Larger photo upload limit + absolute photoUrl | Open |
+| [CD-031](CD-031-rate-limiting.md) | Lockout/rate-limit feedback + API rate limiting | Open |
+| [CD-032](CD-032-offline-sync-etag.md) | Offline sync — delta endpoint + ETag | Open |
+| [CD-033](CD-033-push-notifications.md) | Push notifications (FCM/APNs) | Open |
+| [CD-034](CD-034-version-gating-info.md) | App-version gating + /info bootstrap endpoint | Open |
+| [CD-035](CD-035-cors-hybrid.md) | CORS config (for hybrid/WebView clients) | Open |
