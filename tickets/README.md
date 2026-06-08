@@ -13,7 +13,7 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 |--------|-------|--------|
 | [CD-001](CD-001-contribution-workflow.md) | Establish Git Flow (feature → develop → master) + branch protection | Done (#12) |
 | [CD-002](CD-002-actuator-health-metrics.md) | Add Actuator health checks & metrics | Done (#29) |
-| [CD-003](CD-003-license-and-changelog.md) | Add LICENSE and CHANGELOG | In review |
+| [CD-003](CD-003-license-and-changelog.md) | Add LICENSE and CHANGELOG | Done (#30) |
 | [CD-004](CD-004-gitflow-develop-wiring.md) | Wire develop into Git Flow (CI triggers + docs) | Done (#13) |
 | [CD-005](CD-005-tame-dependabot.md) | Tame Dependabot (group updates, ignore majors) | Done (#14) |
 | [CD-006](CD-006-users-table-search.md) | Users table — search + role/status filter | Done (#15) |
@@ -29,4 +29,5 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-016](CD-016-docs-sweep.md) | Docs sweep for the UI-features batch | Done (#26) |
 | [CD-017](CD-017-http-e2e.md) | HTTP-level e2e on a running app (RANDOM_PORT) | Done (#31) |
 | [CD-018](CD-018-playwright-e2e.md) | Playwright browser e2e (screenshots + videos, develop/master) | Done (#32) |
-| [CD-019](CD-019-refresh-screenshots.md) | Refresh docs screenshots for the new UI | In review |
+| [CD-019](CD-019-refresh-screenshots.md) | Refresh docs screenshots for the new UI | Done (#33) |
+| [CD-020](CD-020-docs-consistency.md) | Docs consistency sweep (counts, statuses, next-steps) | In review |

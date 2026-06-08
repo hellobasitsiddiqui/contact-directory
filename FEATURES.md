@@ -122,7 +122,6 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 
 ## Possible next steps
 
-- ⬜ LICENSE + CHANGELOG (CD-003)
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
 - ⬜ Forgot-password flow (needs SMTP wired)
 - ⬜ Richer contacts — multiple emails/phones/addresses, vCard import/export
