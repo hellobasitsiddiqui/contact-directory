@@ -122,8 +122,8 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | README (setup + run) | Onboarding | ✅ |
 | API documentation | Consumers | ✅ OpenAPI |
 | Walkthrough / screenshots | Show, don't tell | ✅ |
-| CHANGELOG | Track changes | ⬜ |
-| LICENSE | Usage terms | ⬜ |
+| CHANGELOG | Track changes | ✅ |
+| LICENSE | Usage terms | ✅ (MIT) |
 | CONTRIBUTING | Contributor guide | ✅ |
 
 ## 12. Compliance & privacy

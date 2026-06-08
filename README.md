@@ -258,3 +258,7 @@ src/main/resources
 ├── data.sql        # Test-profile seed data
 └── static/         # Web UI: login, index, users, profile (HTML/CSS/JS)
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Basit Siddiqui. Release notes in [CHANGELOG.md](CHANGELOG.md).
