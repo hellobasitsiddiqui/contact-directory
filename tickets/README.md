@@ -31,3 +31,8 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-018](CD-018-playwright-e2e.md) | Playwright browser e2e (screenshots + videos, develop/master) | Done (#32) |
 | [CD-019](CD-019-refresh-screenshots.md) | Refresh docs screenshots for the new UI | Done (#33) |
 | [CD-020](CD-020-docs-consistency.md) | Docs consistency sweep (counts, statuses, next-steps) | In review |
+| [CD-021](CD-021-release-deploy-plan.md) | Save release & deployment plan (docs/RELEASE-AND-DEPLOYMENT.md) | In review |
+| [CD-022](CD-022-release-plumbing.md) | Release plumbing (version, tag, Release, release.yml) | Open |
+| [CD-023](CD-023-runbook.md) | Operations runbook | Open |
+| [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Open |
+| [CD-025](CD-025-deploy-target.md) | Deploy target + optional deploy.yml | Open |
