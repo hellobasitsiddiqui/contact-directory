@@ -47,3 +47,4 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-034](CD-034-version-gating-info.md) | App-version gating + /info bootstrap endpoint | Open |
 | [CD-035](CD-035-cors-hybrid.md) | CORS config (for hybrid/WebView clients) | Open |
 | [CD-036](CD-036-features-advanced-scaling.md) | Document advanced scaling roadmap in FEATURES.md | In review |
+| [CD-037](CD-037-features-service-decomposition.md) | Document service-decomposition (microservices) roadmap in FEATURES.md | In review |
