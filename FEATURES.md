@@ -120,6 +120,26 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
   from the default build) drives the real UI and saves screenshots + video; it runs only on
   `master`/`develop` via [`e2e.yml`](.github/workflows/e2e.yml).
 
+## Advanced scaling (roadmap)
+
+> Planned, **not yet implemented**. See [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md)
+> and tickets CD-024 / CD-025.
+
+**Durable, scalable persistence (Postgres + Flyway)** ⬜ — replace embedded H2 file mode with Postgres
+(self-hosted `docker-compose`: app + postgres + volume), schema owned by Flyway migrations. This is the
+foundation that makes the sub-features below possible. Note: you can't scale Postgres by cloning
+identical write containers (it's stateful) — the ladder below is how you actually handle load,
+cheapest → heaviest.
+
+| Sub-feature | What | Status |
+|---|---|---|
+| App-tier scale-out | Run many app containers against **one** Postgres (the app is usually the bottleneck) | ⬜ |
+| Vertical scaling | More CPU / RAM / disk-IO for the Postgres container | ⬜ |
+| Connection pooling | PgBouncer in front — share a few DB connections across many clients | ⬜ |
+| Read replicas | Primary (writes) + read-only replica containers; route reads to replicas | ⬜ |
+| HA / failover | Patroni + replicas — auto-promote on primary failure (uptime, not throughput) | ⬜ |
+| Sharding / multi-primary | Citus or app-level sharding to scale **writes** — last resort, rarely needed | ⬜ |
+
 ## Possible next steps
 
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
