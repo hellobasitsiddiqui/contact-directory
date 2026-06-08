@@ -146,6 +146,38 @@
     </section>
   </main>
 
+  <!-- User detail (read-only) modal: details + recent activity -->
+  <dialog id="user-modal" class="modal modal--detail" aria-labelledby="user-modal-title">
+    <div class="modal__form">
+      <header class="modal__header">
+        <h2 id="user-modal-title" class="modal__title">User</h2>
+        <button type="button" id="btn-user-modal-close" class="modal__close"
+                aria-label="Close">×</button>
+      </header>
+
+      <div class="modal__body">
+        <dl class="detail__list">
+          <div class="detail__row"><dt>Username</dt><dd id="user-modal-username"></dd></div>
+          <div class="detail__row"><dt>Role</dt><dd id="user-modal-role"></dd></div>
+          <div class="detail__row"><dt>Status</dt><dd id="user-modal-status"></dd></div>
+          <div class="detail__row"><dt>Created</dt><dd id="user-modal-created"></dd></div>
+        </dl>
+
+        <section class="user-activity" aria-label="Recent activity">
+          <h3 class="user-activity__title">Recent activity</h3>
+          <div id="user-activity-loading" class="user-activity__status">Loading activity…</div>
+          <p id="user-activity-error" class="user-activity__status user-activity__status--error" hidden></p>
+          <ul id="user-activity-list" class="user-activity__list" hidden></ul>
+          <div id="user-activity-empty" class="user-activity__status" hidden>No recent activity.</div>
+        </section>
+      </div>
+
+      <footer class="modal__footer">
+        <button type="button" id="btn-user-modal-done" class="btn btn--secondary">Close</button>
+      </footer>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>
