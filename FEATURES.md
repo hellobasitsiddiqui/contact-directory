@@ -82,6 +82,23 @@ Same screen in **dark mode** (toggle saved per browser):
 
 ---
 
+## Admin & UI enhancements
+
+Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
+
+| Feature | Status |
+|---------|--------|
+| Users table — search + role/status filter | ✅ |
+| Users table — sortable columns | ✅ |
+| Users page — summary stats bar (total / admins / enabled / disabled) | ✅ |
+| Relative timestamps (absolute on hover) across Users + Activity | ✅ |
+| Copy-to-clipboard buttons (username / email) | ✅ |
+| Styled confirmation dialog (replaces native confirm) | ✅ |
+| Users table — bulk select + bulk actions | ✅ |
+| User detail modal (details + recent activity) | ✅ |
+| Activity log — actor + multi-select action + date-range filters | ✅ |
+| Users table — client-side pagination | ⬜ (CD-015, planned) |
+
 ## Platform notes
 
 - **Stack:** Spring Boot 3.3.5, Java 21, Spring Data JPA + Hibernate, Spring Security + JWT, vanilla
@@ -93,7 +110,8 @@ Same screen in **dark mode** (toggle saved per browser):
 
 ## Possible next steps
 
+- ⬜ Users table client-side pagination (CD-015)
+- ⬜ Actuator health/metrics (CD-002); LICENSE + CHANGELOG (CD-003)
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
 - ⬜ Forgot-password flow (needs SMTP wired)
-- ⬜ GitHub Actions CI — run the 205 tests on every push
 - ⬜ Richer contacts — multiple emails/phones/addresses, vCard import/export

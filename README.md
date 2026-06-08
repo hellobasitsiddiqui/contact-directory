@@ -52,6 +52,14 @@ a persistent file-mode **H2** database and covered by **178 automated tests**.
 - **Audit log** — contact mutations, user-management actions and logins are recorded; admins get
   an Activity page backed by `GET /api/v1/audit` (filterable by actor and action)
 
+### Admin console UX
+- **Users table** — live search + role/status filter, sortable columns, a summary stats bar, and
+  **bulk actions** (multi-select → enable/disable/role/delete)
+- **User detail modal** — click a row for details + that user's recent activity
+- **Activity log** — filter by actor, multi-select action, and date range
+- **Relative timestamps** (exact time on hover), **copy-to-clipboard** for usernames/emails, and a
+  styled **confirmation dialog** for destructive actions
+
 ## Tech stack
 
 | Concern      | Choice                                          |
