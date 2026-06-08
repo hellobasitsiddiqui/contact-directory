@@ -27,4 +27,5 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-014](CD-014-activity-filters.md) | Activity log — multi-select + date-range filter | Done (#25) |
 | [CD-015](CD-015-users-pagination.md) | Users table — client-side pagination | Done (#28) |
 | [CD-016](CD-016-docs-sweep.md) | Docs sweep for the UI-features batch | Done (#26) |
-| [CD-017](CD-017-http-e2e.md) | HTTP-level e2e on a running app (RANDOM_PORT) | In review |
+| [CD-017](CD-017-http-e2e.md) | HTTP-level e2e on a running app (RANDOM_PORT) | Done (#31) |
+| [CD-018](CD-018-playwright-e2e.md) | Playwright browser e2e (screenshots + videos, develop/master) | In review |

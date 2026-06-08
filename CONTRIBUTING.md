@@ -56,3 +56,22 @@ If a change alters the REST API, regenerate the OpenAPI spec so the drift check 
 the docs ([README.md](README.md), [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md),
 [FEATURES.md](FEATURES.md)) and [COMMON-FEATURES.md](COMMON-FEATURES.md) when a baseline capability
 changes.
+
+## Browser end-to-end tests (Playwright)
+
+There are two e2e layers. The **HTTP e2e** (`HttpEndToEndTest`) runs as part of the default
+`mvn verify` gate above. The **browser e2e** (`PlaywrightE2eTest`) drives the real UI in headless
+Chromium and saves screenshots + a video to `target/playwright/`. It is tagged `e2e` and
+**deliberately excluded from `mvn verify`** (it needs a downloaded browser and is slow), so it does
+**not** run on feature PRs.
+
+- **Trigger policy:** the browser e2e runs **only** on pushes to `master`/`develop` (post-merge) and
+  on manual `workflow_dispatch`, via [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml). That
+  workflow installs the browser and uploads the screenshots/video as a `playwright-evidence` artifact.
+- **Run it locally** (one-off browser install, then the tagged suite):
+
+  ```bash
+  ./mvnw exec:java -Dexec.mainClass=com.microsoft.playwright.CLI \
+    -Dexec.classpathScope=test -Dexec.args="install chromium"
+  ./mvnw test -Dtest.excludedGroups= -Dgroups=e2e   # clears the default tag exclusion
+  ```

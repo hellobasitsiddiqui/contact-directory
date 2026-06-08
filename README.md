@@ -5,7 +5,8 @@
 A full-stack **contact manager** built with **Spring Boot 3.3.5**, **Java 21**, and **Maven** — a
 JSON REST API plus a framework-free browser UI. It features **JWT authentication**, **role-based
 access** (USER / ADMIN), **per-user contact ownership**, and account **self-service**, all backed by
-a persistent file-mode **H2** database and covered by **178 automated tests**.
+a persistent file-mode **H2** database and covered by **219 automated tests** (plus a browser
+end-to-end walkthrough).
 
 ## Screenshots
 
@@ -213,12 +214,20 @@ All defaults are dev-friendly and overridable via environment variables:
 ## Testing
 
 ```bash
-./mvnw clean test
+./mvnw clean verify   # unit + integration + HTTP e2e, plus the JaCoCo coverage gate
 ```
 
-**211 tests** across 17 classes (unit + full-stack integration), including cross-user isolation,
-role enforcement, optimistic concurrency, account self-service, lockout and the Actuator
-health/metrics surface. A JaCoCo coverage report is written to `target/site/jacoco/index.html`.
+**219 tests** across 18 classes (unit + full-stack integration + HTTP end-to-end), including
+cross-user isolation, role enforcement, optimistic concurrency, account self-service, lockout and the
+Actuator health/metrics surface. A JaCoCo coverage report is written to
+`target/site/jacoco/index.html`.
+
+A separate **browser end-to-end** test (`PlaywrightE2eTest`) drives the real web UI in headless
+Chromium via [Playwright](https://playwright.dev/java/), walking login → contacts → users → activity
+→ profile and saving screenshots + a video to `target/playwright/`. It is tagged `e2e` and
+**excluded from the default build**; it runs only on `master`/`develop` (and on demand) via the
+[`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run it
+locally.
 
 ## Interactive docs & tooling
 

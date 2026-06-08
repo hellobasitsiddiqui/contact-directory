@@ -19,6 +19,9 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- JUnit tags excluded from the default build. The browser e2e suite is
+             tagged "e2e"; the e2e CI workflow runs it by passing -DexcludedGroups= -->
+        <test.excludedGroups>e2e</test.excludedGroups>
     </properties>
 
     <dependencies>
@@ -80,6 +83,15 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Browser end-to-end tests (CD-018). Tagged "e2e" and excluded from the
+             default build (see surefire <excludedGroups> below); run only via the
+             dedicated CI workflow on develop/master, or locally with -DexcludedGroups=. -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.52.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -87,6 +99,18 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <!-- Exclude the browser end-to-end tests (CD-018) from the default
+                     build. They are tagged "e2e", need a downloaded browser and are
+                     slow, so they run only via the dedicated e2e CI workflow (which
+                     overrides this with -DexcludedGroups=) — never on feature PRs or
+                     the default `mvn verify`. Property-backed so it can be cleared. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${test.excludedGroups}</excludedGroups>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

@@ -80,8 +80,19 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Unit tests | Fast feedback | ✅ |
 | Integration tests | Wiring correctness | ✅ |
 | Coverage measurement + gate | Prevent regressions | ✅ (JaCoCo gate) |
-| End-to-end / UI tests | User-flow confidence | ⬜ |
+| End-to-end / UI tests | User-flow confidence | ✅ (two styles — see below) |
 | Isolated test data | Deterministic tests | ✅ |
+
+**Two end-to-end styles.** This app runs the suite as two complementary layers:
+- **HTTP e2e** (`HttpEndToEndTest`) — boots on a `RANDOM_PORT` and drives the **API over real
+  HTTP** with `TestRestTemplate`. Fast and headless, so it runs as part of the **default
+  `mvn verify`** gate on every PR.
+- **Browser e2e** (`PlaywrightE2eTest`) — boots on a `RANDOM_PORT` and drives the **real web UI**
+  in headless Chromium with [Playwright](https://playwright.dev/java/), walking
+  login → contacts → users → activity → profile and saving numbered **screenshots + a video** to
+  `target/playwright/` as human-reviewable evidence. It's tagged `e2e` and **excluded from
+  `mvn verify`** (needs a downloaded browser and is slow); it runs only on the long-lived branches
+  via the dedicated [`e2e.yml`](.github/workflows/e2e.yml) workflow — never on feature PRs.
 
 ## 8. CI/CD & build
 | Feature | Why | This app |
