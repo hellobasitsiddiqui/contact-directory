@@ -18,9 +18,14 @@ This project follows a **Git Flow** style, ticket-driven, PR-based workflow:
 6. **Merge to `develop`** — once CI is green and the review is posted, **automation merges** the
    feature PR into `develop`.
 7. **Release** — periodically a **`develop` → `master`** release PR is opened; the **maintainer**
-   merges it. Automation never merges to `master`. See
-   [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md) for the full release-hygiene
-   and durable-deploy roadmap (version/tag/Release, runbook, Postgres+Flyway, deploy target).
+   merges it, then **tags** the merge commit (`git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`).
+   The pushed `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which
+   builds the JAR, publishes a **GitHub Release** (notes from the matching `CHANGELOG.md` section) with
+   the JAR attached, and pushes a **versioned** GHCR image (`:X.Y.Z` and `:latest`). Bump `pom.xml`
+   and move `CHANGELOG.md`'s `[Unreleased]` items into a dated `## [X.Y.Z]` section **on `develop`**
+   *before* the release PR, so they ride into `master` with the merge. Automation never merges or tags
+   `master`. See [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md) for the full
+   release-hygiene and durable-deploy roadmap.
 
 ## Branch protection
 
