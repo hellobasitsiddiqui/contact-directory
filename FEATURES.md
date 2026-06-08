@@ -80,6 +80,15 @@ Same screen in **dark mode** (toggle saved per browser):
 
 ![Admin activity log](docs/screenshots/05-activity.png)
 
+## Observability (health & metrics)
+
+| Feature | Status |
+|---------|--------|
+| Spring Boot Actuator — `health`, `info`, `metrics` exposed over HTTP | ✅ |
+| `/actuator/health` public — orchestration liveness/readiness probes (no token) | ✅ |
+| `/actuator/metrics` secured — requires a bearer token | ✅ |
+| Health detail shown to authenticated callers only (`show-details: when-authorized`) | ✅ |
+
 ---
 
 ## Admin & UI enhancements
@@ -105,12 +114,13 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
   HTML/CSS/JS frontend, springdoc OpenAPI.
 - **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) — data survives restarts; tests use an
   isolated in-memory H2.
-- **Tests:** **205** across 14 classes (unit + full-stack), incl. cross-user isolation, role
-  enforcement, optimistic concurrency, account self-service, lockout and audit coverage.
+- **Tests:** **211** across 17 classes (unit + full-stack), incl. cross-user isolation, role
+  enforcement, optimistic concurrency, account self-service, lockout, audit and Actuator
+  health/metrics coverage.
 
 ## Possible next steps
 
-- ⬜ Actuator health/metrics (CD-002); LICENSE + CHANGELOG (CD-003)
+- ⬜ LICENSE + CHANGELOG (CD-003)
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
 - ⬜ Forgot-password flow (needs SMTP wired)
 - ⬜ Richer contacts — multiple emails/phones/addresses, vCard import/export
