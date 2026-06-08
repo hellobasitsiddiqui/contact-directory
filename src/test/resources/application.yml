@@ -20,6 +20,27 @@ spring:
       max-file-size: 2MB
       max-request-size: 2MB
 
+# Mirror the main profile's actuator exposure so the security/probe tests
+# exercise the real health (public) vs metrics (authenticated) behaviour.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+# Mirror the main profile's info.* metadata so the /actuator/info test sees a
+# non-empty body matching production.
+info:
+  app:
+    name: contacts
+    description: Contacts management API
+
 # Fixed test secret/lifetime so JWT beans wire and tokens are deterministic.
 app:
   jwt:

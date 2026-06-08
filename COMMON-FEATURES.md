@@ -58,8 +58,8 @@ Use it as a starting template for new projects. The **This app** column tracks t
 |---|---|:--:|
 | Structured logging | Debuggability | ➖ |
 | Audit log (who did what) | Accountability | ✅ |
-| Health checks (readiness/liveness) | Orchestration | ⬜ (no Actuator) |
-| Metrics (Micrometer/Prometheus) | Monitoring | ⬜ |
+| Health checks (readiness/liveness) | Orchestration | ✅ (Actuator `/actuator/health`, public) |
+| Metrics (Micrometer/Prometheus) | Monitoring | ✅ (Actuator `/actuator/metrics`, authed) |
 | Distributed tracing | Cross-service debugging | ⬜ |
 | Error monitoring (Sentry, etc.) | Catch prod errors | ⬜ |
 

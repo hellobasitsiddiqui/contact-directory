@@ -170,6 +170,23 @@ unsupported types return `400`.
 |--------|-----------------|------------------------------------------------------------------|
 | `GET`  | `/api/v1/audit` | List recorded events (paginated, newest first; `?actor=`, `?action=`) |
 
+### Operational — base path `/actuator`
+
+Spring Boot Actuator endpoints for deployment and monitoring. **Health** is public so
+orchestration liveness/readiness probes can poll it unauthenticated; **metrics** require a
+bearer token.
+
+| Method | Path                       | Description                                  | Auth   |
+|--------|----------------------------|----------------------------------------------|--------|
+| `GET`  | `/actuator/health`         | Liveness/readiness status (`UP`/`DOWN`)      | public |
+| `GET`  | `/actuator/info`           | App info (name/description from `info.*`)    | public |
+| `GET`  | `/actuator/metrics`        | List available meters                        | bearer |
+| `GET`  | `/actuator/metrics/{name}` | A single meter's value (e.g. `jvm.memory.used`) | bearer |
+
+Health detail (DB, disk, components) is shown to authenticated callers only
+(`management.endpoint.health.show-details: when-authorized`); anonymous probes get just the
+top-level status.
+
 ### Listing query parameters
 
 | Parameter | Default    | Description                                                         |
@@ -199,9 +216,9 @@ All defaults are dev-friendly and overridable via environment variables:
 ./mvnw clean test
 ```
 
-**178 tests** across 14 classes (unit + full-stack integration), including cross-user isolation,
-role enforcement, optimistic concurrency, account self-service and lockout. A JaCoCo coverage report
-is written to `target/site/jacoco/index.html`.
+**211 tests** across 17 classes (unit + full-stack integration), including cross-user isolation,
+role enforcement, optimistic concurrency, account self-service, lockout and the Actuator
+health/metrics surface. A JaCoCo coverage report is written to `target/site/jacoco/index.html`.
 
 ## Interactive docs & tooling
 
@@ -211,6 +228,8 @@ is written to `target/site/jacoco/index.html`.
 | Swagger UI  | http://localhost:8080/swagger-ui.html    |
 | OpenAPI doc | http://localhost:8080/v3/api-docs        |
 | H2 console  | http://localhost:8080/h2-console         |
+| Health      | http://localhost:8080/actuator/health    |
+| Metrics     | http://localhost:8080/actuator/metrics (bearer token) |
 
 H2 console connection: JDBC URL `jdbc:h2:file:./data/contacts`, user `sa`, blank password.
 

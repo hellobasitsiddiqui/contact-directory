@@ -37,6 +37,31 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose health (public probes), info and metrics over HTTP. Other
+        # actuator endpoints stay disabled. Metrics access is gated by Spring
+        # Security in SecurityConfig (authenticated only).
+        include: health,info,metrics
+  endpoint:
+    health:
+      # Show component/disk/db detail to authenticated callers only; anonymous
+      # probes still get the top-level UP/DOWN status.
+      show-details: when-authorized
+  info:
+    # Surface the static info.* properties below via /actuator/info.
+    env:
+      enabled: true
+
+# Static metadata served by /actuator/info (no build-info plugin wired, so this
+# gives the endpoint a meaningful body instead of an empty {}).
+info:
+  app:
+    name: contacts
+    description: Contacts management API
+
 app:
   jwt:
     # HS256 signing secret (>= 32 bytes). Override via APP_JWT_SECRET in any real
