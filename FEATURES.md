@@ -1,7 +1,7 @@
 # Contact Directory — Features
 
 A complete map of what the app does, grouped by area. Built incrementally, each area committed
-separately. **205 tests passing.** For setup and API reference see the [README](README.md); for a
+separately. **219 tests passing** (plus a Playwright browser e2e walkthrough). For setup and API reference see the [README](README.md); for a
 click-through tour see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 Legend: ✅ done · 🔄 in progress · ⬜ planned
@@ -114,9 +114,11 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
   HTML/CSS/JS frontend, springdoc OpenAPI.
 - **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) — data survives restarts; tests use an
   isolated in-memory H2.
-- **Tests:** **211** across 17 classes (unit + full-stack), incl. cross-user isolation, role
-  enforcement, optimistic concurrency, account self-service, lockout, audit and Actuator
-  health/metrics coverage.
+- **Tests:** **219** across 18 classes (unit + full-stack + HTTP e2e), incl. cross-user isolation,
+  role enforcement, optimistic concurrency, account self-service, lockout, audit and Actuator
+  health/metrics coverage. A separate Playwright **browser e2e** (`PlaywrightE2eTest`, tag-excluded
+  from the default build) drives the real UI and saves screenshots + video; it runs only on
+  `master`/`develop` via [`e2e.yml`](.github/workflows/e2e.yml).
 
 ## Possible next steps
 
