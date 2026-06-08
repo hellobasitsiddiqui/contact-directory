@@ -97,7 +97,7 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 | Users table — bulk select + bulk actions | ✅ |
 | User detail modal (details + recent activity) | ✅ |
 | Activity log — actor + multi-select action + date-range filters | ✅ |
-| Users table — client-side pagination | ⬜ (CD-015, planned) |
+| Users table — client-side pagination (page-size + Prev/Next) | ✅ |
 
 ## Platform notes
 
@@ -110,7 +110,6 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 
 ## Possible next steps
 
-- ⬜ Users table client-side pagination (CD-015)
 - ⬜ Actuator health/metrics (CD-002); LICENSE + CHANGELOG (CD-003)
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
 - ⬜ Forgot-password flow (needs SMTP wired)

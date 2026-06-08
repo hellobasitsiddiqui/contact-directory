@@ -32,6 +32,10 @@ const auth = {
   },
 };
 
+/** Page-size options for the selector; the default is the first marked current. */
+const PAGE_SIZES = [10, 25, 50, 100];
+const DEFAULT_PAGE_SIZE = 25;
+
 /** All users fetched from the API, plus the current client-side filters/sort. */
 const state = {
   users: [],
@@ -40,6 +44,9 @@ const state = {
   status: '',
   sortKey: '',
   sortDir: 'asc',
+  // Client-side pagination over the filtered + sorted list. `page` is 0-based.
+  page: 0,
+  pageSize: DEFAULT_PAGE_SIZE,
 };
 
 /** Ids of users currently ticked via the row checkboxes (Set of String ids). */
@@ -291,8 +298,9 @@ function hasActiveFilter() {
 }
 
 /**
- * Ids of the rows currently shown that are eligible for bulk selection, i.e. the
- * filtered list minus the signed-in admin's own row (which has no checkbox).
+ * Ids of all filtered (non-self) rows eligible for bulk selection — across every
+ * page. Selections persist as you page, so this is the set a selection may
+ * legitimately span; pruneSelection() uses it to drop only rows the filters hid.
  */
 function selectableIds() {
   const current = auth.user();
@@ -302,7 +310,21 @@ function selectableIds() {
     .map((u) => String(u.id));
 }
 
-/** Drop any selected ids that are no longer visible under the current filters. */
+/**
+ * Ids of the selectable rows actually rendered on the current page. Drives the
+ * select-all checkbox (whose label is "Select all users on this page") and its
+ * toggle, so "select all" means this page, while selections still carry across
+ * pages.
+ */
+function visibleSelectableIds() {
+  const current = auth.user();
+  const currentUsername = current ? current.username : '';
+  return pagedUsers(sortedUsers(filteredUsers()))
+    .filter((u) => u.username !== currentUsername)
+    .map((u) => String(u.id));
+}
+
+/** Drop any selected ids that are no longer in the filtered set (across pages). */
 function pruneSelection() {
   const visible = new Set(selectableIds());
   for (const id of [...selectedIds]) {
@@ -323,7 +345,8 @@ function refreshBulkBar() {
 
   const selectAll = $('select-all');
   if (selectAll) {
-    const ids = selectableIds();
+    // Scoped to the current page: "select all" ticks what's on screen.
+    const ids = visibleSelectableIds();
     const selectedShown = ids.filter((id) => selectedIds.has(id)).length;
     selectAll.checked = ids.length > 0 && selectedShown === ids.length;
     selectAll.indeterminate = selectedShown > 0 && selectedShown < ids.length;
@@ -338,9 +361,9 @@ function toggleRowSelect(id, checked) {
   refreshBulkBar();
 }
 
-/** Select / deselect every currently-shown (filtered, non-self) row. */
+/** Select / deselect every selectable row on the current page. */
 function toggleSelectAll(checked) {
-  for (const id of selectableIds()) {
+  for (const id of visibleSelectableIds()) {
     if (checked) selectedIds.add(id);
     else selectedIds.delete(id);
   }
@@ -388,6 +411,53 @@ function sortedUsers(users) {
     .map((pair) => pair[0]);
 }
 
+/** Total number of pages for `count` rows at the current page size (min 1). */
+function pageCount(count) {
+  return Math.max(1, Math.ceil(count / state.pageSize));
+}
+
+/**
+ * Clamp state.page into [0, last page] for the given match count — e.g. after a
+ * filter shrinks the list past the current page. Mutates state.page in place.
+ */
+function clampPage(count) {
+  const last = pageCount(count) - 1;
+  state.page = Math.min(Math.max(state.page, 0), last);
+}
+
+/** The slice of `users` that falls on the current page. */
+function pagedUsers(users) {
+  const start = state.page * state.pageSize;
+  return users.slice(start, start + state.pageSize);
+}
+
+/**
+ * Update the pagination bar: "Page X of Y / N users", Prev/Next disabled at the
+ * ends, and hide the whole bar when there is nothing to page through. With a
+ * single page the Prev/Next nav is hidden (it would only ever be disabled),
+ * while the per-page selector and page-info stay useful.
+ */
+function renderPagination(matchCount) {
+  const bar = $('users-pagination');
+  if (!bar) return;
+  if (matchCount === 0) {
+    bar.hidden = true;
+    return;
+  }
+  bar.hidden = false;
+
+  const pages = pageCount(matchCount);
+  const noun = matchCount === 1 ? 'user' : 'users';
+  $('page-info').textContent = `Page ${state.page + 1} of ${pages} / ${matchCount} ${noun}`;
+
+  const nav = $('users-pagination').querySelector('.pagination__nav');
+  if (nav) nav.hidden = pages === 1;
+  const prev = $('btn-prev-page');
+  const next = $('btn-next-page');
+  if (prev) prev.disabled = state.page <= 0;
+  if (next) next.disabled = state.page >= pages - 1;
+}
+
 /** Reflect the active sort onto the header buttons (indicator + aria-sort). */
 function renderSortHeaders() {
   document.querySelectorAll('.users-sort').forEach((btn) => {
@@ -426,15 +496,19 @@ function renderUsers() {
   const current = auth.user();
   const currentUsername = current ? current.username : '';
   const matches = sortedUsers(filteredUsers());
+  // Keep the page in range first (e.g. a filter shrank the list), then slice it.
+  clampPage(matches.length);
+  const visible = pagedUsers(matches);
   renderStats();
   renderSortHeaders();
-  $('users-body').innerHTML = matches.map((u) => rowHtml(u, currentUsername)).join('');
+  $('users-body').innerHTML = visible.map((u) => rowHtml(u, currentUsername)).join('');
   $('users-table').hidden = matches.length === 0;
   const empty = $('users-empty');
   empty.hidden = matches.length !== 0;
   empty.textContent = hasActiveFilter()
     ? 'No users match your filters.'
     : 'No users yet.';
+  renderPagination(matches.length);
   // Selection may reference rows that filtering has hidden; drop them, then
   // resync the bulk bar + select-all checkbox to what is actually shown.
   pruneSelection();
@@ -712,9 +786,15 @@ function onBulkRole(role) {
 async function onBulkDelete() {
   if (selectedIds.size === 0) return;
   const n = selectedIds.size;
+  // A selection can span pages while only the current page's rows are on screen.
+  // Spell out how many selected users aren't visible so a delete here can't
+  // surprise the operator with rows they can't see.
+  const onPage = new Set(visibleSelectableIds());
+  const offPage = [...selectedIds].filter((id) => !onPage.has(id)).length;
+  const offPageNote = offPage > 0 ? ` (${offPage} on other pages)` : '';
   const ok = await confirmDialog({
     title: 'Delete users',
-    message: `Delete ${n} selected ${n === 1 ? 'user' : 'users'}? This cannot be undone.`,
+    message: `Delete ${n} selected ${n === 1 ? 'user' : 'users'}${offPageNote}? This cannot be undone.`,
     confirmLabel: 'Delete',
     danger: true,
   });
@@ -770,17 +850,20 @@ function onUsernameInput(event) {
   const value = event.target.value;
   usernameTimer = setTimeout(() => {
     state.username = value;
+    state.page = 0; // a new filter starts at the first page
     renderUsers();
   }, 200);
 }
 
 function onRoleFilterChange(event) {
   state.role = event.target.value;
+  state.page = 0;
   renderUsers();
 }
 
 function onStatusFilterChange(event) {
   state.status = event.target.value;
+  state.page = 0;
   renderUsers();
 }
 
@@ -796,6 +879,32 @@ function onSortClick(event) {
     state.sortKey = key;
     state.sortDir = 'asc';
   }
+  state.page = 0; // re-sorting returns to the first page
+  renderUsers();
+}
+
+/** Page-size change: keep the first visible row in view by recomputing the page. */
+function onPageSizeChange(event) {
+  const size = Number(event.target.value);
+  if (!PAGE_SIZES.includes(size)) return;
+  // Anchor on the first row currently shown so the new page size keeps it visible.
+  const firstRow = state.page * state.pageSize;
+  state.pageSize = size;
+  state.page = Math.floor(firstRow / size);
+  renderUsers();
+}
+
+function onPrevPage() {
+  if (state.page <= 0) return;
+  state.page -= 1;
+  renderUsers();
+}
+
+function onNextPage() {
+  // Only the count matters here; sorting wouldn't change the length, so skip it.
+  const matchCount = filteredUsers().length;
+  if (state.page >= pageCount(matchCount) - 1) return;
+  state.page += 1;
   renderUsers();
 }
 
@@ -808,6 +917,7 @@ function onClearFilters() {
   // (renderSortHeaders, called via renderUsers, clears the column indicators).
   state.sortKey = '';
   state.sortDir = 'asc';
+  state.page = 0; // back to the first page
   $('filter-username').value = '';
   $('filter-role').value = '';
   $('filter-status').value = '';
@@ -829,6 +939,13 @@ function init() {
   $('filter-role').addEventListener('change', onRoleFilterChange);
   $('filter-status').addEventListener('change', onStatusFilterChange);
   $('btn-clear-filters').addEventListener('click', onClearFilters);
+  // Sync the page-size control to state, then wire pagination. Like the other
+  // controls below, page-size is always present in users.html, so it's bound
+  // unguarded.
+  $('page-size').value = String(state.pageSize);
+  $('page-size').addEventListener('change', onPageSizeChange);
+  $('btn-prev-page').addEventListener('click', onPrevPage);
+  $('btn-next-page').addEventListener('click', onNextPage);
   $('select-all').addEventListener('change', (e) => toggleSelectAll(e.target.checked));
   $('btn-bulk-enable').addEventListener('click', onBulkEnable);
   $('btn-bulk-disable').addEventListener('click', onBulkDisable);
