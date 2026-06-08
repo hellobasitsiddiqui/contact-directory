@@ -115,7 +115,7 @@
         <thead>
           <tr>
             <th scope="col" class="col-select">
-              <input type="checkbox" id="select-all" aria-label="Select all shown users" />
+              <input type="checkbox" id="select-all" aria-label="Select all users on this page" />
             </th>
             <th scope="col" aria-sort="none">
               <button type="button" class="users-sort" data-sort="username">
@@ -143,6 +143,23 @@
         <tbody id="users-body"></tbody>
       </table>
       <div id="users-empty" class="users-status" hidden>No users yet.</div>
+
+      <nav class="pagination" id="users-pagination" aria-label="Users pagination" hidden>
+        <div class="pagination__size">
+          <label for="page-size">Per page</label>
+          <select id="page-size" class="select">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <span id="page-info" class="pagination__info" aria-live="polite"></span>
+        <div class="pagination__nav">
+          <button type="button" id="btn-prev-page" class="btn btn--secondary btn--sm">Prev</button>
+          <button type="button" id="btn-next-page" class="btn btn--secondary btn--sm">Next</button>
+        </div>
+      </nav>
     </section>
   </main>
 

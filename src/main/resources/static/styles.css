@@ -1194,6 +1194,62 @@ a.btn {
 }
 
 /* ------------------------------------------------------------------ *
+ * Client-side pagination bar (Users table)
+ *
+ * Scoped to #users-pagination so the added padding-top/border-top don't
+ * cascade onto the contacts-page pagination bar (index.html), which shares
+ * the bare .pagination class.
+ * ------------------------------------------------------------------ */
+#users-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.pagination__size {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pagination__size label {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.pagination__size .select {
+  width: auto;
+}
+
+.pagination__info {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.pagination__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .pagination__nav {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .pagination__nav .btn {
+    flex: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Trash mode affordance
  * ------------------------------------------------------------------ */
 

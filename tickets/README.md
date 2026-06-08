@@ -25,5 +25,5 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-012](CD-012-users-bulk-actions.md) | Users table — bulk select + bulk actions | Done (#23) |
 | [CD-013](CD-013-user-detail-modal.md) | User detail modal (details + recent activity) | Done (#24) |
 | [CD-014](CD-014-activity-filters.md) | Activity log — multi-select + date-range filter | Done (#25) |
-| [CD-015](CD-015-users-pagination.md) | Users table — client-side pagination | Open (rolled over) |
+| [CD-015](CD-015-users-pagination.md) | Users table — client-side pagination | Done (#28) |
 | [CD-016](CD-016-docs-sweep.md) | Docs sweep for the UI-features batch | In review |
