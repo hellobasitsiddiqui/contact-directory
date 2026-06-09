@@ -30,13 +30,13 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-017](CD-017-http-e2e.md) | HTTP-level e2e on a running app (RANDOM_PORT) | Done (#31) |
 | [CD-018](CD-018-playwright-e2e.md) | Playwright browser e2e (screenshots + videos, develop/master) | Done (#32) |
 | [CD-019](CD-019-refresh-screenshots.md) | Refresh docs screenshots for the new UI | Done (#33) |
-| [CD-020](CD-020-docs-consistency.md) | Docs consistency sweep (counts, statuses, next-steps) | In review |
-| [CD-021](CD-021-release-deploy-plan.md) | Save release & deployment plan (docs/RELEASE-AND-DEPLOYMENT.md) | In review |
-| [CD-022](CD-022-release-plumbing.md) | Release plumbing (version, tag, Release, release.yml) | In review |
+| [CD-020](CD-020-docs-consistency.md) | Docs consistency sweep (counts, statuses, next-steps) | Done (#34) |
+| [CD-021](CD-021-release-deploy-plan.md) | Save release & deployment plan (docs/RELEASE-AND-DEPLOYMENT.md) | Done (#35) |
+| [CD-022](CD-022-release-plumbing.md) | Release plumbing (version, tag, Release, release.yml) | Done (#36) |
 | [CD-023](CD-023-runbook.md) | Operations runbook | Open |
 | [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Open |
 | [CD-025](CD-025-deploy-target.md) | Deploy target + optional deploy.yml | Open |
-| [CD-026](CD-026-mobile-api-findings.md) | Save mobile API readiness findings (docs/MOBILE-API-READINESS.md) | In review |
+| [CD-026](CD-026-mobile-api-findings.md) | Save mobile API readiness findings (docs/MOBILE-API-READINESS.md) | Done (#37) |
 | [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | Open |
 | [CD-028](CD-028-refresh-tokens.md) | Refresh tokens + server-side revocation + logout | Open |
 | [CD-029](CD-029-users-pagination-api.md) | Server-side pagination/filter/sort for /api/v1/users | Open |
@@ -46,5 +46,6 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-033](CD-033-push-notifications.md) | Push notifications (FCM/APNs) | Open |
 | [CD-034](CD-034-version-gating-info.md) | App-version gating + /info bootstrap endpoint | Open |
 | [CD-035](CD-035-cors-hybrid.md) | CORS config (for hybrid/WebView clients) | Open |
-| [CD-036](CD-036-features-advanced-scaling.md) | Document advanced scaling roadmap in FEATURES.md | In review |
-| [CD-037](CD-037-features-service-decomposition.md) | Document service-decomposition (microservices) roadmap in FEATURES.md | In review |
+| [CD-036](CD-036-features-advanced-scaling.md) | Document advanced scaling roadmap in FEATURES.md | Done (#38) |
+| [CD-037](CD-037-features-service-decomposition.md) | Document service-decomposition (microservices) roadmap in FEATURES.md | Done (#39) |
+| [CD-038](CD-038-release-idempotent-doc-sweep.md) | Make release.yml idempotent + doc sweep | In review |

@@ -21,11 +21,14 @@ This project follows a **Git Flow** style, ticket-driven, PR-based workflow:
    merges it, then **tags** the merge commit (`git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`).
    The pushed `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which
    builds the JAR, publishes a **GitHub Release** (notes from the matching `CHANGELOG.md` section) with
-   the JAR attached, and pushes a **versioned** GHCR image (`:X.Y.Z` and `:latest`). Bump `pom.xml`
-   and move `CHANGELOG.md`'s `[Unreleased]` items into a dated `## [X.Y.Z]` section **on `develop`**
-   *before* the release PR, so they ride into `master` with the merge. Automation never merges or tags
-   `master`. See [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md) for the full
-   release-hygiene and durable-deploy roadmap.
+   the JAR attached, and pushes a **versioned** GHCR image (`:X.Y.Z` and `:latest`). The tag can be
+   created either from the CLI (above) **or** via the GitHub UI (**Releases → Draft a new release →
+   create tag `vX.Y.Z` on `master`**) — `release.yml` is idempotent, so it creates the Release when
+   absent and just attaches the JAR when it already exists. Bump `pom.xml` and move `CHANGELOG.md`'s
+   `[Unreleased]` items into a dated `## [X.Y.Z]` section **on `develop`** *before* the release PR, so
+   they ride into `master` with the merge. Automation never merges or tags `master`. See
+   [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md) for the full release-hygiene and
+   durable-deploy roadmap.
 
 ## Branch protection
 

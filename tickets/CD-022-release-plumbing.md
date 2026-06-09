@@ -1,7 +1,7 @@
 # CD-022: Release plumbing (version, tag, Release, release.yml)
 
 - **Type:** ci / release
-- **Status:** In review
+- **Status:** Done (#36)
 - **Branch:** `CD-022-release-plumbing`
 
 ## Summary

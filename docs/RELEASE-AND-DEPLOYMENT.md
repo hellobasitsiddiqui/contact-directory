@@ -22,11 +22,16 @@
 Merging the release PR is necessary but not sufficient. A release others can trust and reproduce
 needs the following.
 
+> **Part 1 status: ✅ implemented (CD-022).** `pom.xml` is now `1.0.0`, `CHANGELOG.md` has a dated
+> `## [1.0.0]` section, and `.github/workflows/release.yml` (idempotent) cuts the Release + JAR +
+> versioned GHCR image on a `v*` tag. The remaining manual steps are the maintainer merge of the
+> `develop` → `master` PR and pushing the `v1.0.0` tag.
+
 ### 1.1 Version bump
 
-- Today `pom.xml` is `0.0.1-SNAPSHOT`. Pick a real version (e.g. **`1.0.0`**) and drop `-SNAPSHOT`.
-- Do the bump **on `develop`** (its own ticket/PR) so it flows into `master` via the release PR.
-- Follow [SemVer](https://semver.org/): `MAJOR.MINOR.PATCH`.
+- ✅ `pom.xml` is `1.0.0` (was `0.0.1-SNAPSHOT`); the bump was done **on `develop`** so it flows into
+  `master` via the release PR.
+- Follow [SemVer](https://semver.org/): `MAJOR.MINOR.PATCH` for future bumps.
 
 ### 1.2 Git tag
 
@@ -144,10 +149,11 @@ actually want a long-lived, data-retaining environment.
 - ✅ `CHANGELOG.md` (Keep a Changelog) + `LICENSE` (CD-003).
 - ✅ Protected `master` with maintainer-only release merges; `develop` integration (CD-001/CD-004).
 - ✅ Test/coverage gate + e2e evidence (HTTP + Playwright) gating what reaches `master`.
+- ✅ Release plumbing (CD-022): version `1.0.0`, dated CHANGELOG, idempotent `release.yml` (tag `v*` →
+  GitHub Release + JAR + versioned GHCR image — works from a CLI tag *or* the GitHub UI).
 
 ## What's missing (this plan)
 
-- ⬜ Real version + tag + GitHub Release + `release.yml` (CD-022).
 - ⬜ Runbook (CD-023).
 - ⬜ Durable DB — Postgres + Flyway (or volume) (CD-024).
 - ⬜ A real deploy target + optional `deploy.yml` (CD-025).

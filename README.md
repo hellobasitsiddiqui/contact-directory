@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/hellobasitsiddiqui/contact-directory/actions/workflows/ci.yml/badge.svg)](https://github.com/hellobasitsiddiqui/contact-directory/actions/workflows/ci.yml)
 
-A full-stack **contact manager** built with **Spring Boot 3.3.5**, **Java 21**, and **Maven** — a
+A full-stack **contact manager** built with **Spring Boot 3.5.14**, **Java 21**, and **Maven** — a
 JSON REST API plus a framework-free browser UI. It features **JWT authentication**, **role-based
 access** (USER / ADMIN), **per-user contact ownership**, and account **self-service**, all backed by
 a persistent file-mode **H2** database and covered by **219 automated tests** (plus a browser
@@ -66,7 +66,7 @@ end-to-end walkthrough).
 | Concern      | Choice                                          |
 |--------------|-------------------------------------------------|
 | Language     | Java 21                                         |
-| Framework    | Spring Boot 3.3.5 (Web, Data JPA, Security)      |
+| Framework    | Spring Boot 3.5.14 (Web, Data JPA, Security)     |
 | Auth         | Spring Security + JWT (`io.jsonwebtoken` / jjwt) |
 | Persistence  | Spring Data JPA + Hibernate; H2 (file mode)      |
 | Validation   | Jakarta Bean Validation                         |
@@ -101,7 +101,7 @@ contacts. Data is stored in a **persistent** H2 file database (`./data/contacts.
 
 ```bash
 ./mvnw clean package
-java -jar target/contact-directory-0.0.1-SNAPSHOT.jar
+java -jar target/*.jar
 ```
 
 ## Authentication flow

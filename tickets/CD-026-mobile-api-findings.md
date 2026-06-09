@@ -1,7 +1,7 @@
 # CD-026: Save mobile API readiness findings
 
 - **Type:** docs
-- **Status:** In review
+- **Status:** Done (#37)
 - **Branch:** `CD-026-mobile-readiness`
 
 ## Summary
