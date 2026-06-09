@@ -56,3 +56,4 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-043](CD-043-photo-display-auth.md) | Contact photos don't display in the browser (img can't authenticate) | Done (#46) |
 | [CD-044](CD-044-admin-centric-ux.md) | Admin-centric UX — dashboard landing, de-couple admin from contacts, seed sample users | Done (#47) |
 | [CD-045](CD-045-doc-sweep.md) | Docs consistency sweep (post CD-024…CD-044) | In review |
+| [CD-046](CD-046-release-beta2.md) | Release prep — 1.0.0-beta.2 | In review |

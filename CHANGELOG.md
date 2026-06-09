@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0-beta.2] - 2026-06-09
+
 ### Added
 - **Durable persistence** — optional **PostgreSQL + Flyway** profile (`postgres`) with a two-container
   `docker-compose` setup (app + postgres + volume); H2 stays the default for local dev and tests (CD-024).
