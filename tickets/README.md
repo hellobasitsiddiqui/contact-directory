@@ -55,6 +55,7 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-042](CD-042-postgres-integration-test.md) | Postgres integration test (Testcontainers + Playwright) + tag-query Postgres fix | Done (#45) |
 | [CD-043](CD-043-photo-display-auth.md) | Contact photos don't display in the browser (img can't authenticate) | Done (#46) |
 | [CD-044](CD-044-admin-centric-ux.md) | Admin-centric UX — dashboard landing, de-couple admin from contacts, seed sample users | Done (#47) |
-| [CD-045](CD-045-doc-sweep.md) | Docs consistency sweep (post CD-024…CD-044) | In review |
-| [CD-046](CD-046-release-beta2.md) | Release prep — 1.0.0-beta.2 | In review |
-| [CD-047](CD-047-refresh-screenshots.md) | Refresh screenshots for the admin-centric UI | In review |
+| [CD-045](CD-045-doc-sweep.md) | Docs consistency sweep (post CD-024…CD-044) | Done (#48) |
+| [CD-046](CD-046-release-beta2.md) | Release prep — 1.0.0-beta.2 | Done (#49) |
+| [CD-047](CD-047-refresh-screenshots.md) | Refresh screenshots for the admin-centric UI | Done (#51) |
+| [CD-048](CD-048-doc-sweep-beta2.md) | Docs consistency sweep (post-beta.2: ticket statuses + release/deploy plan) | In review |

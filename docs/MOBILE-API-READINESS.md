@@ -3,7 +3,7 @@
 > **Status: saved findings, not implemented.** This records the audit of reusing the existing REST API
 > for a native mobile (iOS/Android) client, so the work can be picked up later. Actionable items are
 > tracked as tickets **CD-027 … CD-035** (see [`../tickets/README.md`](../tickets/README.md)).
-> Grounded in the codebase as of 1.0.0.
+> Grounded in the codebase as of 1.0.0-beta.2.
 
 ## Big picture
 
