@@ -160,6 +160,7 @@ class PlaywrightPostgresE2eTest {
         page.click("a[href='index.html']");
         page.waitForURL("**/index.html");
         assertThat(page.locator(".app-header__title")).hasText("Contact Directory");
+        assertThat(page.locator("#contacts-scope")).containsText("Admin view");  // admin scope banner
         // 3 sample contacts seeded by DataInitializer (owned by sample users alice/bob);
         // the admin is a super-user and sees all of them.
         assertThat(page.locator("#contacts-body tr")).hasCount(3);

@@ -125,17 +125,22 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     /**
-     * Creates and persists a sample {@code USER} account.
+     * Returns the sample {@code USER} account, creating it on first use.
+     * Idempotent on the username so a re-run can never hit the unique-username
+     * constraint (e.g. the contrived case where the sample users were promoted
+     * and the directory emptied), which would otherwise crash startup.
      *
      * @param username the login name
      * @param password the dev-only plaintext password (stored BCrypt-hashed)
-     * @return the saved user
+     * @return the existing or newly-created user
      */
     private User createSampleUser(String username, String password) {
-        User user = userRepository.save(
-                new User(username, passwordEncoder.encode(password), Role.USER));
-        log.warn("Seeded sample USER '{}' (dev only).", username);
-        return user;
+        return userRepository.findByUsername(username).orElseGet(() -> {
+            User user = userRepository.save(
+                    new User(username, passwordEncoder.encode(password), Role.USER));
+            log.warn("Seeded sample USER '{}' (dev only).", username);
+            return user;
+        });
     }
 
     /**

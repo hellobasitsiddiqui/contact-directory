@@ -149,7 +149,7 @@ class PlaywrightE2eTest {
         page.click("a[href='index.html']");
         page.waitForURL("**/index.html");
         assertThat(page.locator(".app-header__title")).hasText("Contact Directory");
-        assertThat(page.locator("#contacts-scope")).isVisible();
+        assertThat(page.locator("#contacts-scope")).containsText("Admin view");
         assertThat(page.locator("#link-users")).isVisible();
         assertThat(page.locator("#link-activity")).isVisible();
         assertThat(page.locator("#contacts-body tr")).hasCount(3);
