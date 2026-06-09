@@ -183,13 +183,15 @@ class PlaywrightPostgresE2eTest {
         assertEquals(200, fetched.status(), "the stored photo should be served back");
         assertArrayEquals(TINY_PNG, fetched.body(), "photo bytes must round-trip via Postgres bytea");
 
-        // 3. Back in the browser: reload and confirm the contact now renders an
-        //    <img> avatar (the server returns a photoUrl), not the initials
-        //    placeholder. (The image's visual rendering is a separate, tracked
-        //    concern — see CD-043 — so we assert the element, not pixel load.)
+        // 3. Back in the browser: reload and confirm the uploaded photo actually
+        //    RENDERS (CD-043 fix): the avatar is fetched with the bearer token,
+        //    shown as a blob object URL, and decodes (naturalWidth > 0) — not the
+        //    initials placeholder.
         page.reload();
-        assertThat(page.locator("#contacts-body img.avatar").first()).hasAttribute(
-                "src", Pattern.compile("/api/v1/contacts/" + id + "/photo"));
-        screenshot("pg-02-photo-persisted");
+        assertThat(page.locator("#contacts-body img.avatar").first()).isVisible();
+        page.waitForFunction(
+                "() => { const i = document.querySelector('#contacts-body img.avatar');"
+              + " return !!i && i.complete && i.naturalWidth > 0; }");
+        screenshot("pg-02-photo-rendered");
     }
 }
