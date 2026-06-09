@@ -38,8 +38,13 @@ services:
       # Override these in .env for any real deployment.
       APP_JWT_SECRET: ${APP_JWT_SECRET:-change-me-local-dev-secret-please-override-32+bytes}
       APP_DEFAULT_ADMIN_PASSWORD: ${APP_DEFAULT_ADMIN_PASSWORD:-admin123}
+    # Bound to host loopback (not 0.0.0.0): reachable at http://localhost:8080 for
+    # local use, but NOT exposed to the network. This matters for the TLS stack
+    # (docker-compose.tls.yml) — there the app trusts the proxy's forwarded headers,
+    # so only Caddy (80/443) should be internet-facing; Caddy reaches the app over
+    # the internal compose network regardless of host publishing.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
 volumes:
   pgdata:

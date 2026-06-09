@@ -30,9 +30,11 @@ Ionic / React-Native-WebView) runs in a browser engine and enforces CORS. Build 
 
 ## ⚠️ Tier 1 — must change before a real mobile launch
 
-1. **HTTPS/TLS (+ HSTS)** — currently **HTTP-only on `:8080`**. iOS App Transport Security rejects
-   plain HTTP by default; Android blocks cleartext on API 28+. Terminate TLS (reverse proxy / LB or
-   `server.ssl`) and add HSTS. → **CD-027**
+1. **HTTPS/TLS (+ HSTS)** — ✅ **app-side done (CD-027).** iOS App Transport Security rejects plain
+   HTTP by default; Android blocks cleartext on API 28+. The app now emits **HSTS** and is
+   **proxy-aware** (`forward-headers-strategy=framework`), and a Caddy reverse-proxy overlay
+   (`docker-compose.tls.yml`, automatic Let's Encrypt) ships for TLS termination. *Remaining:* wire it
+   to a real host + domain as part of the deploy step (**CD-025**).
 2. **Token lifecycle** — today there's a **single 24h access JWT, no refresh token, no server-side
    logout/revocation** (`logout()` just clears `localStorage`). A lost device's token stays valid 24h
    with no way to revoke. Add **short access token + refresh token**, `POST /auth/refresh`, a
