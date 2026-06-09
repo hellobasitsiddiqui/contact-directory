@@ -47,7 +47,7 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Feature | Why | This app |
 |---|---|:--:|
 | ORM / data-access layer | Maintainable persistence | ✅ |
-| DB migrations (Flyway/Liquibase) | Versioned schema | ⬜ (ddl-auto) |
+| DB migrations (Flyway/Liquibase) | Versioned schema | ✅ Flyway (`postgres` profile); H2 dev/test use `ddl-auto` |
 | Seed / reference data | Usable on first run | ✅ |
 | Soft delete + trash | Reversible deletes | ✅ (contacts) |
 | Created/updated timestamps | Provenance | ✅ |

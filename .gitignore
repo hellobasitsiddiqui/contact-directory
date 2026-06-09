@@ -15,6 +15,9 @@ target/
 # Local tooling / editor config
 .claude/
 
+# Local env file for docker-compose (real secrets — never commit)
+.env
+
 # H2 file-mode database (persistent local data)
 /data/
 *.mv.db

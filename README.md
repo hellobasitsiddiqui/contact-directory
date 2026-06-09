@@ -104,6 +104,21 @@ contacts. Data is stored in a **persistent** H2 file database (`./data/contacts.
 java -jar target/*.jar
 ```
 
+### Run with PostgreSQL (Docker Compose)
+
+Local dev uses embedded **H2** (above). For a durable, production-like stack, run the app against
+**PostgreSQL** with **Flyway**-managed schema via the two-container setup (CD-024):
+
+```bash
+cp .env.example .env        # then edit: set real DB password + APP_JWT_SECRET
+docker compose up --build   # starts app (postgres profile) + postgres + a persistent volume
+```
+
+The app runs under the `postgres` Spring profile (`SPRING_PROFILES_ACTIVE=postgres`): Flyway applies
+`src/main/resources/db/migration/V1__init.sql`, Hibernate only **validates** the schema, and data is
+stored in the `pgdata` volume so it **survives restarts**. H2 stays the default for local dev and
+tests.
+
 ## Authentication flow
 
 All `/api/v1/contacts/**` and `/api/v1/users/**` endpoints require a bearer token. Obtain one from
