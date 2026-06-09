@@ -32,8 +32,23 @@ jobs:
         id: ver
         run: |
           TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          REPO="ghcr.io/${{ github.repository }}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # A SemVer pre-release has a hyphen (e.g. 1.0.0-beta.1). For those: mark
+          # the GitHub Release as a pre-release and DON'T move the :latest image tag
+          # (latest should stay on the newest stable build).
+          case "$VERSION" in
+            *-*)
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+              printf 'image_tags<<EOF\n%s:%s\nEOF\n' "$REPO" "$VERSION" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+              printf 'image_tags<<EOF\n%s:%s\n%s:latest\nEOF\n' "$REPO" "$VERSION" "$REPO" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - name: Checkout
         uses: actions/checkout@v6
@@ -71,9 +86,12 @@ jobs:
           # otherwise just attach the JAR to the Release that already exists (created
           # via the GitHub UI). Either way the JAR lands on the release.
           TAG="${{ steps.ver.outputs.tag }}"
+          PRERELEASE=""
+          [ "${{ steps.ver.outputs.prerelease }}" = "true" ] && PRERELEASE="--prerelease"
           gh release create "$TAG" \
             --title "$TAG" \
             --notes-file release-notes.md \
+            $PRERELEASE \
             target/*.jar \
           || gh release upload "$TAG" target/*.jar --clobber
 
@@ -92,8 +110,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.ver.outputs.version }}
-            ghcr.io/${{ github.repository }}:latest
+          # Stable: :<version> + :latest. Pre-release (1.0.0-beta.1): :<version> only.
+          tags: ${{ steps.ver.outputs.image_tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

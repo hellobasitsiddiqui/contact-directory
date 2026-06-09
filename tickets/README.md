@@ -48,4 +48,5 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-035](CD-035-cors-hybrid.md) | CORS config (for hybrid/WebView clients) | Open |
 | [CD-036](CD-036-features-advanced-scaling.md) | Document advanced scaling roadmap in FEATURES.md | Done (#38) |
 | [CD-037](CD-037-features-service-decomposition.md) | Document service-decomposition (microservices) roadmap in FEATURES.md | Done (#39) |
-| [CD-038](CD-038-release-idempotent-doc-sweep.md) | Make release.yml idempotent + doc sweep | In review |
+| [CD-038](CD-038-release-idempotent-doc-sweep.md) | Make release.yml idempotent + doc sweep | Done (#40) |
+| [CD-039](CD-039-prerelease-beta.md) | Pre-release support + cut 1.0.0-beta.1 | In review |
