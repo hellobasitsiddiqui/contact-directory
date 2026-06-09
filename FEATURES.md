@@ -1,7 +1,7 @@
 # Contact Directory — Features
 
 A complete map of what the app does, grouped by area. Built incrementally, each area committed
-separately. **219 tests passing** (plus a Playwright browser e2e walkthrough). For setup and API reference see the [README](README.md); for a
+separately. **219 tests passing** (plus two browser e2e suites — an H2 UI walkthrough and a Postgres-backed one). For setup and API reference see the [README](README.md); for a
 click-through tour see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 Legend: ✅ done · 🔄 in progress · ⬜ planned
@@ -56,6 +56,8 @@ Same screen in **dark mode** (toggle saved per browser):
 | Per-owner email uniqueness — two users can each have the same email; cross-user access → `404` | ✅ |
 | Admin-only permanent delete — irreversible purge restricted to admins | ✅ |
 | Admin user management — list users, change role, enable/disable, reset password, delete | ✅ |
+| Admin dashboard — admins land on a user-administration dashboard (user stats + recent activity + quick links), not the contacts page | ✅ |
+| Admin owns no contacts — the admin is a super-user that sees everyone's contacts (an "admin view"); contacts belong to each user | ✅ |
 | Self-protection — an admin can't demote, disable or delete their own account | ✅ |
 
 ![Admin user management](docs/screenshots/03-users.png)
@@ -112,24 +114,28 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 
 - **Stack:** Spring Boot 3.5.14, Java 21, Spring Data JPA + Hibernate, Spring Security + JWT, vanilla
   HTML/CSS/JS frontend, springdoc OpenAPI.
-- **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) — data survives restarts; tests use an
-  isolated in-memory H2.
+- **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) by default — data survives restarts;
+  tests use an isolated in-memory H2. An optional **PostgreSQL + Flyway** profile (`postgres`) is
+  available for durable, production-like deployment (two-container `docker-compose`) — see the README.
 - **Tests:** **219** across 18 classes (unit + full-stack + HTTP e2e), incl. cross-user isolation,
   role enforcement, optimistic concurrency, account self-service, lockout, audit and Actuator
-  health/metrics coverage. A separate Playwright **browser e2e** (`PlaywrightE2eTest`, tag-excluded
-  from the default build) drives the real UI and saves screenshots + video; it runs only on
-  `master`/`develop` via [`e2e.yml`](.github/workflows/e2e.yml).
+  health/metrics coverage. Two tag-excluded **browser e2e** suites run only on `master`/`develop` via
+  [`e2e.yml`](.github/workflows/e2e.yml): `PlaywrightE2eTest` (full UI walkthrough on H2, with
+  screenshots + video) and `PlaywrightPostgresE2eTest` (Testcontainers PostgreSQL — proves the real
+  `postgres` profile + the `bytea` photo round-trip in a browser).
 
 ## Advanced scaling (roadmap)
 
-> Planned, **not yet implemented**. See [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md)
+> The foundation (durable Postgres persistence) is **implemented**; the scaling ladder and service
+> decomposition below are still **planned**. See [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md)
 > and tickets CD-024 / CD-025.
 
-**Durable, scalable persistence (Postgres + Flyway)** ⬜ — replace embedded H2 file mode with Postgres
-(self-hosted `docker-compose`: app + postgres + volume), schema owned by Flyway migrations. This is the
-foundation that makes the sub-features below possible. Note: you can't scale Postgres by cloning
-identical write containers (it's stateful) — the ladder below is how you actually handle load,
-cheapest → heaviest.
+**Durable, scalable persistence (Postgres + Flyway)** ✅ *(CD-024)* — a `postgres` Spring profile runs
+on PostgreSQL with **Flyway**-owned, versioned schema (`ddl-auto: validate`); a two-container
+`docker-compose.yml` (app + postgres + `pgdata` volume) makes data survive restarts. Local dev and
+tests still use embedded H2 (Flyway off), so the inner loop is unchanged. This is the foundation that
+makes the sub-features below possible. Note: you can't scale Postgres by cloning identical write
+containers (it's stateful) — the ladder below is how you actually handle load, cheapest → heaviest.
 
 | Sub-feature | What | Status |
 |---|---|---|

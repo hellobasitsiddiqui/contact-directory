@@ -10,12 +10,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -56,9 +57,13 @@ public class Contact {
 
     private String company;
 
-    @Lob
+    // Stored inline as PostgreSQL `bytea` (VARBINARY), NOT a large object (`oid`).
+    // `oid` LOBs need explicit transactions and fail in auto-commit mode; bytea
+    // materialises the bytes inline — correct for these small (<=2MB) photos. The
+    // length sizes the H2 column generously; Postgres `bytea` ignores it.
+    @JdbcTypeCode(SqlTypes.VARBINARY)
     @Basic(fetch = FetchType.LAZY)
-    @Column(name = "photo")
+    @Column(name = "photo", length = 10 * 1024 * 1024)
     private byte[] photo;
 
     @Column(name = "photo_content_type")

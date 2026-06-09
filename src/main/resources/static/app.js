@@ -102,6 +102,7 @@ const el = {
   btnTheme: $('btn-theme'),
   btnLogout: $('btn-logout'),
   currentUser: $('current-user'),
+  contactsScope: $('contacts-scope'),
   linkUsers: $('link-users'),
   linkActivity: $('link-activity'),
   // Toolbar
@@ -605,6 +606,37 @@ function makeStarCell(contact) {
  * and initials are set via textContent, so contact data can never inject markup.
  */
 /**
+ * Point an <img> at a photo served by an authenticated endpoint. A plain
+ * `<img src>` can't carry the Bearer token, so fetch the bytes with it, wrap
+ * them in an object URL and assign that. Without an `onUrl` callback the URL is
+ * revoked once the image has decoded (the rendered image is unaffected), which
+ * avoids leaking blobs for the long-lived table / detail avatars.
+ *
+ * @param {HTMLImageElement} img the image element to populate
+ * @param {string} url the photo URL (e.g. /api/v1/contacts/1/photo)
+ * @param {(objectUrl: string) => void} [onUrl] receive the object URL instead of
+ *        auto-revoking (so a caller can revoke it later, e.g. the modal preview)
+ */
+function setAuthedImageSrc(img, url, onUrl) {
+  const token = auth.token();
+  const opts = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  fetch(url, opts)
+    .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then((blob) => {
+      const objectUrl = URL.createObjectURL(blob);
+      if (onUrl) {
+        onUrl(objectUrl);
+      } else {
+        img.addEventListener('load', () => URL.revokeObjectURL(objectUrl), { once: true });
+      }
+      img.src = objectUrl;
+    })
+    .catch(() => {
+      /* Non-critical: leave the avatar blank if the photo can't be loaded. */
+    });
+}
+
+/**
  * Build the avatar element for a contact: an <img> when a photo exists, else a
  * coloured initials placeholder. Shared by the table cell and the detail modal.
  */
@@ -612,8 +644,8 @@ function avatarElement(contact, extraClass) {
   if (contact.photoUrl) {
     const img = document.createElement('img');
     img.className = 'avatar' + (extraClass ? ' ' + extraClass : '');
-    img.src = contact.photoUrl;
     img.alt = '';
+    setAuthedImageSrc(img, contact.photoUrl);
     return img;
   }
   const span = document.createElement('span');
@@ -1007,7 +1039,9 @@ function validatePhotoFile(file) {
 function showExistingPhoto(url) {
   if (!el.photoPreview) return;
   revokePreviewUrl();
-  el.photoPreview.src = url;
+  // The saved photo is behind the authenticated endpoint; fetch it with the
+  // token and track the object URL so revokePreviewUrl() frees it on hide/reset.
+  setAuthedImageSrc(el.photoPreview, url, (objectUrl) => { previewObjectUrl = objectUrl; });
   el.photoPreview.hidden = false;
   if (el.btnRemovePhoto) el.btnRemovePhoto.hidden = false;
 }
@@ -2033,6 +2067,11 @@ function setupAuthUi() {
   if (user && user.role === 'ADMIN') {
     if (el.linkUsers) el.linkUsers.hidden = false;
     if (el.linkActivity) el.linkActivity.hidden = false;
+    // Make clear an admin is viewing everyone's contacts, not just their own.
+    if (el.contactsScope) {
+      el.contactsScope.textContent = 'Admin view — showing all users’ contacts.';
+      el.contactsScope.hidden = false;
+    }
   }
   if (el.btnLogout) {
     el.btnLogout.addEventListener('click', () => auth.logout());

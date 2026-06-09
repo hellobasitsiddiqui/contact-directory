@@ -83,19 +83,24 @@ end-to-end walkthrough).
 
 The app starts on **http://localhost:8080** and opens to the **sign-in screen**.
 
-On first run a default admin account is seeded and the directory is populated with a few sample
+On first run a default **admin** account is seeded, plus two sample **users** (`alice`, `bob`) who own
+a few sample contacts — so the admin's user-management screen and the contact directory both have
+something to show. Admins land on a **dashboard** (user administration); regular users land on their
 contacts. Data is stored in a **persistent** H2 file database (`./data/contacts.mv.db`), so it
 **survives restarts** (the `./data` directory is git-ignored).
 
-### Default login
+### Default logins (dev only)
 
-| Username | Password   | Role  |
-|----------|------------|-------|
-| `admin`  | `admin123` | ADMIN |
+| Username | Password   | Role  | Lands on  |
+|----------|------------|-------|-----------|
+| `admin`  | `admin123` | ADMIN | Dashboard |
+| `alice`  | `alice123` | USER  | Contacts  |
+| `bob`    | `bob123`   | USER  | Contacts  |
 
-> ⚠️ These are local/dev defaults. Override them (and the JWT secret) via environment variables
-> before deploying — see [Configuration](#configuration). New users can self-register from the
-> **Create account** tab and are created with the `USER` role.
+> ⚠️ These are local/dev defaults — change or remove them (and the JWT secret) via environment
+> variables before deploying (see [Configuration](#configuration)). New users can self-register from
+> the **Create account** tab and are created with the `USER` role. The admin owns no contacts; it sees
+> everyone's (an "admin view"), and its job is managing users.
 
 ### Build a runnable JAR
 
@@ -103,6 +108,21 @@ contacts. Data is stored in a **persistent** H2 file database (`./data/contacts.
 ./mvnw clean package
 java -jar target/*.jar
 ```
+
+### Run with PostgreSQL (Docker Compose)
+
+Local dev uses embedded **H2** (above). For a durable, production-like stack, run the app against
+**PostgreSQL** with **Flyway**-managed schema via the two-container setup (CD-024):
+
+```bash
+cp .env.example .env        # then edit: set real DB password + APP_JWT_SECRET
+docker compose up --build   # starts app (postgres profile) + postgres + a persistent volume
+```
+
+The app runs under the `postgres` Spring profile (`SPRING_PROFILES_ACTIVE=postgres`): Flyway applies
+`src/main/resources/db/migration/V1__init.sql`, Hibernate only **validates** the schema, and data is
+stored in the `pgdata` volume so it **survives restarts**. H2 stays the default for local dev and
+tests.
 
 ## Authentication flow
 
@@ -222,11 +242,13 @@ cross-user isolation, role enforcement, optimistic concurrency, account self-ser
 Actuator health/metrics surface. A JaCoCo coverage report is written to
 `target/site/jacoco/index.html`.
 
-A separate **browser end-to-end** test (`PlaywrightE2eTest`) drives the real web UI in headless
-Chromium via [Playwright](https://playwright.dev/java/), walking login → contacts → users → activity
-→ profile and saving screenshots + a video to `target/playwright/`. It is tagged `e2e` and
-**excluded from the default build**; it runs only on `master`/`develop` (and on demand) via the
-[`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run it
+Two **browser end-to-end** suites drive the real web UI in headless Chromium via
+[Playwright](https://playwright.dev/java/): `PlaywrightE2eTest` walks login → dashboard → contacts →
+users → activity → profile on H2 (saving screenshots + a video to `target/playwright/`), and
+`PlaywrightPostgresE2eTest` runs against a **Testcontainers PostgreSQL** to prove the real `postgres`
+profile (Flyway + the `bytea` photo round-trip) in a browser. Both are tagged `e2e` and
+**excluded from the default build**; they run only on `master`/`develop` (and on demand) via the
+[`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run them
 locally.
 
 ## Interactive docs & tooling

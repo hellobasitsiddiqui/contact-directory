@@ -13,7 +13,7 @@
 
     <groupId>com.example</groupId>
     <artifactId>contact-directory</artifactId>
-    <version>1.0.0-beta.1</version>
+    <version>1.0.0-beta.2</version>
     <name>contact-directory</name>
     <description>Contact Directory REST API</description>
 
@@ -73,6 +73,24 @@
             <version>2.8.17</version>
         </dependency>
 
+        <!-- Production persistence (CD-024): PostgreSQL driver + Flyway schema
+             migrations. Active only under the "postgres" profile; local dev and
+             tests keep using H2 (Flyway is disabled there). Versions are managed
+             by the Spring Boot parent. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -81,6 +99,24 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Postgres-backed e2e (CD-042): Testcontainers + Spring Boot @ServiceConnection
+             so the browser e2e can run against real Postgres (Flyway + bytea photo).
+             Tagged "e2e"; runs only in the e2e CI workflow. Versions are BOM-managed. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- Browser end-to-end tests (CD-018). Tagged "e2e" and excluded from the

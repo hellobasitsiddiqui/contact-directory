@@ -34,7 +34,7 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-021](CD-021-release-deploy-plan.md) | Save release & deployment plan (docs/RELEASE-AND-DEPLOYMENT.md) | Done (#35) |
 | [CD-022](CD-022-release-plumbing.md) | Release plumbing (version, tag, Release, release.yml) | Done (#36) |
 | [CD-023](CD-023-runbook.md) | Operations runbook | Open |
-| [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Open |
+| [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Done (#44) |
 | [CD-025](CD-025-deploy-target.md) | Deploy target + optional deploy.yml | Open |
 | [CD-026](CD-026-mobile-api-findings.md) | Save mobile API readiness findings (docs/MOBILE-API-READINESS.md) | Done (#37) |
 | [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | Open |
@@ -49,4 +49,11 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-036](CD-036-features-advanced-scaling.md) | Document advanced scaling roadmap in FEATURES.md | Done (#38) |
 | [CD-037](CD-037-features-service-decomposition.md) | Document service-decomposition (microservices) roadmap in FEATURES.md | Done (#39) |
 | [CD-038](CD-038-release-idempotent-doc-sweep.md) | Make release.yml idempotent + doc sweep | Done (#40) |
-| [CD-039](CD-039-prerelease-beta.md) | Pre-release support + cut 1.0.0-beta.1 | In review |
+| [CD-039](CD-039-prerelease-beta.md) | Pre-release support + cut 1.0.0-beta.1 | Done (#41) |
+| [CD-040](CD-040-github-wiki.md) | Publish docs to the GitHub Wiki (optional mirror) | Open |
+| [CD-041](CD-041-postman-collection.md) | Postman collection (generated from OpenAPI) — optional | Open |
+| [CD-042](CD-042-postgres-integration-test.md) | Postgres integration test (Testcontainers + Playwright) + tag-query Postgres fix | Done (#45) |
+| [CD-043](CD-043-photo-display-auth.md) | Contact photos don't display in the browser (img can't authenticate) | Done (#46) |
+| [CD-044](CD-044-admin-centric-ux.md) | Admin-centric UX — dashboard landing, de-couple admin from contacts, seed sample users | Done (#47) |
+| [CD-045](CD-045-doc-sweep.md) | Docs consistency sweep (post CD-024…CD-044) | In review |
+| [CD-046](CD-046-release-beta2.md) | Release prep — 1.0.0-beta.2 | In review |
