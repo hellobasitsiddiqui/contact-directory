@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-06-08
+## [1.0.0-beta.1] - 2026-06-09
 
 ### Added
 - **Contacts** — CRUD, paginated/sortable listing, free-text search, tags, favourites, notes,
