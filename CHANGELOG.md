@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Durable persistence** — optional **PostgreSQL + Flyway** profile (`postgres`) with a two-container
+  `docker-compose` setup (app + postgres + volume); H2 stays the default for local dev and tests (CD-024).
+- **Admin dashboard** — admins land on a user-administration dashboard (user stats + recent activity +
+  quick links) instead of the contacts page; sample `USER` accounts (`alice`, `bob`) are seeded on a
+  fresh DB so the directory and user management have demo data (CD-044).
+- **Postgres-backed browser e2e** (Testcontainers + Playwright) that exercises the real `postgres`
+  profile in a browser, guarding the Postgres path in CI (CD-042).
+
+### Changed
+- The **admin owns no contacts** — it is a super-user that sees everyone's (an "admin view" banner);
+  contacts belong to each user (CD-044).
+- Contact photo is stored as PostgreSQL **`bytea`** (not a large object) for portable, transaction-safe
+  persistence (CD-024).
+
+### Fixed
+- **App was unusable on PostgreSQL** — the tag-filter query (`SELECT DISTINCT … ORDER BY LOWER(t)`) is
+  rejected by Postgres (accepted by H2), 500'ing `/contacts/tags` and bouncing every user to login;
+  now sorted in-app (CD-042).
+- **Contact photos didn't display in the browser** — the avatar `<img>` couldn't send the bearer token;
+  now loaded via an authenticated fetch → blob URL (CD-043).
+
 ## [1.0.0-beta.1] - 2026-06-09
 
 ### Added

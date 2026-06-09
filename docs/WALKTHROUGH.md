@@ -6,14 +6,17 @@ and open **http://localhost:8080/**.
 ## 1. Sign in
 
 Every page is gated — visiting the app with no session redirects you to the sign-in screen. Log in
-with the seeded admin (`admin` / `admin123`), or use the **Create account** tab to self-register a
-new `USER`.
+with the seeded admin (`admin` / `admin123`) or a seeded sample user (`alice` / `alice123`,
+`bob` / `bob123`), or use the **Create account** tab to self-register a new `USER`.
 
 ![Sign in](screenshots/01-login.png)
 
 - Failing the password too many times in a row temporarily **locks the account** (HTTP `423`); a
   successful login clears the counter.
-- On success you're issued a JWT (held in the browser) and dropped into the contact list.
+- On success you're issued a JWT (held in the browser). **Admins land on a dashboard** (user
+  administration — user stats, recent activity, quick links), since the admin's job is managing users,
+  not owning contacts. **Regular users land on their contacts.** An admin viewing the contacts page
+  sees *everyone's* contacts (an "Admin view" banner makes this explicit).
 
 ## 2. Manage contacts
 

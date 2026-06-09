@@ -83,16 +83,21 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | End-to-end / UI tests | User-flow confidence | ✅ (two styles — see below) |
 | Isolated test data | Deterministic tests | ✅ |
 
-**Two end-to-end styles.** This app runs the suite as two complementary layers:
+**End-to-end styles.** This app runs the suite as complementary layers:
 - **HTTP e2e** (`HttpEndToEndTest`) — boots on a `RANDOM_PORT` and drives the **API over real
   HTTP** with `TestRestTemplate`. Fast and headless, so it runs as part of the **default
   `mvn verify`** gate on every PR.
 - **Browser e2e** (`PlaywrightE2eTest`) — boots on a `RANDOM_PORT` and drives the **real web UI**
   in headless Chromium with [Playwright](https://playwright.dev/java/), walking
-  login → contacts → users → activity → profile and saving numbered **screenshots + a video** to
-  `target/playwright/` as human-reviewable evidence. It's tagged `e2e` and **excluded from
-  `mvn verify`** (needs a downloaded browser and is slow); it runs only on the long-lived branches
-  via the dedicated [`e2e.yml`](.github/workflows/e2e.yml) workflow — never on feature PRs.
+  login → dashboard → contacts → users → activity → profile and saving numbered **screenshots + a
+  video** to `target/playwright/` as human-reviewable evidence.
+- **Postgres browser e2e** (`PlaywrightPostgresE2eTest`) — same browser approach but against a real
+  **PostgreSQL via Testcontainers** (the `postgres` profile), proving Flyway + the `bytea` photo
+  round-trip end to end — the path H2 can't cover.
+
+  The browser suites are tagged `e2e` and **excluded from `mvn verify`** (they need a downloaded
+  browser / Docker and are slow); they run only on the long-lived branches via the dedicated
+  [`e2e.yml`](.github/workflows/e2e.yml) workflow — never on feature PRs.
 
 ## 8. CI/CD & build
 | Feature | Why | This app |
