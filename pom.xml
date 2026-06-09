@@ -101,6 +101,24 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Postgres-backed e2e (CD-042): Testcontainers + Spring Boot @ServiceConnection
+             so the browser e2e can run against real Postgres (Flyway + bytea photo).
+             Tagged "e2e"; runs only in the e2e CI workflow. Versions are BOM-managed. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Browser end-to-end tests (CD-018). Tagged "e2e" and excluded from the
              default build (see surefire <excludedGroups> below); run only via the
              dedicated CI workflow on develop/master, or locally with -DexcludedGroups=. -->

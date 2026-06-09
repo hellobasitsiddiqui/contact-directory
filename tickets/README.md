@@ -52,4 +52,5 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-039](CD-039-prerelease-beta.md) | Pre-release support + cut 1.0.0-beta.1 | Done (#41) |
 | [CD-040](CD-040-github-wiki.md) | Publish docs to the GitHub Wiki (optional mirror) | Open |
 | [CD-041](CD-041-postman-collection.md) | Postman collection (generated from OpenAPI) — optional | Open |
-| [CD-042](CD-042-postgres-integration-test.md) | Postgres integration test in CI (Testcontainers) | Open |
+| [CD-042](CD-042-postgres-integration-test.md) | Postgres integration test (Testcontainers + Playwright) + tag-query Postgres fix | In review |
+| [CD-043](CD-043-photo-display-auth.md) | Contact photos don't display in the browser (img can't authenticate) | Open |

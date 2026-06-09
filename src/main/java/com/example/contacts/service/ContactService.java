@@ -123,9 +123,14 @@ public class ContactService {
      */
     @Transactional(readOnly = true)
     public List<String> listTags(Long ownerId, boolean isAdmin) {
-        return isAdmin
+        // Sort here (not in SQL): Postgres rejects SELECT DISTINCT with ORDER BY
+        // LOWER(t) when that expression isn't in the select list, so the repository
+        // returns the distinct tags unordered and we sort case-insensitively here.
+        List<String> tags = new ArrayList<>(isAdmin
                 ? repository.findDistinctTags()
-                : repository.findDistinctTagsByOwnerId(ownerId);
+                : repository.findDistinctTagsByOwnerId(ownerId));
+        tags.sort(String.CASE_INSENSITIVE_ORDER);
+        return tags;
     }
 
     /* ----------------------------- Import / export ----------------------------- */
