@@ -56,6 +56,8 @@ Same screen in **dark mode** (toggle saved per browser):
 | Per-owner email uniqueness — two users can each have the same email; cross-user access → `404` | ✅ |
 | Admin-only permanent delete — irreversible purge restricted to admins | ✅ |
 | Admin user management — list users, change role, enable/disable, reset password, delete | ✅ |
+| Admin dashboard — admins land on a user-administration dashboard (user stats + recent activity + quick links), not the contacts page | ✅ |
+| Admin owns no contacts — the admin is a super-user that sees everyone's contacts (an "admin view"); contacts belong to each user | ✅ |
 | Self-protection — an admin can't demote, disable or delete their own account | ✅ |
 
 ![Admin user management](docs/screenshots/03-users.png)

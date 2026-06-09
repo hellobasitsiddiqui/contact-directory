@@ -122,8 +122,8 @@ class PlaywrightE2eTest {
         page.fill("#password", "admin123");
         page.click("#auth-submit");
 
-        // The form redirects to index.html on success; wait for the contacts UI.
-        page.waitForURL("**/index.html");
+        // Admins are redirected to the dashboard (user administration) on success.
+        page.waitForURL("**/dashboard.html");
     }
 
     // ---- the walkthrough --------------------------------------------------
@@ -135,17 +135,23 @@ class PlaywrightE2eTest {
      */
     @Test
     void walksTheWholeAppInABrowser() {
-        // 1. Login page → sign in as admin.
+        // 1. Login page → sign in as admin (admins land on the dashboard).
         signInAsAdmin();
 
-        // 2. Contacts (index): seeded sample contacts render in the table.
+        // 2. Dashboard: the admin landing page is user administration, not contacts.
+        assertThat(page.locator(".app-header__title")).hasText("Dashboard");
+        assertThat(page.locator("#user-stats")).isVisible();
+        screenshot("dashboard");
+
+        // 3. Contacts: reached via the dashboard's "Contacts" link. The three sample
+        // contacts are owned by the seeded sample users; the admin (super-user) sees
+        // all of them, and the page shows the "Admin view" scope banner.
+        page.click("a[href='index.html']");
+        page.waitForURL("**/index.html");
         assertThat(page.locator(".app-header__title")).hasText("Contact Directory");
-        // Admin-only nav links are revealed for an ADMIN account.
+        assertThat(page.locator("#contacts-scope")).containsText("Admin view");
         assertThat(page.locator("#link-users")).isVisible();
         assertThat(page.locator("#link-activity")).isVisible();
-        // The three seeded contacts (Jane Doe, John Smith, Maria Garcia) are listed.
-        // NOTE: this exact count is coupled to DataInitializer.seedSampleContactsIfEmpty,
-        // which seeds precisely these three contacts on a fresh DB — update both together.
         assertThat(page.locator("#contacts-body tr")).hasCount(3);
         assertThat(page.locator("#contacts-body")).containsText("Jane");
         assertThat(page.locator("#contacts-body")).containsText("Maria");

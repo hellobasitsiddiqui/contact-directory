@@ -139,7 +139,8 @@ class PlaywrightPostgresE2eTest {
         page.fill("#username", "admin");
         page.fill("#password", "admin123");
         page.click("#auth-submit");
-        page.waitForURL("**/index.html");
+        // Admins land on the dashboard (user administration) on success.
+        page.waitForURL("**/dashboard.html");
     }
 
     /**
@@ -148,15 +149,23 @@ class PlaywrightPostgresE2eTest {
      */
     @Test
     void appRunsInABrowserOnPostgresAndPhotoRoundTrips() {
-        // 1. Browser: the contacts page loads on Postgres. This depends on
-        //    GET /contacts AND GET /contacts/tags succeeding (the latter is the
-        //    query that is invalid on Postgres if unfixed); a failure there would
-        //    bounce the SPA back to the login page and this would not be reached.
+        // 1. Browser: admin lands on the dashboard, then opens the contacts page on
+        //    Postgres. The contacts list depends on GET /contacts AND GET /contacts/tags
+        //    succeeding (the latter is the query that is invalid on Postgres if unfixed);
+        //    a failure there would bounce the SPA back to login and this would not pass.
         signInAsAdmin();
+        assertThat(page.locator(".app-header__title")).hasText("Dashboard");
+        screenshot("pg-01-dashboard");
+
+        page.click("a[href='index.html']");
+        page.waitForURL("**/index.html");
         assertThat(page.locator(".app-header__title")).hasText("Contact Directory");
-        assertThat(page.locator("#contacts-body tr")).hasCount(3);   // seeded by DataInitializer
+        assertThat(page.locator("#contacts-scope")).containsText("Admin view");  // admin scope banner
+        // 3 sample contacts seeded by DataInitializer (owned by sample users alice/bob);
+        // the admin is a super-user and sees all of them.
+        assertThat(page.locator("#contacts-body tr")).hasCount(3);
         assertThat(page.locator("#link-users")).isVisible();          // admin nav rendered
-        screenshot("pg-01-contacts");
+        screenshot("pg-02-contacts");
 
         // 2. Photo bytea round-trip on Postgres via Playwright's API request client
         //    (the browser file-input multipart upload hits the headless quirk noted

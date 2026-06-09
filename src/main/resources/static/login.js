@@ -113,7 +113,9 @@ async function submit(event) {
       username: data.username,
       role: data.role,
     }));
-    window.location.replace('index.html');
+    // Admins land on the dashboard (user administration); regular users on their
+    // contacts. Falls back to the contacts page if the role is somehow absent.
+    window.location.replace(data.role === 'ADMIN' ? 'dashboard.html' : 'index.html');
   } catch (err) {
     showError('Network error — could not reach the server.');
     setBusy(false);

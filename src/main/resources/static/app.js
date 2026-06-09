@@ -102,6 +102,7 @@ const el = {
   btnTheme: $('btn-theme'),
   btnLogout: $('btn-logout'),
   currentUser: $('current-user'),
+  contactsScope: $('contacts-scope'),
   linkUsers: $('link-users'),
   linkActivity: $('link-activity'),
   // Toolbar
@@ -2066,6 +2067,11 @@ function setupAuthUi() {
   if (user && user.role === 'ADMIN') {
     if (el.linkUsers) el.linkUsers.hidden = false;
     if (el.linkActivity) el.linkActivity.hidden = false;
+    // Make clear an admin is viewing everyone's contacts, not just their own.
+    if (el.contactsScope) {
+      el.contactsScope.textContent = 'Admin view — showing all users’ contacts.';
+      el.contactsScope.hidden = false;
+    }
   }
   if (el.btnLogout) {
     el.btnLogout.addEventListener('click', () => auth.logout());
