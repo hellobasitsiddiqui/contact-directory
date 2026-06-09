@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Contact Directory</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia
+          && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
+        // Auth guard: must be signed in...
+        if (!localStorage.getItem('auth_token')) {
+          window.location.replace('login.html');
+        } else {
+          // ...and must be an admin (the dashboard is the admin landing page).
+          var u = JSON.parse(localStorage.getItem('auth_user') || 'null');
+          if (!u || u.role !== 'ADMIN') {
+            window.location.replace('index.html');
+          }
+        }
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="dashboard.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1 class="app-header__title">Dashboard</h1>
+      <div class="app-header__actions">
+        <span id="current-user" class="app-header__user" hidden></span>
+        <a href="users.html" class="btn btn--secondary">Users</a>
+        <a href="activity.html" class="btn btn--secondary">Activity</a>
+        <a href="index.html" class="btn btn--secondary">Contacts</a>
+        <a href="profile.html" class="btn btn--secondary">Profile</a>
+        <button type="button" id="btn-logout" class="btn btn--secondary">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <p id="dashboard-error" class="login-error" role="alert" hidden></p>
+
+    <section aria-label="Overview">
+      <h2 class="section-title">User administration</h2>
+      <p class="section-subtitle">Manage the people who use this app. (Contacts belong to each user.)</p>
+    </section>
+
+    <section class="users-stats" id="user-stats" aria-label="User totals" hidden>
+      <div class="users-stat">
+        <span class="users-stat__value" id="stat-total">0</span>
+        <span class="users-stat__label">Total users</span>
+      </div>
+      <div class="users-stat">
+        <span class="users-stat__value" id="stat-admins">0</span>
+        <span class="users-stat__label">Admins</span>
+      </div>
+      <div class="users-stat">
+        <span class="users-stat__value" id="stat-enabled">0</span>
+        <span class="users-stat__label">Enabled</span>
+      </div>
+      <div class="users-stat">
+        <span class="users-stat__value" id="stat-disabled">0</span>
+        <span class="users-stat__label">Disabled</span>
+      </div>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="user-activity" aria-label="Recent activity">
+        <h3 class="user-activity__title">Recent activity</h3>
+        <div id="activity-loading" class="user-activity__status">Loading activity…</div>
+        <p id="activity-error" class="user-activity__status user-activity__status--error" hidden></p>
+        <ul id="activity-list" class="user-activity__list" hidden></ul>
+        <div id="activity-empty" class="user-activity__status" hidden>No recent activity.</div>
+      </section>
+
+      <section class="dashboard-actions" aria-label="Quick actions">
+        <h3 class="user-activity__title">Quick actions</h3>
+        <a href="users.html" class="dashboard-action">
+          <span class="dashboard-action__title">Manage users →</span>
+          <span class="dashboard-action__desc">Roles, enable/disable, reset password, delete</span>
+        </a>
+        <a href="activity.html" class="dashboard-action">
+          <span class="dashboard-action__title">Activity log →</span>
+          <span class="dashboard-action__desc">Audit trail of who did what, filterable</span>
+        </a>
+        <a href="index.html" class="dashboard-action">
+          <span class="dashboard-action__title">All contacts →</span>
+          <span class="dashboard-action__desc">Browse every user's contacts (admin view)</span>
+        </a>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

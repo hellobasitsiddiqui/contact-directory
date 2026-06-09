@@ -54,3 +54,4 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-041](CD-041-postman-collection.md) | Postman collection (generated from OpenAPI) — optional | Open |
 | [CD-042](CD-042-postgres-integration-test.md) | Postgres integration test (Testcontainers + Playwright) + tag-query Postgres fix | In review |
 | [CD-043](CD-043-photo-display-auth.md) | Contact photos don't display in the browser (img can't authenticate) | In review |
+| [CD-044](CD-044-admin-centric-ux.md) | Admin-centric UX — dashboard landing, de-couple admin from contacts, seed sample users | In review |

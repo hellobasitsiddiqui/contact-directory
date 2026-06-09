@@ -25,8 +25,10 @@ import java.util.Set;
  * overridden (or the account changed) before any real deployment.
  *
  * <p>Once the admin is in place this runner also normalises contact ownership:
- * any contact left without an owner is backfilled to the admin, and an empty
- * directory is seeded with a few sample contacts owned by the admin.
+ * any contact left without an owner is backfilled to the admin. On a brand-new
+ * directory it seeds a couple of sample {@code USER} accounts and gives them the
+ * sample contacts — the admin deliberately owns no contacts, so the admin role
+ * is about managing users, and every user owns their own contacts.
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -57,7 +59,7 @@ public class DataInitializer implements CommandLineRunner {
                 .orElseGet(this::createAdmin);
 
         backfillOwnerless(admin.getId());
-        seedSampleContactsIfEmpty(admin.getId());
+        seedSampleDataIfEmpty();
     }
 
     /**
@@ -98,23 +100,42 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     /**
-     * Seeds a small set of sample contacts owned by the admin when the directory
-     * is completely empty, mirroring the historical seed data.
-     *
-     * @param adminId the id that will own the sample contacts
+     * On a brand-new directory (no contacts and no non-admin users) seeds a
+     * couple of sample {@code USER} accounts and gives them the sample contacts,
+     * so the admin's user-management screen and the contact directory both have
+     * something to show. The admin owns none of these — every contact belongs to
+     * the user who would manage it. Idempotent: skips if any contact or any
+     * non-admin user already exists (e.g. the test profile's {@code data.sql}).
      */
-    private void seedSampleContactsIfEmpty(Long adminId) {
-        if (contactRepository.count() > 0) {
+    private void seedSampleDataIfEmpty() {
+        if (contactRepository.count() > 0 || userRepository.countByRole(Role.USER) > 0) {
             return;
         }
+        User alice = createSampleUser("alice", "alice123");
+        User bob = createSampleUser("bob", "bob123");
         contactRepository.saveAll(List.of(
-                sampleContact(adminId, "Jane", "Doe", "jane.doe@example.com",
+                sampleContact(alice.getId(), "Jane", "Doe", "jane.doe@example.com",
                         "+1 (555) 123-4567", "Acme Ltd", false, Set.of("Work", "Client")),
-                sampleContact(adminId, "John", "Smith", "john.smith@example.com",
+                sampleContact(alice.getId(), "John", "Smith", "john.smith@example.com",
                         "+44 20 7946 0958", "Globex Corp", true, Set.of("Friend")),
-                sampleContact(adminId, "Maria", "Garcia", "maria.garcia@example.com",
+                sampleContact(bob.getId(), "Maria", "Garcia", "maria.garcia@example.com",
                         null, "Initech", false, Set.of("Family"))));
-        log.info("Seeded 3 sample contacts owned by admin id {}.", adminId);
+        log.info("Seeded sample users 'alice' (2 contacts) and 'bob' (1 contact). "
+                + "These are dev-only accounts — change or remove them before deploying.");
+    }
+
+    /**
+     * Creates and persists a sample {@code USER} account.
+     *
+     * @param username the login name
+     * @param password the dev-only plaintext password (stored BCrypt-hashed)
+     * @return the saved user
+     */
+    private User createSampleUser(String username, String password) {
+        User user = userRepository.save(
+                new User(username, passwordEncoder.encode(password), Role.USER));
+        log.warn("Seeded sample USER '{}' (dev only).", username);
+        return user;
     }
 
     /**
