@@ -1,7 +1,7 @@
 # CD-021: Save the release & deployment plan
 
 - **Type:** docs
-- **Status:** In review
+- **Status:** Done (#35)
 - **Branch:** `CD-021-release-deploy-plan`
 
 ## Summary

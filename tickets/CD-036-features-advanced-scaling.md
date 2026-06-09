@@ -1,7 +1,7 @@
 # CD-036: Document advanced scaling roadmap in FEATURES.md
 
 - **Type:** docs
-- **Status:** In review
+- **Status:** Done (#38)
 - **Branch:** `CD-036-features-advanced-scaling`
 
 ## Summary

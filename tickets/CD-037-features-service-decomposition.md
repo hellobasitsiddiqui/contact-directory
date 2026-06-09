@@ -1,7 +1,7 @@
 # CD-037: Document service-decomposition (microservices) roadmap in FEATURES.md
 
 - **Type:** docs
-- **Status:** In review
+- **Status:** Done (#39)
 - **Branch:** `CD-037-features-service-decomposition`
 
 ## Summary

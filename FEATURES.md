@@ -110,7 +110,7 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 
 ## Platform notes
 
-- **Stack:** Spring Boot 3.3.5, Java 21, Spring Data JPA + Hibernate, Spring Security + JWT, vanilla
+- **Stack:** Spring Boot 3.5.14, Java 21, Spring Data JPA + Hibernate, Spring Security + JWT, vanilla
   HTML/CSS/JS frontend, springdoc OpenAPI.
 - **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) — data survives restarts; tests use an
   isolated in-memory H2.

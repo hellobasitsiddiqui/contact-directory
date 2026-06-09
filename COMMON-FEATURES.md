@@ -104,7 +104,7 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Automated dependency updates | Stay current/secure | ✅ Dependabot |
 | Containerization (Docker) | Portable runtime | ✅ |
 | Artifact build & publish | Distributable output | ✅ JAR + GHCR image |
-| Release automation (on tag) | Versioned releases | ⬜ |
+| Release automation (on tag) | Versioned releases | ✅ `release.yml` (tag `v*` → Release + JAR + versioned GHCR image) |
 | Deployment / CD | Ship to environments | ⬜ |
 | Status badges | At-a-glance health | ✅ |
 | Protected branches + PR workflow (Git Flow) | CI-gated merges + automated review; master/develop | ✅ |

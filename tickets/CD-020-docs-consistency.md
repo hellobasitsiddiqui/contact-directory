@@ -1,7 +1,7 @@
 # CD-020: Docs consistency sweep
 
 - **Type:** docs
-- **Status:** In review
+- **Status:** Done (#34)
 - **Branch:** `CD-020-docs-consistency`
 
 ## Summary
