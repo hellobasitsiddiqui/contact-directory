@@ -242,11 +242,13 @@ cross-user isolation, role enforcement, optimistic concurrency, account self-ser
 Actuator health/metrics surface. A JaCoCo coverage report is written to
 `target/site/jacoco/index.html`.
 
-A separate **browser end-to-end** test (`PlaywrightE2eTest`) drives the real web UI in headless
-Chromium via [Playwright](https://playwright.dev/java/), walking login → contacts → users → activity
-→ profile and saving screenshots + a video to `target/playwright/`. It is tagged `e2e` and
-**excluded from the default build**; it runs only on `master`/`develop` (and on demand) via the
-[`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run it
+Two **browser end-to-end** suites drive the real web UI in headless Chromium via
+[Playwright](https://playwright.dev/java/): `PlaywrightE2eTest` walks login → dashboard → contacts →
+users → activity → profile on H2 (saving screenshots + a video to `target/playwright/`), and
+`PlaywrightPostgresE2eTest` runs against a **Testcontainers PostgreSQL** to prove the real `postgres`
+profile (Flyway + the `bytea` photo round-trip) in a browser. Both are tagged `e2e` and
+**excluded from the default build**; they run only on `master`/`develop` (and on demand) via the
+[`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run them
 locally.
 
 ## Interactive docs & tooling
