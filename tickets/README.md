@@ -37,7 +37,7 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Done (#44) |
 | [CD-025](CD-025-deploy-target.md) | Deploy target + optional deploy.yml | Open |
 | [CD-026](CD-026-mobile-api-findings.md) | Save mobile API readiness findings (docs/MOBILE-API-READINESS.md) | Done (#37) |
-| [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | Open |
+| [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | In review |
 | [CD-028](CD-028-refresh-tokens.md) | Refresh tokens + server-side revocation + logout | Open |
 | [CD-029](CD-029-users-pagination-api.md) | Server-side pagination/filter/sort for /api/v1/users | Open |
 | [CD-030](CD-030-upload-limits-photo-url.md) | Larger photo upload limit + absolute photoUrl | Open |

@@ -1,5 +1,14 @@
 server:
   port: 8080
+  # When (and ONLY when) the app sits behind a trusted TLS-terminating reverse
+  # proxy, honour the X-Forwarded-* headers it sets — notably X-Forwarded-Proto=https
+  # — so the app knows a request arrived over HTTPS (needed for HSTS emission, https
+  # redirects, correct absolute URLs). The `framework` strategy trusts these headers
+  # unconditionally, so it MUST NOT be on when the app is reachable directly: a
+  # client could then spoof X-Forwarded-*. Hence the default is `none`; the TLS
+  # overlay (docker-compose.tls.yml), where Caddy is the only path to the app, sets
+  # SERVER_FORWARD_HEADERS_STRATEGY=framework. See docs/RELEASE-AND-DEPLOYMENT.md §2.
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
 
 spring:
   datasource:

@@ -129,8 +129,17 @@ The GHCR image can run on any container host. Cheapest-to-richest:
 | **Plain VPS (Docker Compose)** | Most control, most ops. The shipped `docker-compose.yml` (app + Postgres + volume) runs as-is. |
 
 The app exposes **`/actuator/health`** (public) — wire it as the platform's liveness/readiness probe.
-Metrics (`/actuator/metrics`, `/actuator/prometheus` if enabled) stay authenticated. Note: a *public*
-deployment also needs HTTPS/TLS (tracked separately as **CD-027**).
+Metrics (`/actuator/metrics`, `/actuator/prometheus` if enabled) stay authenticated.
+
+**HTTPS/TLS (CD-027).** The app emits **HSTS** on HTTPS requests and can run behind a TLS-terminating
+reverse proxy (the usual production pattern, and how PaaS hosts terminate TLS for you). A ready-to-use
+**Caddy** overlay with automatic Let's Encrypt certs ships as `docker-compose.tls.yml` + `Caddyfile`:
+`docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build` (set `DOMAIN` in `.env`).
+The overlay is safe by construction — it enables forwarded-header trust on the app
+(`SERVER_FORWARD_HEADERS_STRATEGY=framework`, so it honours the proxy's `X-Forwarded-Proto=https`), and
+the base compose binds the app's `8080` to **host loopback** so only Caddy is internet-facing. That
+trust is **off by default**: a directly-exposed app must not honour client-supplied `X-Forwarded-*`.
+Standing up the actual host is the deploy step (CD-025).
 
 ### 2.4 Optional: `deploy.yml` (continuous deployment) ⬜ (CD-025)
 
@@ -166,8 +175,12 @@ you actually want a long-lived, data-retaining environment.
   **pre-release-aware** (CD-039) — works from a CLI tag *or* the GitHub UI; two betas cut.
 - ✅ Durable persistence (CD-024): optional `postgres` profile (PostgreSQL + Flyway, `V1__init.sql`,
   `bytea` photos) + two-container `docker-compose.yml`.
+- ✅ TLS-ready (CD-027): app is proxy-aware (`forward-headers-strategy`) + emits HSTS; a Caddy
+  reverse-proxy overlay (`docker-compose.tls.yml` + `Caddyfile`, automatic Let's Encrypt) ships for
+  HTTPS. Wiring it on a real host is the deploy step (CD-025).
 
 ## What's missing (this plan)
 
 - ⬜ Runbook (CD-023).
-- ⬜ A real deploy target + optional `deploy.yml` (CD-025) — and HTTPS/TLS for a public host (CD-027).
+- ⬜ A real deploy target + optional `deploy.yml` (CD-025) — including wiring the shipped TLS overlay
+  (CD-027) to the chosen host + domain.

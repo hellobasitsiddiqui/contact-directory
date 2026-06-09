@@ -124,6 +124,27 @@ The app runs under the `postgres` Spring profile (`SPRING_PROFILES_ACTIVE=postgr
 stored in the `pgdata` volume so it **survives restarts**. H2 stays the default for local dev and
 tests.
 
+### Serve over HTTPS (TLS)
+
+The app listens on plain HTTP and emits an **HSTS** header on HTTPS requests, so TLS is terminated by a
+reverse proxy in front of it (the usual production pattern; also how PaaS hosts work). A ready-to-use
+**Caddy** overlay (automatic Let's Encrypt certificates) ships as `docker-compose.tls.yml`:
+
+```bash
+cp .env.example .env        # set DOMAIN to a real hostname pointing at this host
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build
+```
+
+Caddy obtains/renews the certificate for `$DOMAIN` and proxies HTTPS → the app over the internal
+network. The overlay makes the stack safe by construction: it enables forwarded-header trust on the app
+(`SERVER_FORWARD_HEADERS_STRATEGY=framework`, so the app honours Caddy's `X-Forwarded-Proto=https`), and
+the base compose already binds the app's `8080` to **host loopback** so only Caddy (80/443) is
+internet-facing. Forwarded-header trust is **off by default** — a directly-exposed app must not trust
+client-supplied `X-Forwarded-*`. (For a quick local TLS smoke-test you can set `DOMAIN=localhost`, but
+Caddy then serves a cert from its own untrusted CA and the browser may pin HSTS for `localhost` — use a
+real domain for anything real.) Picking the actual
+host is tracked as **CD-025**; see [docs/RELEASE-AND-DEPLOYMENT.md](docs/RELEASE-AND-DEPLOYMENT.md) §2.
+
 ## Authentication flow
 
 All `/api/v1/contacts/**` and `/api/v1/users/**` endpoints require a bearer token. Obtain one from

@@ -64,8 +64,20 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Allow the H2 console to render inside frames (same origin).
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                .headers(headers -> headers
+                        // Allow the H2 console to render inside frames (same origin).
+                        .frameOptions(frame -> frame.sameOrigin())
+                        // HSTS (CD-027): once a browser has seen the site over HTTPS,
+                        // force HTTPS for a year, including subdomains, and allow
+                        // preload-list inclusion. Spring only emits this header on
+                        // *secure* requests, so plain-HTTP local dev is unaffected;
+                        // behind a TLS-terminating proxy it fires because
+                        // server.forward-headers-strategy lets the app see
+                        // X-Forwarded-Proto=https.
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .preload(true)
+                                .maxAgeInSeconds(31_536_000)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()

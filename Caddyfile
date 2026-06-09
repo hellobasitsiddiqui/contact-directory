@@ -1,0 +1,16 @@
+# Caddy reverse proxy for the Contact Directory app (CD-027).
+#
+# Caddy automatically obtains and renews a Let's Encrypt TLS certificate for
+# $DOMAIN and proxies HTTPS traffic to the app container over the internal
+# compose network. It sets X-Forwarded-Proto=https, which the app honours
+# (server.forward-headers-strategy=framework) so HSTS is emitted and the app
+# treats requests as secure.
+#
+# Used by docker-compose.tls.yml. Set DOMAIN in .env. For a purely local HTTPS
+# trial with a self-signed cert, set DOMAIN=localhost.
+#
+# (To receive Let's Encrypt expiry notices, add a global block:  { email you@example.com }  )
+
+{$DOMAIN} {
+	reverse_proxy app:8080
+}
