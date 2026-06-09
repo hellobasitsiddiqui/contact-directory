@@ -10,21 +10,21 @@ end-to-end walkthrough).
 
 ## Screenshots
 
-| Sign in | Contacts (admin view) |
+| Sign in | Admin dashboard — user administration |
 |---|---|
-| ![Login screen](docs/screenshots/01-login.png) | ![Contacts list](docs/screenshots/02-contacts.png) |
+| ![Login screen](docs/screenshots-v1.0.0-beta.2/01-login.png) | ![Admin dashboard](docs/screenshots-v1.0.0-beta.2/02-dashboard.png) |
 
-| Admin user management — search, filters, stats, bulk & pagination | My profile |
+| Contacts (admin view — all users' contacts) | Admin user management — search, filters, stats, bulk & pagination |
 |---|---|
-| ![User management](docs/screenshots/03-users.png) | ![Profile & change password](docs/screenshots/04-profile.png) |
+| ![Contacts list](docs/screenshots-v1.0.0-beta.2/03-contacts.png) | ![User management](docs/screenshots-v1.0.0-beta.2/04-users.png) |
 
-**Admin activity log — filter by actor / action / date range**
-
-![Activity log](docs/screenshots/05-activity.png)
+| My profile | Admin activity log — filter by actor / action / date range |
+|---|---|
+| ![Profile & change password](docs/screenshots-v1.0.0-beta.2/05-profile.png) | ![Activity log](docs/screenshots-v1.0.0-beta.2/06-activity.png) |
 
 **Dark mode** (theme toggle, saved per browser)
 
-![Contacts in dark mode](docs/screenshots/06-dark-mode.png)
+![Contacts in dark mode](docs/screenshots-v1.0.0-beta.2/07-dark-mode.png)
 
 > A step-by-step walkthrough with these screens lives in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 

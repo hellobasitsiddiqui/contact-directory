@@ -9,7 +9,7 @@ Every page is gated — visiting the app with no session redirects you to the si
 with the seeded admin (`admin` / `admin123`) or a seeded sample user (`alice` / `alice123`,
 `bob` / `bob123`), or use the **Create account** tab to self-register a new `USER`.
 
-![Sign in](screenshots/01-login.png)
+![Sign in](screenshots-v1.0.0-beta.2/01-login.png)
 
 - Failing the password too many times in a row temporarily **locks the account** (HTTP `423`); a
   successful login clears the counter.
@@ -18,13 +18,18 @@ with the seeded admin (`admin` / `admin123`) or a seeded sample user (`alice` / 
   not owning contacts. **Regular users land on their contacts.** An admin viewing the contacts page
   sees *everyone's* contacts (an "Admin view" banner makes this explicit).
 
+The admin dashboard — user stats, recent activity and quick links to user management, the activity
+log and all contacts:
+
+![Admin dashboard](screenshots-v1.0.0-beta.2/02-dashboard.png)
+
 ## 2. Manage contacts
 
 The home screen lists contacts with live search, tag filtering, sorting and pagination. Favourites
 are pinned to the top. From here you can create, edit, delete (soft-delete to **Trash**), bulk-select
 rows, import/export CSV/JSON, and upload photos.
 
-![Contacts](screenshots/02-contacts.png)
+![Contacts](screenshots-v1.0.0-beta.2/03-contacts.png)
 
 Ownership is enforced server-side:
 
@@ -40,7 +45,7 @@ change a user's role, enable/disable an account, reset a password, or delete a u
 offers **search + role/status filters**, **sortable columns**, a **summary stats bar**,
 **bulk select + bulk actions**, **client-side pagination**, and a **detail modal** (click a row).
 
-![User management](screenshots/03-users.png)
+![User management](screenshots-v1.0.0-beta.2/04-users.png)
 
 Self-protection prevents lock-outs: an admin **cannot** demote, disable or delete their **own**
 account (those controls are greyed out on the admin's own row).
@@ -50,7 +55,7 @@ account (those controls are greyed out on the admin's own row).
 Every signed-in user has a **Profile** page showing their account details and a self-service
 **change-password** form (current password + new password with confirmation).
 
-![Profile](screenshots/04-profile.png)
+![Profile](screenshots-v1.0.0-beta.2/05-profile.png)
 
 ## 5. Admin: activity log
 
@@ -58,16 +63,19 @@ Admins also get an **Activity** link opening the audit trail — an append-only 
 and when (contact create/edit/delete/restore, bulk and import actions, user-management changes, and
 logins/registrations). It can be filtered by actor, **action (multi-select)** and a **date range**.
 
-![Activity log](screenshots/05-activity.png)
+![Activity log](screenshots-v1.0.0-beta.2/06-activity.png)
 
 ## Dark mode
 
 Every page supports a **dark / light** theme via the 🌙 / ☀️ toggle in the header; your choice is
 saved per browser.
 
-![Contacts in dark mode](screenshots/06-dark-mode.png)
+![Contacts in dark mode](screenshots-v1.0.0-beta.2/07-dark-mode.png)
 
 ---
 
-> Screenshots are generated from the running app. To refresh them, re-run the app and recapture the
-> login, contacts, users and profile screens into `docs/screenshots/`.
+> Screenshots are generated from the running app (full-page, captured headless via Playwright against
+> the documented seed — admin + alice + bob). To refresh them, re-run the capture and write the
+> login, dashboard, contacts, users, profile, activity and dark-mode screens into a new
+> `docs/screenshots-vX.Y.Z/` folder, then repoint the image links here, in the README and in
+> FEATURES.md.
