@@ -122,14 +122,16 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 
 ## Advanced scaling (roadmap)
 
-> Planned, **not yet implemented**. See [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md)
+> The foundation (durable Postgres persistence) is **implemented**; the scaling ladder and service
+> decomposition below are still **planned**. See [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md)
 > and tickets CD-024 / CD-025.
 
-**Durable, scalable persistence (Postgres + Flyway)** ⬜ — replace embedded H2 file mode with Postgres
-(self-hosted `docker-compose`: app + postgres + volume), schema owned by Flyway migrations. This is the
-foundation that makes the sub-features below possible. Note: you can't scale Postgres by cloning
-identical write containers (it's stateful) — the ladder below is how you actually handle load,
-cheapest → heaviest.
+**Durable, scalable persistence (Postgres + Flyway)** ✅ *(CD-024)* — a `postgres` Spring profile runs
+on PostgreSQL with **Flyway**-owned, versioned schema (`ddl-auto: validate`); a two-container
+`docker-compose.yml` (app + postgres + `pgdata` volume) makes data survive restarts. Local dev and
+tests still use embedded H2 (Flyway off), so the inner loop is unchanged. This is the foundation that
+makes the sub-features below possible. Note: you can't scale Postgres by cloning identical write
+containers (it's stateful) — the ladder below is how you actually handle load, cheapest → heaviest.
 
 | Sub-feature | What | Status |
 |---|---|---|

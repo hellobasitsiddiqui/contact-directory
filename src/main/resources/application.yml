@@ -22,6 +22,12 @@ spring:
       # Do not re-run data.sql on every boot (it would duplicate seed rows on a
       # persistent DB). Seed data is loaded only by the in-memory test profile.
       mode: never
+  flyway:
+    # Default (dev) + tests run on H2 with Hibernate ddl-auto; Flyway is the
+    # production schema tool and is enabled only under the "postgres" profile
+    # (see application-postgres.yml). Keep it off here so the H2 inner loop is
+    # untouched and the migrations (Postgres SQL) never run against H2.
+    enabled: false
   h2:
     console:
       enabled: true

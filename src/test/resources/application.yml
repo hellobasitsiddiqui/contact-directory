@@ -15,6 +15,10 @@ spring:
   sql:
     init:
       mode: always
+  flyway:
+    # Tests run on in-memory H2 with ddl-auto=create-drop; Flyway (Postgres
+    # migrations) must stay off here even though it's on the classpath.
+    enabled: false
   servlet:
     multipart:
       max-file-size: 2MB
