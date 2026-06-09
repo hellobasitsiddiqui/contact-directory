@@ -156,11 +156,7 @@ const el = {
   errPhoto: $('err-photo'),
   btnSave: $('btn-save'),
   btnCancel: $('btn-cancel'),
-  // Delete modal
-  confirmModal: $('confirm-modal'),
-  confirmText: $('confirm-text'),
-  btnConfirmDelete: $('btn-confirm-delete'),
-  btnCancelDelete: $('btn-cancel-delete'),
+  // Delete confirmation uses the shared confirmDialog() — no static markup.
   // Detail modal
   detailModal: $('detail-modal'),
   detailAvatar: $('detail-avatar'),
@@ -415,11 +411,89 @@ function actionHref(value, scheme) {
 }
 
 /**
+ * Copy text to the clipboard, returning a Promise that resolves to true on
+ * success. Prefers the async Clipboard API; falls back to a hidden textarea +
+ * execCommand('copy') for older browsers or non-secure contexts where
+ * navigator.clipboard is unavailable.
+ */
+function copyToClipboard(text) {
+  const value = String(text == null ? '' : text);
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(value).then(() => true).catch(() => false);
+  }
+  // Legacy fallback: a transient off-screen textarea.
+  return new Promise((resolve) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = value;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      resolve(ok);
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * A small icon button that copies `value` to the clipboard. The click is wired
+ * via delegation (data-action="copy" / data-copy) and must not bubble up to the
+ * row detail handler. `label` describes what is being copied for the aria-label.
+ */
+function makeCopyButton(value, label) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-copy';
+  btn.dataset.action = 'copy';
+  btn.dataset.copy = String(value == null ? '' : value);
+  btn.textContent = '⧉';
+  btn.dataset.copyLabel = `Copy ${label}`;
+  btn.setAttribute('aria-label', `Copy ${label}`);
+  btn.title = `Copy ${label}`;
+  return btn;
+}
+
+/**
+ * Handle a click on a copy button: copy its data-copy value, then give brief
+ * visual feedback (a "Copied" state on the button plus a toast). Falls back to
+ * an error toast when the clipboard is unavailable.
+ */
+function handleCopy(btn) {
+  const value = btn.dataset.copy || '';
+  copyToClipboard(value).then((ok) => {
+    if (!ok) {
+      toast('Could not copy to clipboard', 'error');
+      return;
+    }
+    btn.classList.add('btn-copy--done');
+    btn.textContent = '✓';
+    btn.setAttribute('aria-label', 'Copied');
+    btn.title = 'Copied';
+    if (btn._copyTimer) clearTimeout(btn._copyTimer);
+    btn._copyTimer = setTimeout(() => {
+      btn.classList.remove('btn-copy--done');
+      btn.textContent = '⧉';
+      const original = btn.dataset.copyLabel || 'Copy';
+      btn.setAttribute('aria-label', original);
+      btn.title = original;
+    }, 1500);
+    toast('Copied to clipboard');
+  });
+}
+
+/**
  * A table cell rendering email/phone as a click-to-action link. The href is set
  * via the .href PROPERTY (never an HTML string) so values can't inject markup.
- * Clicking the link does not also open the row's detail modal.
+ * Clicking the link does not also open the row's detail modal. When `copyLabel`
+ * is given, a copy-to-clipboard button is rendered alongside the link.
  */
-function makeContactLinkCell(label, value, scheme) {
+function makeContactLinkCell(label, value, scheme, copyLabel) {
   const td = document.createElement('td');
   td.setAttribute('data-label', label);
   const v = value == null ? '' : String(value).trim();
@@ -427,12 +501,18 @@ function makeContactLinkCell(label, value, scheme) {
     td.textContent = '—';
     return td;
   }
+  const wrap = document.createElement('span');
+  wrap.className = 'cell-copyable';
   const a = document.createElement('a');
   a.className = 'link';
   a.href = actionHref(v, scheme);
   a.textContent = v;
   a.addEventListener('click', (e) => e.stopPropagation());
-  td.appendChild(a);
+  wrap.appendChild(a);
+  if (copyLabel) {
+    wrap.appendChild(makeCopyButton(v, copyLabel));
+  }
+  td.appendChild(wrap);
   return td;
 }
 
@@ -663,7 +743,7 @@ function makeRow(contact) {
     makeStarCell(contact),
     makeAvatarCell(contact),
     makeCell('Name', fullName(contact)),
-    makeContactLinkCell('Email', contact.email, 'mailto'),
+    makeContactLinkCell('Email', contact.email, 'mailto', 'email'),
     makeContactLinkCell('Phone', contact.phone, 'tel'),
     makeCell('Company', display(contact.company)),
     makeTagsCell(contact),
@@ -1309,31 +1389,6 @@ async function submitForm(event) {
  * 8. Delete confirmation
  * ------------------------------------------------------------------ */
 
-/** Id of the contact currently queued for deletion. */
-let pendingDeleteId = null;
-
-/**
- * What the confirm modal will do: 'soft' (move to trash, reversible via Undo) or
- * 'purge' (permanent hard delete, no Undo). Set by openDelete / openPurge.
- */
-let pendingDeleteMode = 'soft';
-
-function openConfirmModal() {
-  if (typeof el.confirmModal.showModal === 'function') {
-    el.confirmModal.showModal();
-  } else {
-    el.confirmModal.setAttribute('open', '');
-  }
-}
-
-function closeConfirmModal() {
-  if (typeof el.confirmModal.close === 'function') {
-    el.confirmModal.close();
-  } else {
-    el.confirmModal.removeAttribute('open');
-  }
-}
-
 /** Find a contact's display name on the current page, or a generic fallback. */
 function nameOnPage(id) {
   const row =
@@ -1343,28 +1398,31 @@ function nameOnPage(id) {
   return row ? fullName(row) : 'this contact';
 }
 
-function openDelete(id) {
-  lastTrigger = document.activeElement;
-  pendingDeleteId = id;
-  pendingDeleteMode = 'soft';
+/** Confirm + soft-delete (move to Trash, reversible via the Undo toast). */
+async function openDelete(id) {
   const name = nameOnPage(id);
-
-  // textContent keeps the name XSS-safe. Soft delete is reversible (Undo toast).
-  el.confirmText.textContent = `Delete ${name}? You can undo this from Trash.`;
-  openConfirmModal();
-  el.btnConfirmDelete.focus();
+  const ok = await confirmDialog({
+    title: 'Delete contact',
+    // textContent inside confirmDialog keeps the name XSS-safe.
+    message: `Delete ${name}? You can undo this from Trash.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  // performDelete handles its own errors internally; fire-and-forget is intentional.
+  if (ok) void performDelete(id, 'soft');
 }
 
-/** Queue a permanent (hard) delete via the same confirm modal. */
-function openPurge(id) {
-  lastTrigger = document.activeElement;
-  pendingDeleteId = id;
-  pendingDeleteMode = 'purge';
+/** Confirm + permanent (hard) delete — no Undo. */
+async function openPurge(id) {
   const name = nameOnPage(id);
-
-  el.confirmText.textContent = `Permanently delete ${name}? This cannot be undone.`;
-  openConfirmModal();
-  el.btnConfirmDelete.focus();
+  const ok = await confirmDialog({
+    title: 'Permanently delete contact',
+    message: `Permanently delete ${name}? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  // performDelete handles its own errors internally; fire-and-forget is intentional.
+  if (ok) void performDelete(id, 'purge');
 }
 
 /** Step back one page if the just-removed row was the last on a non-first page. */
@@ -1378,22 +1436,16 @@ function stepBackIfPageEmptied() {
   }
 }
 
-async function confirmDelete() {
-  if (pendingDeleteId == null) return;
-  const id = pendingDeleteId;
-  const mode = pendingDeleteMode;
-
-  el.btnConfirmDelete.disabled = true;
-  el.btnCancelDelete.disabled = true;
+/** Run the delete (soft or purge) and reconcile the table / toast / tags. */
+async function performDelete(id, mode) {
+  if (id == null) return;
 
   try {
     if (mode === 'purge') {
       await purgeContact(id);
-      closeConfirmModal();
       toast('Contact permanently deleted.', 'success');
     } else {
       await deleteContact(id);
-      closeConfirmModal();
       // Soft delete is reversible — offer an Undo that restores then reloads.
       toast('Contact moved to Trash.', 'success', {
         label: 'Undo',
@@ -1405,18 +1457,12 @@ async function confirmDelete() {
     load();
     populateTagFilter();
   } catch (err) {
-    closeConfirmModal();
     if (err.status === 404) {
       toast(err.message || 'Contact already deleted.', 'error');
     } else {
       toast(err.message || 'Failed to delete contact.', 'error');
     }
     load();
-  } finally {
-    pendingDeleteId = null;
-    pendingDeleteMode = 'soft';
-    el.btnConfirmDelete.disabled = false;
-    el.btnCancelDelete.disabled = false;
   }
 }
 
@@ -1865,6 +1911,13 @@ function wireEvents() {
     }
     const btn = event.target.closest('button[data-action]');
     if (btn && el.contactsBody.contains(btn)) {
+      // Copy buttons live in the email cell — they carry data-copy, not data-id,
+      // and must not bubble up to open the row detail.
+      if (btn.dataset.action === 'copy') {
+        event.stopPropagation();
+        handleCopy(btn);
+        return;
+      }
       const id = btn.dataset.id;
       if (!id) return;
       if (btn.dataset.action === 'edit') {
@@ -1947,24 +2000,9 @@ function wireEvents() {
     restoreTriggerFocus();
   });
 
-  // Delete modal: confirm / cancel / backdrop.
-  el.btnConfirmDelete.addEventListener('click', confirmDelete);
-  el.btnCancelDelete.addEventListener('click', (event) => {
-    event.preventDefault();
-    pendingDeleteId = null;
-    closeConfirmModal();
-  });
-  el.confirmModal.addEventListener('click', (event) => {
-    if (isBackdropClick(el.confirmModal, event)) {
-      pendingDeleteId = null;
-      closeConfirmModal();
-    }
-  });
-  el.confirmModal.addEventListener('cancel', () => {
-    pendingDeleteId = null;
-  });
-  // Any close path returns focus to the opener (or #btn-new if the row is gone).
-  el.confirmModal.addEventListener('close', restoreTriggerFocus);
+  // Delete confirmation: openDelete / openPurge drive the shared confirmDialog()
+  // (confirm-dialog.js), which owns its own confirm / cancel / Esc / backdrop /
+  // focus-restore handling — no per-page wiring needed here.
 
   // Detail modal: Edit hands off to the edit modal; close / backdrop dismiss it.
   el.btnDetailEdit.addEventListener('click', () => {

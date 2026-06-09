@@ -1,30 +1,45 @@
 # Contributing & workflow
 
-This project uses a lightweight, **ticket-driven, PR-based** workflow. `master` is **protected** —
-no direct pushes; every change lands through a pull request with green CI.
+This project follows a **Git Flow** style, ticket-driven, PR-based workflow:
+
+- **`master`** — release branch (protected). Updated only by **release PRs from `develop`**, which the **maintainer merges** (and tags).
+- **`develop`** — integration branch and the **default branch** (protected). Feature PRs land here; **automation merges** them once CI is green and the review is posted.
+- **`CD-NNN-short-slug`** — one feature branch per ticket, branched off `develop`.
 
 ## The flow
 
 1. **Ticket** — every piece of work has a plain-text ticket in [`tickets/`](tickets/) (no external
    tracker). IDs are `CD-NNN`. Create one from [`tickets/TEMPLATE.md`](tickets/TEMPLATE.md).
-2. **Branch** — one branch per ticket, named `CD-NNN-short-slug`
-   (e.g. `CD-002-actuator-health-metrics`). Branch off the latest `master`.
+2. **Branch** — one branch per ticket, `CD-NNN-short-slug`, branched off the latest **`develop`**.
 3. **Commit** — reference the ticket: `CD-NNN: imperative summary`.
-4. **Pull request** — open a PR into `master`. CI runs automatically (tests + coverage gate +
+4. **Pull request** — open a PR into **`develop`**. CI runs automatically (tests + coverage gate +
    OpenAPI drift + build/package; CodeQL + dependency review on top).
-5. **Review** — an automated review agent reviews the PR and posts findings as a comment. The review
-   is **advisory** (a comment, not an enforced approval gate).
-6. **Merge** — the **maintainer merges** once CI is green, having considered the review.
-   (Automation never merges.)
+5. **Review** — an automated review agent reviews the PR and posts findings as a comment (advisory).
+6. **Merge to `develop`** — once CI is green and the review is posted, **automation merges** the
+   feature PR into `develop`.
+7. **Release** — periodically a **`develop` → `master`** release PR is opened; the **maintainer**
+   merges it, then **tags** the merge commit (`git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`).
+   The pushed `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which
+   builds the JAR, publishes a **GitHub Release** (notes from the matching `CHANGELOG.md` section) with
+   the JAR attached, and pushes a **versioned** GHCR image (`:X.Y.Z` and `:latest`). The tag can be
+   created either from the CLI (above) **or** via the GitHub UI (**Releases → Draft a new release →
+   create tag `vX.Y.Z` on `master`**) — `release.yml` is idempotent, so it creates the Release when
+   absent and just attaches the JAR when it already exists. Bump `pom.xml` and move `CHANGELOG.md`'s
+   `[Unreleased]` items into a dated `## [X.Y.Z]` section **on `develop`** *before* the release PR, so
+   they ride into `master` with the merge. Automation never merges or tags `master`. See
+   [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md) for the full release-hygiene and
+   durable-deploy roadmap.
 
-## Branch protection on `master`
+## Branch protection
 
-- Pull request required before merging (no direct pushes, admins included).
-- Required status check: **Build, test & coverage gate** must pass. The OpenAPI drift check, CodeQL,
-  packaging and dependency review also run on every PR but are **advisory** (not merge-blocking) —
-  so a transient infra flake can't lock merges while admin enforcement is on.
-- `strict` is off (PRs aren't forced up-to-date with `master`) to avoid re-run churn on a low-traffic repo.
-- Force-pushes and branch deletion are disabled.
+Both `master` and `develop` are protected: a pull request is required (no direct pushes), the
+required status check **Build, test & coverage gate** must pass, and force-pushes / branch deletion
+are disabled. The OpenAPI drift check, CodeQL, packaging and dependency review also run on every PR
+but are **advisory** (not merge-blocking), so a transient infra flake can't lock merges. `strict` is
+off (PRs aren't forced up-to-date) to avoid re-run churn.
+
+- **`master`** also enforces protection for admins (release gate) — only the maintainer merges release PRs.
+- **`develop`** lets automation merge feature PRs once the required check is green.
 
 ## Conventions
 
@@ -51,3 +66,22 @@ If a change alters the REST API, regenerate the OpenAPI spec so the drift check 
 the docs ([README.md](README.md), [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md),
 [FEATURES.md](FEATURES.md)) and [COMMON-FEATURES.md](COMMON-FEATURES.md) when a baseline capability
 changes.
+
+## Browser end-to-end tests (Playwright)
+
+There are two e2e layers. The **HTTP e2e** (`HttpEndToEndTest`) runs as part of the default
+`mvn verify` gate above. The **browser e2e** (`PlaywrightE2eTest`) drives the real UI in headless
+Chromium and saves screenshots + a video to `target/playwright/`. It is tagged `e2e` and
+**deliberately excluded from `mvn verify`** (it needs a downloaded browser and is slow), so it does
+**not** run on feature PRs.
+
+- **Trigger policy:** the browser e2e runs **only** on pushes to `master`/`develop` (post-merge) and
+  on manual `workflow_dispatch`, via [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml). That
+  workflow installs the browser and uploads the screenshots/video as a `playwright-evidence` artifact.
+- **Run it locally** (one-off browser install, then the tagged suite):
+
+  ```bash
+  ./mvnw exec:java -Dexec.mainClass=com.microsoft.playwright.CLI \
+    -Dexec.classpathScope=test -Dexec.args="install chromium"
+  ./mvnw test -Dtest.excludedGroups= -Dgroups=e2e   # clears the default tag exclusion
+  ```

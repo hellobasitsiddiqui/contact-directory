@@ -54,12 +54,33 @@
             <input type="search" id="filter-actor" class="input"
                    placeholder="Username…" autocomplete="off" spellcheck="false" />
           </div>
-          <div class="toolbar__control">
-            <label for="filter-action">Action</label>
-            <select id="filter-action" class="select">
-              <option value="">All actions</option>
-            </select>
+
+          <div class="toolbar__control multiselect" id="action-multiselect">
+            <label id="action-label">Action</label>
+            <!--
+              aria-labelledby is intentionally self-referential: it combines the
+              "Action" label with the button's own text so the accessible name
+              reflects the current selection, e.g. "Action All actions" or
+              "Action 2 actions". This is valid ARIA. Do not "simplify" to
+              aria-labelledby="action-label" — that would drop the live selection
+              count from the announced name.
+            -->
+            <button type="button" id="action-toggle" class="btn btn--secondary multiselect__toggle"
+                    aria-haspopup="true" aria-expanded="false"
+                    aria-labelledby="action-label action-toggle">All actions</button>
+            <div id="action-menu" class="multiselect__menu" role="group"
+                 aria-label="Filter by action" hidden></div>
           </div>
+
+          <div class="toolbar__control">
+            <label for="filter-from">From</label>
+            <input type="date" id="filter-from" class="input" />
+          </div>
+          <div class="toolbar__control">
+            <label for="filter-to">To</label>
+            <input type="date" id="filter-to" class="input" />
+          </div>
+
           <div class="toolbar__control">
             <button type="button" id="btn-clear-filters" class="btn btn--secondary">Clear</button>
           </div>
@@ -68,6 +89,8 @@
     </section>
 
     <section class="users-panel" aria-label="Audit events">
+      <p id="audit-count" class="audit-count" aria-live="polite" hidden></p>
+
       <div id="audit-loading" class="users-status">Loading activity…</div>
       <table class="users-table" id="audit-table" hidden>
         <thead>
@@ -82,12 +105,6 @@
         <tbody id="audit-body"></tbody>
       </table>
       <div id="audit-empty" class="users-status" hidden>No activity recorded.</div>
-
-      <nav class="pagination" aria-label="Pagination">
-        <button type="button" id="btn-prev" class="btn btn--secondary">Previous</button>
-        <span id="page-info" class="page-info" aria-live="polite"></span>
-        <button type="button" id="btn-next" class="btn btn--secondary">Next</button>
-      </nav>
     </section>
   </main>
 

@@ -1,0 +1,57 @@
+name: Browser e2e
+
+# Heavy, browser-driven Playwright e2e (CD-018): boots the app and walks the real
+# UI, saving screenshots + a video as human-reviewable evidence. Runs ONLY on the
+# long-lived branches (post-merge) and on demand — never on feature PRs, where the
+# fast `mvn verify` gate (which tag-excludes these) is enough.
+on:
+  push:
+    branches: [ master, develop ]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e:
+    name: Playwright browser walkthrough
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Download the Chromium browser Playwright drives (with its OS deps). The
+      # CLI ships in the Playwright jar pulled by Maven, so resolve deps first.
+      - name: Install Playwright browser
+        run: |
+          ./mvnw -B -q dependency:resolve
+          ./mvnw -B -q exec:java \
+            -Dexec.mainClass=com.microsoft.playwright.CLI \
+            -Dexec.classpathScope=test \
+            -Dexec.args="install --with-deps chromium"
+
+      # Run ONLY the e2e-tagged suite: clear the default exclusion (the pom reads
+      # the test.excludedGroups property) and select the "e2e" group, so this job
+      # runs exactly the browser tests and skips the rest.
+      - name: Run browser e2e
+        run: ./mvnw -B test -Dtest.excludedGroups= -Dgroups=e2e
+
+      - name: Upload e2e evidence (screenshots + video)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-evidence
+          path: target/playwright
+          if-no-files-found: warn

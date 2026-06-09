@@ -58,8 +58,8 @@ Use it as a starting template for new projects. The **This app** column tracks t
 |---|---|:--:|
 | Structured logging | Debuggability | ➖ |
 | Audit log (who did what) | Accountability | ✅ |
-| Health checks (readiness/liveness) | Orchestration | ⬜ (no Actuator) |
-| Metrics (Micrometer/Prometheus) | Monitoring | ⬜ |
+| Health checks (readiness/liveness) | Orchestration | ✅ (Actuator `/actuator/health`, public) |
+| Metrics (Micrometer/Prometheus) | Monitoring | ✅ (Actuator `/actuator/metrics`, authed) |
 | Distributed tracing | Cross-service debugging | ⬜ |
 | Error monitoring (Sentry, etc.) | Catch prod errors | ⬜ |
 
@@ -80,8 +80,19 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Unit tests | Fast feedback | ✅ |
 | Integration tests | Wiring correctness | ✅ |
 | Coverage measurement + gate | Prevent regressions | ✅ (JaCoCo gate) |
-| End-to-end / UI tests | User-flow confidence | ⬜ |
+| End-to-end / UI tests | User-flow confidence | ✅ (two styles — see below) |
 | Isolated test data | Deterministic tests | ✅ |
+
+**Two end-to-end styles.** This app runs the suite as two complementary layers:
+- **HTTP e2e** (`HttpEndToEndTest`) — boots on a `RANDOM_PORT` and drives the **API over real
+  HTTP** with `TestRestTemplate`. Fast and headless, so it runs as part of the **default
+  `mvn verify`** gate on every PR.
+- **Browser e2e** (`PlaywrightE2eTest`) — boots on a `RANDOM_PORT` and drives the **real web UI**
+  in headless Chromium with [Playwright](https://playwright.dev/java/), walking
+  login → contacts → users → activity → profile and saving numbered **screenshots + a video** to
+  `target/playwright/` as human-reviewable evidence. It's tagged `e2e` and **excluded from
+  `mvn verify`** (needs a downloaded browser and is slow); it runs only on the long-lived branches
+  via the dedicated [`e2e.yml`](.github/workflows/e2e.yml) workflow — never on feature PRs.
 
 ## 8. CI/CD & build
 | Feature | Why | This app |
@@ -93,10 +104,10 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Automated dependency updates | Stay current/secure | ✅ Dependabot |
 | Containerization (Docker) | Portable runtime | ✅ |
 | Artifact build & publish | Distributable output | ✅ JAR + GHCR image |
-| Release automation (on tag) | Versioned releases | ⬜ |
+| Release automation (on tag) | Versioned releases | ✅ `release.yml` (tag `v*` → Release + JAR + versioned GHCR image) |
 | Deployment / CD | Ship to environments | ⬜ |
 | Status badges | At-a-glance health | ✅ |
-| Protected master + PR workflow | CI-gated merges + automated review | ✅ |
+| Protected branches + PR workflow (Git Flow) | CI-gated merges + automated review; master/develop | ✅ |
 | Ticket / issue tracking | Traceable work | ✅ (plain-text `tickets/`) |
 
 ## 9. Configuration & ops
@@ -122,8 +133,8 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | README (setup + run) | Onboarding | ✅ |
 | API documentation | Consumers | ✅ OpenAPI |
 | Walkthrough / screenshots | Show, don't tell | ✅ |
-| CHANGELOG | Track changes | ⬜ |
-| LICENSE | Usage terms | ⬜ |
+| CHANGELOG | Track changes | ✅ |
+| LICENSE | Usage terms | ✅ (MIT) |
 | CONTRIBUTING | Contributor guide | ✅ |
 
 ## 12. Compliance & privacy

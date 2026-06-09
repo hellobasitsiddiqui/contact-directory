@@ -211,6 +211,7 @@ input[type="text"],
 input[type="email"],
 input[type="tel"],
 input[type="search"],
+input[type="date"],
 textarea,
 select {
   width: 100%;
@@ -636,9 +637,18 @@ dialog[open] {
   color: var(--color-text);
 }
 
+/* Confirm dialog body text — single paragraph, comfortable reading width. */
+.confirm-text {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+
 /* ---------- Form layout inside modal ------------------------------------ */
 /* The contact form's body is the two-column responsive field grid. The
-   confirm modal's body is left untouched (it only holds a paragraph). */
+   confirm dialog (built dynamically in confirm-dialog.js) only holds a
+   single paragraph, styled by the shared .confirm-text rule above. */
 #contact-form .modal__body {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1184,6 +1194,62 @@ a.btn {
 }
 
 /* ------------------------------------------------------------------ *
+ * Client-side pagination bar (Users table)
+ *
+ * Scoped to #users-pagination so the added padding-top/border-top don't
+ * cascade onto the contacts-page pagination bar (index.html), which shares
+ * the bare .pagination class.
+ * ------------------------------------------------------------------ */
+#users-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.pagination__size {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pagination__size label {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.pagination__size .select {
+  width: auto;
+}
+
+.pagination__info {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.pagination__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .pagination__nav {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .pagination__nav .btn {
+    flex: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Trash mode affordance
  * ------------------------------------------------------------------ */
 
@@ -1282,6 +1348,58 @@ a.btn {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Copy-to-clipboard buttons (email / username)
+ * ------------------------------------------------------------------ */
+
+/* Wraps a value + its copy button so the icon sits inline next to the text and
+ * only reveals on row hover / focus, keeping the table calm at rest. */
+.cell-copyable {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.btn-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--color-text-subtle);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+/* Reveal on row hover, or whenever the button itself is focused/hovered (so
+ * keyboard users can always reach it, and it stays visible after a copy). */
+tr:hover .btn-copy,
+.btn-copy:hover,
+.btn-copy:focus-visible,
+.btn-copy--done {
+  opacity: 1;
+}
+
+.btn-copy:hover {
+  color: var(--color-primary);
+}
+
+.btn-copy:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Brief confirmation state: the glyph is swapped to a tick in JS; this just
+ * recolours it green so the "Copied" feedback reads at a glance. */
+.btn-copy--done {
+  color: var(--color-success);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1505,6 +1623,48 @@ a.btn {
 /* ------------------------------------------------------------------ *
  * Admin: user-management table
  * ------------------------------------------------------------------ */
+/* At-a-glance counts above the table; mirrors the panel's surface treatment. */
+.users-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.users-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.users-stat__value {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.users-stat__label {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Stats bar: two columns on narrow screens.
+   Declared after the base .users-stats rule so source order lets it win
+   (both selectors have equal specificity; a media query adds no specificity). */
+@media (max-width: 640px) {
+  .users-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .users-panel {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1535,6 +1695,40 @@ a.btn {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Sortable header: a borderless button that inherits the header's look. */
+.users-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: calc(var(--space-3) * -1);
+  padding: var(--space-3);
+  width: calc(100% + var(--space-3) * 2);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.users-sort:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-alt);
+}
+
+.users-sort--active {
+  color: var(--color-primary);
+}
+
+.users-sort__indicator {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
 .users-table tbody td {
   padding: var(--space-3);
   border-bottom: 1px solid var(--color-border);
@@ -1562,6 +1756,13 @@ a.btn {
 
 .users-muted {
   color: var(--color-text-muted);
+}
+
+/* Relative timestamps: hint that the exact time is available on hover. */
+.users-muted time {
+  cursor: help;
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: 2px;
 }
 
 .users-role {
@@ -1630,6 +1831,132 @@ a.btn {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   white-space: nowrap;
+}
+
+/* "Showing N of M events" line above the activity table. */
+.audit-count {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Action multi-select (dropdown checklist in the activity toolbar)
+ * ------------------------------------------------------------------ */
+.multiselect {
+  position: relative;
+}
+
+/* The toggle reads like a select but opens a checkbox popover. */
+.multiselect__toggle {
+  min-width: 9rem;
+  justify-content: space-between;
+  font-weight: 400;
+}
+
+.multiselect__menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 30;
+  min-width: 14rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.multiselect__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.multiselect__option:hover {
+  background-color: var(--color-surface-alt);
+}
+
+.multiselect__option input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+/* ------------------------------------------------------------------ *
+ * User detail modal (details + recent activity)
+ * ------------------------------------------------------------------ */
+
+/* Rows are clickable (open the read-only detail modal). The role <select>,
+ * action buttons and checkbox keep their own pointer affordance. */
+.users-table tbody tr {
+  cursor: pointer;
+}
+
+/* Recent-activity block sits below the detail list inside the modal body. */
+.user-activity {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.user-activity__title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.user-activity__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.user-activity__item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.user-activity__summary {
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+/* Push the relative time to the right edge of the row. */
+.user-activity__time {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.user-activity__status {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.user-activity__status--error {
+  color: var(--color-danger);
 }
 
 /* ------------------------------------------------------------------ *

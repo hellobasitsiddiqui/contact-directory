@@ -2,10 +2,11 @@
 
 [![CI](https://github.com/hellobasitsiddiqui/contact-directory/actions/workflows/ci.yml/badge.svg)](https://github.com/hellobasitsiddiqui/contact-directory/actions/workflows/ci.yml)
 
-A full-stack **contact manager** built with **Spring Boot 3.3.5**, **Java 21**, and **Maven** — a
+A full-stack **contact manager** built with **Spring Boot 3.5.14**, **Java 21**, and **Maven** — a
 JSON REST API plus a framework-free browser UI. It features **JWT authentication**, **role-based
 access** (USER / ADMIN), **per-user contact ownership**, and account **self-service**, all backed by
-a persistent file-mode **H2** database and covered by **178 automated tests**.
+a persistent file-mode **H2** database and covered by **219 automated tests** (plus a browser
+end-to-end walkthrough).
 
 ## Screenshots
 
@@ -13,11 +14,11 @@ a persistent file-mode **H2** database and covered by **178 automated tests**.
 |---|---|
 | ![Login screen](docs/screenshots/01-login.png) | ![Contacts list](docs/screenshots/02-contacts.png) |
 
-| Admin user management | My profile |
+| Admin user management — search, filters, stats, bulk & pagination | My profile |
 |---|---|
 | ![User management](docs/screenshots/03-users.png) | ![Profile & change password](docs/screenshots/04-profile.png) |
 
-**Admin activity log (audit trail)**
+**Admin activity log — filter by actor / action / date range**
 
 ![Activity log](docs/screenshots/05-activity.png)
 
@@ -52,12 +53,20 @@ a persistent file-mode **H2** database and covered by **178 automated tests**.
 - **Audit log** — contact mutations, user-management actions and logins are recorded; admins get
   an Activity page backed by `GET /api/v1/audit` (filterable by actor and action)
 
+### Admin console UX
+- **Users table** — live search + role/status filter, sortable columns, a summary stats bar, and
+  **bulk actions** (multi-select → enable/disable/role/delete)
+- **User detail modal** — click a row for details + that user's recent activity
+- **Activity log** — filter by actor, multi-select action, and date range
+- **Relative timestamps** (exact time on hover), **copy-to-clipboard** for usernames/emails, and a
+  styled **confirmation dialog** for destructive actions
+
 ## Tech stack
 
 | Concern      | Choice                                          |
 |--------------|-------------------------------------------------|
 | Language     | Java 21                                         |
-| Framework    | Spring Boot 3.3.5 (Web, Data JPA, Security)      |
+| Framework    | Spring Boot 3.5.14 (Web, Data JPA, Security)     |
 | Auth         | Spring Security + JWT (`io.jsonwebtoken` / jjwt) |
 | Persistence  | Spring Data JPA + Hibernate; H2 (file mode)      |
 | Validation   | Jakarta Bean Validation                         |
@@ -92,7 +101,7 @@ contacts. Data is stored in a **persistent** H2 file database (`./data/contacts.
 
 ```bash
 ./mvnw clean package
-java -jar target/contact-directory-0.0.1-SNAPSHOT.jar
+java -jar target/*.jar
 ```
 
 ## Authentication flow
@@ -162,6 +171,23 @@ unsupported types return `400`.
 |--------|-----------------|------------------------------------------------------------------|
 | `GET`  | `/api/v1/audit` | List recorded events (paginated, newest first; `?actor=`, `?action=`) |
 
+### Operational — base path `/actuator`
+
+Spring Boot Actuator endpoints for deployment and monitoring. **Health** is public so
+orchestration liveness/readiness probes can poll it unauthenticated; **metrics** require a
+bearer token.
+
+| Method | Path                       | Description                                  | Auth   |
+|--------|----------------------------|----------------------------------------------|--------|
+| `GET`  | `/actuator/health`         | Liveness/readiness status (`UP`/`DOWN`)      | public |
+| `GET`  | `/actuator/info`           | App info (name/description from `info.*`)    | public |
+| `GET`  | `/actuator/metrics`        | List available meters                        | bearer |
+| `GET`  | `/actuator/metrics/{name}` | A single meter's value (e.g. `jvm.memory.used`) | bearer |
+
+Health detail (DB, disk, components) is shown to authenticated callers only
+(`management.endpoint.health.show-details: when-authorized`); anonymous probes get just the
+top-level status.
+
 ### Listing query parameters
 
 | Parameter | Default    | Description                                                         |
@@ -188,12 +214,20 @@ All defaults are dev-friendly and overridable via environment variables:
 ## Testing
 
 ```bash
-./mvnw clean test
+./mvnw clean verify   # unit + integration + HTTP e2e, plus the JaCoCo coverage gate
 ```
 
-**178 tests** across 14 classes (unit + full-stack integration), including cross-user isolation,
-role enforcement, optimistic concurrency, account self-service and lockout. A JaCoCo coverage report
-is written to `target/site/jacoco/index.html`.
+**219 tests** across 18 classes (unit + full-stack integration + HTTP end-to-end), including
+cross-user isolation, role enforcement, optimistic concurrency, account self-service, lockout and the
+Actuator health/metrics surface. A JaCoCo coverage report is written to
+`target/site/jacoco/index.html`.
+
+A separate **browser end-to-end** test (`PlaywrightE2eTest`) drives the real web UI in headless
+Chromium via [Playwright](https://playwright.dev/java/), walking login → contacts → users → activity
+→ profile and saving screenshots + a video to `target/playwright/`. It is tagged `e2e` and
+**excluded from the default build**; it runs only on `master`/`develop` (and on demand) via the
+[`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run it
+locally.
 
 ## Interactive docs & tooling
 
@@ -203,14 +237,17 @@ is written to `target/site/jacoco/index.html`.
 | Swagger UI  | http://localhost:8080/swagger-ui.html    |
 | OpenAPI doc | http://localhost:8080/v3/api-docs        |
 | H2 console  | http://localhost:8080/h2-console         |
+| Health      | http://localhost:8080/actuator/health    |
+| Metrics     | http://localhost:8080/actuator/metrics (bearer token) |
 
 H2 console connection: JDBC URL `jdbc:h2:file:./data/contacts`, user `sa`, blank password.
 
 ## Contributing
 
-Ticket-driven, PR-based workflow with a **protected `master`**. In short: create a `CD-NNN` ticket
-in [tickets/](tickets/), branch `CD-NNN-short-slug`, open a PR (CI must pass), an automated agent reviews
-it, and the maintainer merges. Full details in [CONTRIBUTING.md](CONTRIBUTING.md).
+**Git Flow**, ticket-driven, PR-based workflow with protected `master` + `develop`. In short: create
+a `CD-NNN` ticket in [tickets/](tickets/), branch off `develop`, open a PR into `develop` (CI must
+pass); an automated agent reviews it and **merges to `develop`**. Releases go `develop` → `master`,
+merged by the maintainer. Full details in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Project structure
 
@@ -230,3 +267,7 @@ src/main/resources
 ├── data.sql        # Test-profile seed data
 └── static/         # Web UI: login, index, users, profile (HTML/CSS/JS)
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Basit Siddiqui. Release notes in [CHANGELOG.md](CHANGELOG.md).
