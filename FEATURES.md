@@ -23,11 +23,11 @@ Legend: ✅ done · 🔄 in progress · ⬜ planned
 | 9 | Click-to-action — `tel:` / `mailto:` links | ✅ |
 | 10 | Dark / light mode toggle — saved to `localStorage` | ✅ |
 
-![Contacts list](docs/screenshots/02-contacts.png)
+![Contacts list](docs/screenshots-v1.0.0-beta.2/03-contacts.png)
 
 Same screen in **dark mode** (toggle saved per browser):
 
-![Contacts in dark mode](docs/screenshots/06-dark-mode.png)
+![Contacts in dark mode](docs/screenshots-v1.0.0-beta.2/07-dark-mode.png)
 
 ## Safe management
 
@@ -45,7 +45,7 @@ Same screen in **dark mode** (toggle saved per browser):
 | Spring Security — protected REST API; JSON `401` / `403` responses | ✅ |
 | Brute-force lockout — repeated failed logins lock an account (`423 Locked`) | ✅ |
 
-![Sign in](docs/screenshots/01-login.png)
+![Sign in](docs/screenshots-v1.0.0-beta.2/01-login.png)
 
 ## Roles & access control
 
@@ -60,7 +60,11 @@ Same screen in **dark mode** (toggle saved per browser):
 | Admin owns no contacts — the admin is a super-user that sees everyone's contacts (an "admin view"); contacts belong to each user | ✅ |
 | Self-protection — an admin can't demote, disable or delete their own account | ✅ |
 
-![Admin user management](docs/screenshots/03-users.png)
+The admin landing page is **user administration**, not contacts:
+
+![Admin dashboard](docs/screenshots-v1.0.0-beta.2/02-dashboard.png)
+
+![Admin user management](docs/screenshots-v1.0.0-beta.2/04-users.png)
 
 ## Account self-service
 
@@ -69,7 +73,7 @@ Same screen in **dark mode** (toggle saved per browser):
 | Change password — current + new with confirmation | ✅ |
 | Profile page — username, role and member-since | ✅ |
 
-![Profile & change password](docs/screenshots/04-profile.png)
+![Profile & change password](docs/screenshots-v1.0.0-beta.2/05-profile.png)
 
 ## Audit log (edit history)
 
@@ -80,7 +84,7 @@ Same screen in **dark mode** (toggle saved per browser):
 | Admin Activity page — `GET /api/v1/audit`, newest-first, filterable by actor and action | ✅ |
 | Resilient recording — an audit-write failure never breaks the underlying action | ✅ |
 
-![Admin activity log](docs/screenshots/05-activity.png)
+![Admin activity log](docs/screenshots-v1.0.0-beta.2/06-activity.png)
 
 ## Observability (health & metrics)
 
