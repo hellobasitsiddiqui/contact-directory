@@ -13,7 +13,7 @@
 
     <groupId>com.example</groupId>
     <artifactId>contact-directory</artifactId>
-    <version>1.0.0-beta.1</version>
+    <version>1.0.0-beta.2</version>
     <name>contact-directory</name>
     <description>Contact Directory REST API</description>
 
