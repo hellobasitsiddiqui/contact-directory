@@ -37,8 +37,8 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Done (#44) |
 | [CD-025](CD-025-deploy-target.md) | Deploy target + optional deploy.yml | Open |
 | [CD-026](CD-026-mobile-api-findings.md) | Save mobile API readiness findings (docs/MOBILE-API-READINESS.md) | Done (#37) |
-| [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | In review |
-| [CD-028](CD-028-refresh-tokens.md) | Refresh tokens + server-side revocation + logout | Open |
+| [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | Done (#53) |
+| [CD-028](CD-028-refresh-tokens.md) | Refresh tokens + server-side revocation + real logout | In review |
 | [CD-029](CD-029-users-pagination-api.md) | Server-side pagination/filter/sort for /api/v1/users | Open |
 | [CD-030](CD-030-upload-limits-photo-url.md) | Larger photo upload limit + absolute photoUrl | Open |
 | [CD-031](CD-031-rate-limiting.md) | Lockout/rate-limit feedback + API rate limiting | Open |
@@ -58,4 +58,4 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-045](CD-045-doc-sweep.md) | Docs consistency sweep (post CD-024…CD-044) | Done (#48) |
 | [CD-046](CD-046-release-beta2.md) | Release prep — 1.0.0-beta.2 | Done (#49) |
 | [CD-047](CD-047-refresh-screenshots.md) | Refresh screenshots for the admin-centric UI | Done (#51) |
-| [CD-048](CD-048-doc-sweep-beta2.md) | Docs consistency sweep (post-beta.2: ticket statuses + release/deploy plan) | In review |
+| [CD-048](CD-048-doc-sweep-beta2.md) | Docs consistency sweep (post-beta.2: ticket statuses + release/deploy plan) | Done (#52) |

@@ -13,10 +13,12 @@ with the seeded admin (`admin` / `admin123`) or a seeded sample user (`alice` / 
 
 - Failing the password too many times in a row temporarily **locks the account** (HTTP `423`); a
   successful login clears the counter.
-- On success you're issued a JWT (held in the browser). **Admins land on a dashboard** (user
-  administration — user stats, recent activity, quick links), since the admin's job is managing users,
-  not owning contacts. **Regular users land on their contacts.** An admin viewing the contacts page
-  sees *everyone's* contacts (an "Admin view" banner makes this explicit).
+- On success you're issued a **token pair** (held in the browser): a short-lived access JWT that the
+  UI **silently refreshes** in the background, and a rotating refresh token that **Log out** revokes
+  server-side — so signing out really ends the session, not just locally. **Admins land on a
+  dashboard** (user administration — user stats, recent activity, quick links), since the admin's job
+  is managing users, not owning contacts. **Regular users land on their contacts.** An admin viewing
+  the contacts page sees *everyone's* contacts (an "Admin view" banner makes this explicit).
 
 The admin dashboard — user stats, recent activity and quick links to user management, the activity
 log and all contacts:

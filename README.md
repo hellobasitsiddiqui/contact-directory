@@ -42,7 +42,8 @@ end-to-end walkthrough).
 - **Notes**, click-to-action `tel:` / `mailto:` links, and a **dark / light** theme toggle
 
 ### Accounts & security
-- **JWT authentication** — register / login for a stateless bearer token; styled login page
+- **JWT authentication** — register / login for a short-lived access JWT + rotating refresh token
+  (silent refresh in the UI, server-side revocation, real logout); styled login page
 - **Roles** — `USER` and `ADMIN`, enforced with method security
 - **Per-user ownership** — a `USER` sees and manages only their own contacts; an `ADMIN` sees all.
   Email uniqueness is per-owner, and cross-user access returns `404` (never reveals existence)
@@ -147,8 +148,10 @@ host is tracked as **CD-025**; see [docs/RELEASE-AND-DEPLOYMENT.md](docs/RELEASE
 
 ## Authentication flow
 
-All `/api/v1/contacts/**` and `/api/v1/users/**` endpoints require a bearer token. Obtain one from
-the auth endpoints, then send it as `Authorization: Bearer <token>`.
+All `/api/v1/contacts/**` and `/api/v1/users/**` endpoints require a bearer token. Login/register
+return a **token pair** (CD-028): a short-lived **access JWT** (`token`, 15 min default) sent as
+`Authorization: Bearer <token>`, plus an opaque **refresh token** (`refreshToken`, 14 days, rotating)
+used to mint new pairs via `/auth/refresh`.
 
 ```bash
 # 1) Log in (or POST the same body to /register to create a USER account)
@@ -160,12 +163,20 @@ TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
 curl http://localhost:8080/api/v1/contacts -H "Authorization: Bearer $TOKEN"
 ```
 
-| Method | Path                          | Description                              | Auth        |
-|--------|-------------------------------|------------------------------------------|-------------|
-| `POST` | `/api/v1/auth/register`       | Create a USER account, returns a JWT     | public      |
-| `POST` | `/api/v1/auth/login`          | Log in, returns a JWT                     | public      |
-| `GET`  | `/api/v1/auth/me`             | Current user (username, role, createdAt) | bearer      |
-| `POST` | `/api/v1/auth/change-password`| Change your own password                  | bearer      |
+| Method | Path                          | Description                                            | Auth        |
+|--------|-------------------------------|--------------------------------------------------------|-------------|
+| `POST` | `/api/v1/auth/register`       | Create a USER account, returns a token pair            | public      |
+| `POST` | `/api/v1/auth/login`          | Log in, returns a token pair                           | public      |
+| `POST` | `/api/v1/auth/refresh`        | Rotate the refresh token, returns a fresh pair         | refresh token |
+| `POST` | `/api/v1/auth/logout`         | Revoke the refresh session server-side (idempotent 204) | public      |
+| `GET`  | `/api/v1/auth/me`             | Current user (username, role, createdAt)               | bearer      |
+| `POST` | `/api/v1/auth/change-password`| Change your own password (revokes other sessions)      | bearer      |
+
+Refresh tokens **rotate on every use**; the server stores only a SHA-256 hash. Replaying an
+already-used refresh token (outside a short concurrency grace window) is treated as **theft**: the
+whole session family is revoked and the event is audited. Password change/reset, account disable and
+delete also revoke the affected user's refresh sessions. The web UI refreshes silently
+(`auth-client.js`), so the short access token is invisible to users.
 
 ## API endpoints
 
@@ -246,7 +257,10 @@ All defaults are dev-friendly and overridable via environment variables:
 | Variable                     | Default                         | Purpose                              |
 |------------------------------|---------------------------------|--------------------------------------|
 | `APP_JWT_SECRET`             | a `change-me…` placeholder       | HS256 signing secret (≥ 32 bytes)    |
-| `APP_JWT_EXPIRATION_MS`      | `86400000` (24h)                | Token lifetime                       |
+| `APP_JWT_EXPIRATION_MS`      | `900000` (15m)                  | Access-token lifetime                |
+| `APP_JWT_REFRESH_EXPIRATION_MS` | `1209600000` (14d)           | Refresh-token lifetime (sliding)     |
+| `APP_JWT_REFRESH_REUSE_GRACE_SECONDS` | `30`                   | Concurrency grace before a refresh replay counts as theft |
+| `APP_JWT_MAX_SESSIONS_PER_USER` | `10`                         | Live refresh sessions per user (oldest evicted) |
 | `APP_DEFAULT_ADMIN_USERNAME` | `admin`                         | Seeded admin username                |
 | `APP_DEFAULT_ADMIN_PASSWORD` | `admin123`                      | Seeded admin password                |
 | `app.security.max-login-attempts` | `5`                        | Failed logins before lockout         |

@@ -9,6 +9,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -49,14 +50,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = header.substring(BEARER_PREFIX.length());
         if (jwtService.isValid(token)) {
             String username = jwtService.extractUsername(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            // Reject tokens for accounts disabled after the token was issued.
-            if (userDetails.isEnabled()) {
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            try {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                // Reject tokens for accounts disabled after the token was issued.
+                if (userDetails.isEnabled()) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+            } catch (UsernameNotFoundException ex) {
+                // The account was deleted after the token was issued. Pass
+                // through unauthenticated so the request gets a clean 401
+                // (instead of a 500 from the uncaught lookup failure).
             }
         }
 

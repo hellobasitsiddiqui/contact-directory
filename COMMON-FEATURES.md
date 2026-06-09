@@ -20,7 +20,7 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | 2FA / MFA (TOTP) | Second factor | ⬜ |
 | Brute-force lockout / login rate-limit | Stop credential stuffing | ✅ |
 | Account enable/disable + lifecycle | Offboarding, suspension | ➖ (no soft-delete) |
-| Refresh tokens / session revocation | "Sign out everywhere" | ⬜ |
+| Refresh tokens / session revocation | "Sign out everywhere" | ✅ |
 
 ## 2. Authorization
 | Feature | Why | This app |

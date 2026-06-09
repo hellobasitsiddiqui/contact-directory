@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Refresh tokens + real logout** (CD-028) — login/register now return a short-lived access JWT
+  (15 min default, was 24 h) **plus** an opaque rotating refresh token (14 days, sliding; stored
+  hashed). New `POST /api/v1/auth/refresh` (rotation with family-based reuse/theft detection — a
+  replayed token revokes the whole session family, audited as `AUTH_TOKEN_REUSE`) and
+  `POST /api/v1/auth/logout` (server-side revocation, idempotent, audited as `AUTH_LOGOUT`).
+  Password change/reset, account disable and delete revoke the affected user's sessions. The web UI
+  refreshes silently (shared `auth-client.js`, cross-tab safe) — no user-visible change.
+- **TLS-ready** (CD-027) — HSTS header on HTTPS responses, opt-in trust of proxy `X-Forwarded-*`
+  headers (off by default), loopback-bound app port, and a Caddy reverse-proxy overlay
+  (`docker-compose.tls.yml`) with automatic Let's Encrypt certificates.
+
+### Fixed
+- A still-valid access token belonging to a just-deleted user caused a `500` on any API call
+  (uncaught lookup failure in the JWT filter); now a clean `401` (CD-028).
+
 ## [1.0.0-beta.2] - 2026-06-09
 
 ### Added

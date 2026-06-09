@@ -40,7 +40,7 @@ public class SecurityConfig {
             "/", "/index.html", "/login.html", "/users.html", "/profile.html", "/activity.html",
             "/dashboard.html",
             "/app.js", "/login.js", "/users.js", "/profile.js", "/activity.js", "/confirm-dialog.js",
-            "/dashboard.js",
+            "/dashboard.js", "/auth-client.js",
             "/styles.css", "/favicon.ico"
     };
 
@@ -80,7 +80,11 @@ public class SecurityConfig {
                                 .maxAgeInSeconds(31_536_000)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
+                        // Refresh authenticates by the refresh secret itself (the
+                        // access token may be expired); logout is idempotent and
+                        // must work for a half-dead session — both stay public.
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
+                                "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         // Health + info are public so orchestration probes can poll them
