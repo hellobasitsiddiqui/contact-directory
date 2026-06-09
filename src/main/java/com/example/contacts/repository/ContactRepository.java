@@ -141,25 +141,27 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
                                        @Param("ownerId") Long ownerId, Pageable pageable);
 
     /**
-     * Returns all distinct tags currently in use, sorted case-insensitively.
-     * Used to populate the tag filter control.
+     * Returns all distinct tags currently in use. The caller sorts
+     * (case-insensitively) — Postgres rejects {@code SELECT DISTINCT} combined
+     * with an {@code ORDER BY LOWER(t)} that isn't in the select list, so the
+     * ordering is applied in {@code ContactService#listTags} for portability.
      *
-     * @return the sorted list of distinct tag labels
+     * @return the distinct tag labels (unordered)
      */
-    @Query("SELECT DISTINCT t FROM Contact c JOIN c.tags t WHERE c.deletedAt IS NULL ORDER BY LOWER(t)")
+    @Query("SELECT DISTINCT t FROM Contact c JOIN c.tags t WHERE c.deletedAt IS NULL")
     List<String> findDistinctTags();
 
     /**
      * Owner-scoped variant of {@link #findDistinctTags()} returning only the
-     * distinct tags in use across the given owner's contacts.
+     * distinct tags in use across the given owner's contacts. Ordering is applied
+     * by the caller (see {@link #findDistinctTags()}).
      *
      * @param ownerId the id of the owner to scope tags to
-     * @return the sorted list of distinct tag labels for that owner
+     * @return the distinct tag labels for that owner (unordered)
      */
     @Query("""
         SELECT DISTINCT t FROM Contact c JOIN c.tags t
         WHERE c.deletedAt IS NULL AND c.ownerId = :ownerId
-        ORDER BY LOWER(t)
         """)
     List<String> findDistinctTagsByOwnerId(@Param("ownerId") Long ownerId);
 
