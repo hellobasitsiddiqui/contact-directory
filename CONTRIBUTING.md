@@ -29,6 +29,10 @@ This project follows a **Git Flow** style, ticket-driven, PR-based workflow:
    they ride into `master` with the merge. Automation never merges or tags `master`. See
    [`docs/RELEASE-AND-DEPLOYMENT.md`](docs/RELEASE-AND-DEPLOYMENT.md) for the full release-hygiene and
    durable-deploy roadmap.
+   - **Pre-releases (alpha/beta):** use a SemVer pre-release version/tag with a hyphen, e.g.
+     `1.0.0-beta.1` → tag `v1.0.0-beta.1`. `release.yml` detects the hyphen and marks the GitHub
+     Release as a **pre-release** and pushes only the `:<version>` image (it does **not** move
+     `:latest`, which stays on the newest stable build).
 
 ## Branch protection
 
