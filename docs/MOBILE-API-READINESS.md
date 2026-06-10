@@ -92,5 +92,7 @@ Scope: **login screen** (POST `/api/v1/auth/login`, store token) + **contacts li
   client + skipping polish; up to ~2 days including secure storage, error states, and first-time
   Android project setup).
 - **Server changes needed: none** for this basic app. Caveats: Android blocks **cleartext HTTP** on
-  API 28+ — for local dev either point at HTTPS or allow cleartext for your dev host; and the 24h
-  token means re-login after a day (fine for a demo).
+  API 28+ — for local dev either point at HTTPS or allow cleartext for your dev host; and the access
+  token now lasts **15 minutes** (CD-028), so to stay signed in beyond that, store the **refresh
+  token** from the login response and call `POST /auth/refresh` when a request 401s (one extra call;
+  the refresh token lasts 14 days). The simplest demo can skip refresh and just re-login on a 401.

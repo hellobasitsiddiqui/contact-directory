@@ -1,7 +1,7 @@
 # CD-028: Refresh tokens + server-side revocation + real logout
 
 - **Type:** feature / security
-- **Status:** In review
+- **Status:** Done (#54)
 - **Branch:** `CD-028-refresh-tokens`
 
 ## Summary

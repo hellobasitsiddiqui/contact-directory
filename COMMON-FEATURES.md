@@ -67,8 +67,8 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Feature | Why | This app |
 |---|---|:--:|
 | Secrets via env / vault | No secrets in code | ➖ (env-overridable, dev defaults) |
-| TLS / HTTPS | Encrypt in transit | ⬜ (deploy concern) |
-| Security headers (CSP, HSTS…) | Browser hardening | ➖ |
+| TLS / HTTPS | Encrypt in transit | ➖ (TLS-ready: HSTS + Caddy reverse-proxy overlay; live host is the deploy step) |
+| Security headers (CSP, HSTS…) | Browser hardening | ➖ (HSTS + frame-options; no CSP) |
 | Dependency vulnerability scanning | Known-CVE deps | ✅ Dependabot + dependency-review |
 | Static analysis (SAST) | Code-level flaws | ✅ CodeQL |
 | Input validation / output encoding | Injection/XSS defense | ✅ |
@@ -94,6 +94,9 @@ Use it as a starting template for new projects. The **This app** column tracks t
 - **Postgres browser e2e** (`PlaywrightPostgresE2eTest`) — same browser approach but against a real
   **PostgreSQL via Testcontainers** (the `postgres` profile), proving Flyway + the `bytea` photo
   round-trip end to end — the path H2 can't cover.
+- **Silent-refresh browser e2e** (`PlaywrightSilentRefreshE2eTest`) — boots with a 3-second access
+  token and proves the SPA **refreshes silently**: a signed-in session survives access-token expiry
+  with no redirect to login, and logout really clears the server-side session.
 
   The browser suites are tagged `e2e` and **excluded from `mvn verify`** (they need a downloaded
   browser / Docker and are slow); they run only on the long-lived branches via the dedicated

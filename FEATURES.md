@@ -1,7 +1,7 @@
 # Contact Directory — Features
 
 A complete map of what the app does, grouped by area. Built incrementally, each area committed
-separately. **219 tests passing** (plus two browser e2e suites — an H2 UI walkthrough and a Postgres-backed one). For setup and API reference see the [README](README.md); for a
+separately. **233 tests passing** (plus three browser e2e suites — an H2 UI walkthrough, a Postgres-backed one, and a silent-refresh check). For setup and API reference see the [README](README.md); for a
 click-through tour see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 Legend: ✅ done · 🔄 in progress · ⬜ planned
@@ -123,12 +123,13 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 - **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) by default — data survives restarts;
   tests use an isolated in-memory H2. An optional **PostgreSQL + Flyway** profile (`postgres`) is
   available for durable, production-like deployment (two-container `docker-compose`) — see the README.
-- **Tests:** **219** across 18 classes (unit + full-stack + HTTP e2e), incl. cross-user isolation,
-  role enforcement, optimistic concurrency, account self-service, lockout, audit and Actuator
-  health/metrics coverage. Two tag-excluded **browser e2e** suites run only on `master`/`develop` via
-  [`e2e.yml`](.github/workflows/e2e.yml): `PlaywrightE2eTest` (full UI walkthrough on H2, with
-  screenshots + video) and `PlaywrightPostgresE2eTest` (Testcontainers PostgreSQL — proves the real
-  `postgres` profile + the `bytea` photo round-trip in a browser).
+- **Tests:** **233** across 20 classes (unit + full-stack + HTTP e2e), incl. cross-user isolation,
+  role enforcement, optimistic concurrency, account self-service, lockout, the refresh-token
+  lifecycle, HSTS, audit and Actuator health/metrics coverage. Three tag-excluded **browser e2e**
+  suites run only on `master`/`develop` via [`e2e.yml`](.github/workflows/e2e.yml): `PlaywrightE2eTest`
+  (full UI walkthrough on H2, with screenshots + video), `PlaywrightPostgresE2eTest` (Testcontainers
+  PostgreSQL — proves the real `postgres` profile + the `bytea` photo round-trip in a browser), and
+  `PlaywrightSilentRefreshE2eTest` (proves silent token refresh past access-token expiry).
 
 ## Advanced scaling (roadmap)
 
