@@ -5,26 +5,26 @@
 A full-stack **contact manager** built with **Spring Boot 3.5.14**, **Java 21**, and **Maven** — a
 JSON REST API plus a framework-free browser UI. It features **JWT authentication**, **role-based
 access** (USER / ADMIN), **per-user contact ownership**, and account **self-service**, all backed by
-a persistent file-mode **H2** database and covered by **219 automated tests** (plus a browser
-end-to-end walkthrough).
+a persistent file-mode **H2** database and covered by **233 automated tests** (plus three browser
+end-to-end suites).
 
 ## Screenshots
 
-| Sign in | Contacts (admin view) |
+| Sign in | Admin dashboard — user administration |
 |---|---|
-| ![Login screen](docs/screenshots/01-login.png) | ![Contacts list](docs/screenshots/02-contacts.png) |
+| ![Login screen](docs/screenshots-v1.0.0-beta.2/01-login.png) | ![Admin dashboard](docs/screenshots-v1.0.0-beta.2/02-dashboard.png) |
 
-| Admin user management — search, filters, stats, bulk & pagination | My profile |
+| Contacts (admin view — all users' contacts) | Admin user management — search, filters, stats, bulk & pagination |
 |---|---|
-| ![User management](docs/screenshots/03-users.png) | ![Profile & change password](docs/screenshots/04-profile.png) |
+| ![Contacts list](docs/screenshots-v1.0.0-beta.2/03-contacts.png) | ![User management](docs/screenshots-v1.0.0-beta.2/04-users.png) |
 
-**Admin activity log — filter by actor / action / date range**
-
-![Activity log](docs/screenshots/05-activity.png)
+| My profile | Admin activity log — filter by actor / action / date range |
+|---|---|
+| ![Profile & change password](docs/screenshots-v1.0.0-beta.2/05-profile.png) | ![Activity log](docs/screenshots-v1.0.0-beta.2/06-activity.png) |
 
 **Dark mode** (theme toggle, saved per browser)
 
-![Contacts in dark mode](docs/screenshots/06-dark-mode.png)
+![Contacts in dark mode](docs/screenshots-v1.0.0-beta.2/07-dark-mode.png)
 
 > A step-by-step walkthrough with these screens lives in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
@@ -42,7 +42,8 @@ end-to-end walkthrough).
 - **Notes**, click-to-action `tel:` / `mailto:` links, and a **dark / light** theme toggle
 
 ### Accounts & security
-- **JWT authentication** — register / login for a stateless bearer token; styled login page
+- **JWT authentication** — register / login for a short-lived access JWT + rotating refresh token
+  (silent refresh in the UI, server-side revocation, real logout); styled login page
 - **Roles** — `USER` and `ADMIN`, enforced with method security
 - **Per-user ownership** — a `USER` sees and manages only their own contacts; an `ADMIN` sees all.
   Email uniqueness is per-owner, and cross-user access returns `404` (never reveals existence)
@@ -124,10 +125,33 @@ The app runs under the `postgres` Spring profile (`SPRING_PROFILES_ACTIVE=postgr
 stored in the `pgdata` volume so it **survives restarts**. H2 stays the default for local dev and
 tests.
 
+### Serve over HTTPS (TLS)
+
+The app listens on plain HTTP and emits an **HSTS** header on HTTPS requests, so TLS is terminated by a
+reverse proxy in front of it (the usual production pattern; also how PaaS hosts work). A ready-to-use
+**Caddy** overlay (automatic Let's Encrypt certificates) ships as `docker-compose.tls.yml`:
+
+```bash
+cp .env.example .env        # set DOMAIN to a real hostname pointing at this host
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build
+```
+
+Caddy obtains/renews the certificate for `$DOMAIN` and proxies HTTPS → the app over the internal
+network. The overlay makes the stack safe by construction: it enables forwarded-header trust on the app
+(`SERVER_FORWARD_HEADERS_STRATEGY=framework`, so the app honours Caddy's `X-Forwarded-Proto=https`), and
+the base compose already binds the app's `8080` to **host loopback** so only Caddy (80/443) is
+internet-facing. Forwarded-header trust is **off by default** — a directly-exposed app must not trust
+client-supplied `X-Forwarded-*`. (For a quick local TLS smoke-test you can set `DOMAIN=localhost`, but
+Caddy then serves a cert from its own untrusted CA and the browser may pin HSTS for `localhost` — use a
+real domain for anything real.) Picking the actual
+host is tracked as **CD-025**; see [docs/RELEASE-AND-DEPLOYMENT.md](docs/RELEASE-AND-DEPLOYMENT.md) §2.
+
 ## Authentication flow
 
-All `/api/v1/contacts/**` and `/api/v1/users/**` endpoints require a bearer token. Obtain one from
-the auth endpoints, then send it as `Authorization: Bearer <token>`.
+All `/api/v1/contacts/**` and `/api/v1/users/**` endpoints require a bearer token. Login/register
+return a **token pair** (CD-028): a short-lived **access JWT** (`token`, 15 min default) sent as
+`Authorization: Bearer <token>`, plus an opaque **refresh token** (`refreshToken`, 14 days, rotating)
+used to mint new pairs via `/auth/refresh`.
 
 ```bash
 # 1) Log in (or POST the same body to /register to create a USER account)
@@ -139,12 +163,20 @@ TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
 curl http://localhost:8080/api/v1/contacts -H "Authorization: Bearer $TOKEN"
 ```
 
-| Method | Path                          | Description                              | Auth        |
-|--------|-------------------------------|------------------------------------------|-------------|
-| `POST` | `/api/v1/auth/register`       | Create a USER account, returns a JWT     | public      |
-| `POST` | `/api/v1/auth/login`          | Log in, returns a JWT                     | public      |
-| `GET`  | `/api/v1/auth/me`             | Current user (username, role, createdAt) | bearer      |
-| `POST` | `/api/v1/auth/change-password`| Change your own password                  | bearer      |
+| Method | Path                          | Description                                            | Auth        |
+|--------|-------------------------------|--------------------------------------------------------|-------------|
+| `POST` | `/api/v1/auth/register`       | Create a USER account, returns a token pair            | public      |
+| `POST` | `/api/v1/auth/login`          | Log in, returns a token pair                           | public      |
+| `POST` | `/api/v1/auth/refresh`        | Rotate the refresh token, returns a fresh pair         | refresh token |
+| `POST` | `/api/v1/auth/logout`         | Revoke the refresh session server-side (idempotent 204) | public      |
+| `GET`  | `/api/v1/auth/me`             | Current user (username, role, createdAt)               | bearer      |
+| `POST` | `/api/v1/auth/change-password`| Change your own password (revokes other sessions)      | bearer      |
+
+Refresh tokens **rotate on every use**; the server stores only a SHA-256 hash. Replaying an
+already-used refresh token (outside a short concurrency grace window) is treated as **theft**: the
+whole session family is revoked and the event is audited. Password change/reset, account disable and
+delete also revoke the affected user's refresh sessions. The web UI refreshes silently
+(`auth-client.js`), so the short access token is invisible to users.
 
 ## API endpoints
 
@@ -225,7 +257,10 @@ All defaults are dev-friendly and overridable via environment variables:
 | Variable                     | Default                         | Purpose                              |
 |------------------------------|---------------------------------|--------------------------------------|
 | `APP_JWT_SECRET`             | a `change-me…` placeholder       | HS256 signing secret (≥ 32 bytes)    |
-| `APP_JWT_EXPIRATION_MS`      | `86400000` (24h)                | Token lifetime                       |
+| `APP_JWT_EXPIRATION_MS`      | `900000` (15m)                  | Access-token lifetime                |
+| `APP_JWT_REFRESH_EXPIRATION_MS` | `1209600000` (14d)           | Refresh-token lifetime (sliding)     |
+| `APP_JWT_REFRESH_REUSE_GRACE_SECONDS` | `30`                   | Concurrency grace before a refresh replay counts as theft |
+| `APP_JWT_MAX_SESSIONS_PER_USER` | `10`                         | Live refresh sessions per user (oldest evicted) |
 | `APP_DEFAULT_ADMIN_USERNAME` | `admin`                         | Seeded admin username                |
 | `APP_DEFAULT_ADMIN_PASSWORD` | `admin123`                      | Seeded admin password                |
 | `app.security.max-login-attempts` | `5`                        | Failed logins before lockout         |
@@ -237,16 +272,18 @@ All defaults are dev-friendly and overridable via environment variables:
 ./mvnw clean verify   # unit + integration + HTTP e2e, plus the JaCoCo coverage gate
 ```
 
-**219 tests** across 18 classes (unit + full-stack integration + HTTP end-to-end), including
-cross-user isolation, role enforcement, optimistic concurrency, account self-service, lockout and the
-Actuator health/metrics surface. A JaCoCo coverage report is written to
-`target/site/jacoco/index.html`.
+**233 tests** across 20 classes (unit + full-stack integration + HTTP end-to-end), including
+cross-user isolation, role enforcement, optimistic concurrency, account self-service, lockout, the
+refresh-token lifecycle, HSTS, and the Actuator health/metrics surface. A JaCoCo coverage report is
+written to `target/site/jacoco/index.html`.
 
-Two **browser end-to-end** suites drive the real web UI in headless Chromium via
+Three **browser end-to-end** suites drive the real web UI in headless Chromium via
 [Playwright](https://playwright.dev/java/): `PlaywrightE2eTest` walks login → dashboard → contacts →
-users → activity → profile on H2 (saving screenshots + a video to `target/playwright/`), and
+users → activity → profile on H2 (saving screenshots + a video to `target/playwright/`),
 `PlaywrightPostgresE2eTest` runs against a **Testcontainers PostgreSQL** to prove the real `postgres`
-profile (Flyway + the `bytea` photo round-trip) in a browser. Both are tagged `e2e` and
+profile (Flyway + the `bytea` photo round-trip) in a browser, and `PlaywrightSilentRefreshE2eTest`
+proves the **silent token refresh** (with a 3-second access token, the session survives expiry with no
+re-login, and logout is real). All are tagged `e2e` and
 **excluded from the default build**; they run only on `master`/`develop` (and on demand) via the
 [`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run them
 locally.

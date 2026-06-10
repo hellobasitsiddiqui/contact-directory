@@ -2,6 +2,7 @@ package com.example.contacts;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -170,5 +171,33 @@ class SecurityIntegrationTest {
     void me_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/api/v1/auth/me"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    // ---- HSTS (CD-027) ----------------------------------------------------
+
+    /**
+     * Over HTTPS the app must advertise HSTS so browsers pin the site to TLS.
+     * (Behind a TLS-terminating proxy the request is "secure" via the forwarded
+     * proto; {@code .secure(true)} simulates that here.)
+     */
+    @Test
+    void secureRequest_emitsHstsHeader() throws Exception {
+        mockMvc.perform(get("/").secure(true))
+                .andExpect(header().string("Strict-Transport-Security",
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("max-age=31536000"),
+                                org.hamcrest.Matchers.containsString("includeSubDomains"),
+                                org.hamcrest.Matchers.containsString("preload"))));
+    }
+
+    /**
+     * Over plain HTTP the HSTS header must NOT be sent — it would be meaningless
+     * (browsers ignore it on insecure responses) and signals nothing useful for
+     * local/dev HTTP. Spring's default {@code SecureRequestMatcher} guarantees this.
+     */
+    @Test
+    void insecureRequest_doesNotEmitHstsHeader() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(header().doesNotExist("Strict-Transport-Security"));
     }
 }

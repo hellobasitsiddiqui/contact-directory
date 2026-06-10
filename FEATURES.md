@@ -1,7 +1,7 @@
 # Contact Directory — Features
 
 A complete map of what the app does, grouped by area. Built incrementally, each area committed
-separately. **219 tests passing** (plus two browser e2e suites — an H2 UI walkthrough and a Postgres-backed one). For setup and API reference see the [README](README.md); for a
+separately. **233 tests passing** (plus three browser e2e suites — an H2 UI walkthrough, a Postgres-backed one, and a silent-refresh check). For setup and API reference see the [README](README.md); for a
 click-through tour see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
 Legend: ✅ done · 🔄 in progress · ⬜ planned
@@ -23,11 +23,11 @@ Legend: ✅ done · 🔄 in progress · ⬜ planned
 | 9 | Click-to-action — `tel:` / `mailto:` links | ✅ |
 | 10 | Dark / light mode toggle — saved to `localStorage` | ✅ |
 
-![Contacts list](docs/screenshots/02-contacts.png)
+![Contacts list](docs/screenshots-v1.0.0-beta.2/03-contacts.png)
 
 Same screen in **dark mode** (toggle saved per browser):
 
-![Contacts in dark mode](docs/screenshots/06-dark-mode.png)
+![Contacts in dark mode](docs/screenshots-v1.0.0-beta.2/07-dark-mode.png)
 
 ## Safe management
 
@@ -42,10 +42,12 @@ Same screen in **dark mode** (toggle saved per browser):
 | Feature | Status |
 |---------|--------|
 | JWT login & registration — stateless bearer tokens; styled sign-in / create-account page | ✅ |
+| Refresh tokens — short-lived access JWT (15m) + opaque rotating refresh token (14d, hashed at rest); silent refresh in the UI | ✅ |
+| Real logout & revocation — server-side session kill on logout; reuse (theft) detection revokes the whole session family; password change/reset, disable & delete revoke sessions | ✅ |
 | Spring Security — protected REST API; JSON `401` / `403` responses | ✅ |
 | Brute-force lockout — repeated failed logins lock an account (`423 Locked`) | ✅ |
 
-![Sign in](docs/screenshots/01-login.png)
+![Sign in](docs/screenshots-v1.0.0-beta.2/01-login.png)
 
 ## Roles & access control
 
@@ -60,7 +62,11 @@ Same screen in **dark mode** (toggle saved per browser):
 | Admin owns no contacts — the admin is a super-user that sees everyone's contacts (an "admin view"); contacts belong to each user | ✅ |
 | Self-protection — an admin can't demote, disable or delete their own account | ✅ |
 
-![Admin user management](docs/screenshots/03-users.png)
+The admin landing page is **user administration**, not contacts:
+
+![Admin dashboard](docs/screenshots-v1.0.0-beta.2/02-dashboard.png)
+
+![Admin user management](docs/screenshots-v1.0.0-beta.2/04-users.png)
 
 ## Account self-service
 
@@ -69,7 +75,7 @@ Same screen in **dark mode** (toggle saved per browser):
 | Change password — current + new with confirmation | ✅ |
 | Profile page — username, role and member-since | ✅ |
 
-![Profile & change password](docs/screenshots/04-profile.png)
+![Profile & change password](docs/screenshots-v1.0.0-beta.2/05-profile.png)
 
 ## Audit log (edit history)
 
@@ -80,7 +86,7 @@ Same screen in **dark mode** (toggle saved per browser):
 | Admin Activity page — `GET /api/v1/audit`, newest-first, filterable by actor and action | ✅ |
 | Resilient recording — an audit-write failure never breaks the underlying action | ✅ |
 
-![Admin activity log](docs/screenshots/05-activity.png)
+![Admin activity log](docs/screenshots-v1.0.0-beta.2/06-activity.png)
 
 ## Observability (health & metrics)
 
@@ -117,12 +123,13 @@ Admin-console UX improvements delivered as CD-006…CD-014 via the Git Flow:
 - **Persistence:** H2 **file mode** (`./data/contacts.mv.db`) by default — data survives restarts;
   tests use an isolated in-memory H2. An optional **PostgreSQL + Flyway** profile (`postgres`) is
   available for durable, production-like deployment (two-container `docker-compose`) — see the README.
-- **Tests:** **219** across 18 classes (unit + full-stack + HTTP e2e), incl. cross-user isolation,
-  role enforcement, optimistic concurrency, account self-service, lockout, audit and Actuator
-  health/metrics coverage. Two tag-excluded **browser e2e** suites run only on `master`/`develop` via
-  [`e2e.yml`](.github/workflows/e2e.yml): `PlaywrightE2eTest` (full UI walkthrough on H2, with
-  screenshots + video) and `PlaywrightPostgresE2eTest` (Testcontainers PostgreSQL — proves the real
-  `postgres` profile + the `bytea` photo round-trip in a browser).
+- **Tests:** **233** across 20 classes (unit + full-stack + HTTP e2e), incl. cross-user isolation,
+  role enforcement, optimistic concurrency, account self-service, lockout, the refresh-token
+  lifecycle, HSTS, audit and Actuator health/metrics coverage. Three tag-excluded **browser e2e**
+  suites run only on `master`/`develop` via [`e2e.yml`](.github/workflows/e2e.yml): `PlaywrightE2eTest`
+  (full UI walkthrough on H2, with screenshots + video), `PlaywrightPostgresE2eTest` (Testcontainers
+  PostgreSQL — proves the real `postgres` profile + the `bytea` photo round-trip in a browser), and
+  `PlaywrightSilentRefreshE2eTest` (proves silent token refresh past access-token expiry).
 
 ## Advanced scaling (roadmap)
 

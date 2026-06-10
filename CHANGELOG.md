@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0-beta.3] - 2026-06-10
+
+### Added
+- **Refresh tokens + real logout** (CD-028) — login/register now return a short-lived access JWT
+  (15 min default, was 24 h) **plus** an opaque rotating refresh token (14 days, sliding; stored
+  hashed). New `POST /api/v1/auth/refresh` (rotation with family-based reuse/theft detection — a
+  replayed token revokes the whole session family, audited as `AUTH_TOKEN_REUSE`) and
+  `POST /api/v1/auth/logout` (server-side revocation, idempotent, audited as `AUTH_LOGOUT`).
+  Password change/reset, account disable and delete revoke the affected user's sessions. The web UI
+  refreshes silently (shared `auth-client.js`, cross-tab safe) — no user-visible change.
+- **TLS-ready** (CD-027) — HSTS header on HTTPS responses, opt-in trust of proxy `X-Forwarded-*`
+  headers (off by default), loopback-bound app port, and a Caddy reverse-proxy overlay
+  (`docker-compose.tls.yml`) with automatic Let's Encrypt certificates.
+
+### Fixed
+- A still-valid access token belonging to a just-deleted user caused a `500` on any API call
+  (uncaught lookup failure in the JWT filter); now a clean `401` (CD-028).
+
+### Docs
+- Refreshed UI screenshots for the admin-centric layout (CD-047) and two consistency sweeps keeping
+  the docs aligned with the shipped state — test counts, the three browser e2e suites, the TLS/refresh
+  notes (CD-048, CD-049).
+
 ## [1.0.0-beta.2] - 2026-06-09
 
 ### Added
@@ -52,6 +75,7 @@ All notable changes to this project are documented here. The format is based on
   (grouped, majors ignored), Docker image, and a Git Flow workflow with protected `master`/`develop`.
 
 ### Notes
-- First tagged release. `master` is the release branch; `v1.0.0` is cut from the `develop` → `master`
-  release merge. Persistence is H2 file-mode and secrets default to dev values — see
+- First tagged release (a **pre-release**). `master` is the release branch; each release tag
+  (e.g. `v1.0.0-beta.1`) is cut from the `develop` → `master` release merge. A stable `v1.0.0` (GA)
+  is still to come. Persistence is H2 file-mode and secrets default to dev values — see
   `docs/RELEASE-AND-DEPLOYMENT.md` for the durable-deploy roadmap (Postgres + Flyway, real secrets).

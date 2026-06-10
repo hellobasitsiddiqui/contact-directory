@@ -17,7 +17,7 @@ tags:
 - name: Audit log
   description: Admin-only read access to the audit log
 - name: Authentication
-  description: "Register, login and current-user endpoints"
+  description: "Register, login, refresh, logout and current-user endpoints"
 paths:
   /api/v1/contacts/{id}:
     get:
@@ -442,7 +442,7 @@ paths:
     post:
       tags:
       - Authentication
-      summary: Register a new account and receive a JWT
+      summary: Register a new account and receive an access + refresh token pair
       operationId: register
       requestBody:
         content:
@@ -457,11 +457,45 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - Authentication
+      summary: Exchange a refresh token for a new access + refresh token pair (rotation)
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Authentication
+      summary: "Log out: revoke the refresh-token session server-side (idempotent)"
+      operationId: logout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "200":
+          description: OK
   /api/v1/auth/login:
     post:
       tags:
       - Authentication
-      summary: Log in with username/password and receive a JWT
+      summary: Log in with username/password and receive an access + refresh token
+        pair
       operationId: login
       requestBody:
         content:
@@ -480,7 +514,7 @@ paths:
     post:
       tags:
       - Authentication
-      summary: Change the current user's own password
+      summary: Change the current user's own password (revokes every other session)
       operationId: changePassword
       requestBody:
         content:
@@ -495,8 +529,7 @@ paths:
             '*/*':
               schema:
                 type: object
-                additionalProperties:
-                  type: string
+                additionalProperties: {}
   /api/v1/users/{id}/role:
     patch:
       tags:
@@ -705,6 +738,8 @@ paths:
           - AUTH_REGISTER
           - AUTH_LOGIN
           - AUTH_PASSWORD_CHANGE
+          - AUTH_LOGOUT
+          - AUTH_TOKEN_REUSE
       - name: page
         in: query
         description: Zero-based page index (0..N)
@@ -960,6 +995,24 @@ components:
         expiresInMs:
           type: integer
           format: int64
+        refreshToken:
+          type: string
+        refreshExpiresInMs:
+          type: integer
+          format: int64
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+      required:
+      - refreshToken
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
     LoginRequest:
       type: object
       properties:
@@ -1081,9 +1134,9 @@ components:
     SortObject:
       type: object
       properties:
-        unsorted:
-          type: boolean
         sorted:
+          type: boolean
+        unsorted:
           type: boolean
         empty:
           type: boolean

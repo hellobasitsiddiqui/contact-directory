@@ -108,6 +108,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles an unusable refresh token (unknown, expired, revoked, reused or
+     * disabled account), returning {@code 401 Unauthorized} with one fixed
+     * message so callers cannot probe token state (CD-028).
+     *
+     * @param ex  the thrown exception
+     * @param req the current request, used to populate the error path
+     * @return a {@code 401} response wrapping an {@link ApiError}
+     */
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<ApiError> handleInvalidRefreshToken(
+            InvalidRefreshTokenException ex, HttpServletRequest req) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), req);
+    }
+
+    /**
      * Handles login attempts against a temporarily locked account (too many
      * consecutive failed logins), returning {@code 423 Locked}.
      *

@@ -73,12 +73,13 @@ changes.
 
 ## Browser end-to-end tests (Playwright)
 
-There are three e2e layers. The **HTTP e2e** (`HttpEndToEndTest`) runs as part of the default
-`mvn verify` gate above. Two **browser e2e** suites drive the real UI in headless Chromium and save
-screenshots + a video to `target/playwright/`: `PlaywrightE2eTest` (full walkthrough on H2) and
-`PlaywrightPostgresE2eTest` (a Testcontainers PostgreSQL — proves the `postgres` profile + the `bytea`
-photo round-trip; needs Docker). Both are tagged `e2e` and **deliberately excluded from `mvn verify`**
-(they need a downloaded browser and are slow), so they do **not** run on feature PRs.
+The **HTTP e2e** (`HttpEndToEndTest`) runs as part of the default `mvn verify` gate above. Three
+**browser e2e** suites drive the real UI in headless Chromium and save screenshots + a video to
+`target/playwright/`: `PlaywrightE2eTest` (full walkthrough on H2), `PlaywrightPostgresE2eTest` (a
+Testcontainers PostgreSQL — proves the `postgres` profile + the `bytea` photo round-trip; needs
+Docker), and `PlaywrightSilentRefreshE2eTest` (proves silent token refresh past access-token expiry).
+All are tagged `e2e` and **deliberately excluded from `mvn verify`** (they need a downloaded browser
+and are slow), so they do **not** run on feature PRs.
 
 - **Trigger policy:** the browser e2e runs **only** on pushes to `master`/`develop` (post-merge) and
   on manual `workflow_dispatch`, via [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml). That

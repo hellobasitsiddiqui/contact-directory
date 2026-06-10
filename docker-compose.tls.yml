@@ -1,0 +1,42 @@
+# TLS overlay (CD-027): puts a Caddy reverse proxy in front of the app so traffic
+# is served over HTTPS with an automatic Let's Encrypt certificate. Caddy
+# terminates TLS and proxies to the app over the internal compose network.
+#
+#   cp .env.example .env        # set DOMAIN (a real hostname pointing at this host)
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up --build
+#
+# Requirements: $DOMAIN resolves to this host, and ports 80 + 443 are open. For a
+# local-only HTTPS trial use DOMAIN=localhost (Caddy issues a self-signed cert).
+#
+# This overlay makes the proxied stack safe by construction: it enables
+# forwarded-header trust on the app (off by default — see application.yml), and
+# the base compose already binds the app's 8080 to host loopback (not 0.0.0.0),
+# so only Caddy (80/443) is internet-facing. Caddy reaches the app over the
+# internal compose network. (Docker Compose CONCATENATES `ports` across files, so
+# an overlay cannot un-publish a base port — hence the loopback bind lives in the
+# base file.)
+services:
+  app:
+    environment:
+      # Trust the proxy's X-Forwarded-* (so X-Forwarded-Proto=https → HSTS fires).
+      # Safe here because the app is only reachable via Caddy / host loopback.
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+
+  caddy:
+    image: caddy:2
+    depends_on:
+      - app
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env (a hostname pointing at this host, or "localhost")}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

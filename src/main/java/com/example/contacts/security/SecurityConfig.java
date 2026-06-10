@@ -40,7 +40,7 @@ public class SecurityConfig {
             "/", "/index.html", "/login.html", "/users.html", "/profile.html", "/activity.html",
             "/dashboard.html",
             "/app.js", "/login.js", "/users.js", "/profile.js", "/activity.js", "/confirm-dialog.js",
-            "/dashboard.js",
+            "/dashboard.js", "/auth-client.js",
             "/styles.css", "/favicon.ico"
     };
 
@@ -64,12 +64,29 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Allow the H2 console to render inside frames (same origin).
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                .headers(headers -> headers
+                        // Allow the H2 console to render inside frames (same origin).
+                        .frameOptions(frame -> frame.sameOrigin())
+                        // HSTS (CD-027): once a browser has seen the site over HTTPS,
+                        // force HTTPS for a year, including subdomains, and allow
+                        // preload-list inclusion. Spring only emits this header on
+                        // *secure* requests, so plain-HTTP local dev is unaffected;
+                        // behind a TLS-terminating proxy it fires because
+                        // server.forward-headers-strategy lets the app see
+                        // X-Forwarded-Proto=https.
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .preload(true)
+                                .maxAgeInSeconds(31_536_000)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        // Refresh authenticates by the refresh secret itself (the
+                        // access token may be expired); logout is idempotent and
+                        // must work for a half-dead session — both stay public.
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
+                                "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
+                                "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         // Health + info are public so orchestration probes can poll them
                         // unauthenticated; all other actuator endpoints (e.g. metrics)

@@ -42,11 +42,9 @@ const auth = {
       return null;
     }
   },
-  /** Clear credentials and return to the login page. */
+  /** Revoke the refresh session server-side, clear credentials, go to login. */
   logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    window.location.replace('login.html');
+    AuthClient.logout();
   },
 };
 
@@ -221,15 +219,11 @@ async function request(url, options = {}) {
     }
   }
 
-  // Attach the JWT bearer token to every API call.
-  const token = auth.token();
-  if (token) {
-    opts.headers = { ...(opts.headers || {}), Authorization: `Bearer ${token}` };
-  }
-
+  // AuthClient attaches the bearer token and silently refreshes it (proactively
+  // near expiry; reactively once on a 401, then retries) — CD-028.
   let response;
   try {
-    response = await fetch(url, opts);
+    response = await AuthClient.authFetch(url, opts);
   } catch (networkErr) {
     const err = new Error('Network error — could not reach the server.');
     err.status = 0;
@@ -238,7 +232,7 @@ async function request(url, options = {}) {
     throw err;
   }
 
-  // An expired/invalid token (or being signed out server-side) -> back to login.
+  // Still 401 after the silent refresh: the session is truly dead -> login.
   if (response.status === 401) {
     auth.logout();
     const err = new Error('Session expired — please sign in again.');
@@ -618,9 +612,9 @@ function makeStarCell(contact) {
  *        auto-revoking (so a caller can revoke it later, e.g. the modal preview)
  */
 function setAuthedImageSrc(img, url, onUrl) {
-  const token = auth.token();
-  const opts = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-  fetch(url, opts)
+  // authFetch attaches the bearer token and silently refreshes when needed,
+  // so avatars keep loading past access-token expiry (CD-028).
+  AuthClient.authFetch(url, {})
     .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then((blob) => {
       const objectUrl = URL.createObjectURL(blob);

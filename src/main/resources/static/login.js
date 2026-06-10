@@ -1,14 +1,11 @@
 /* ------------------------------------------------------------------ *
  * Login / register page logic.
  *
- * Talks to the public /api/v1/auth endpoints, stores the returned JWT in
- * localStorage, then redirects to the main app. Shares the storage keys with
- * app.js (auth_token / auth_user).
+ * Talks to the public /api/v1/auth endpoints, stores the returned token pair
+ * via AuthClient (auth-client.js), then redirects to the main app.
  * ------------------------------------------------------------------ */
 
 const AUTH_BASE = '/api/v1/auth';
-const TOKEN_KEY = 'auth_token';
-const USER_KEY = 'auth_user';
 
 let mode = 'login'; // 'login' | 'register'
 
@@ -108,11 +105,8 @@ async function submit(event) {
     }
 
     const data = await response.json();
-    localStorage.setItem(TOKEN_KEY, data.token);
-    localStorage.setItem(USER_KEY, JSON.stringify({
-      username: data.username,
-      role: data.role,
-    }));
+    // Stores the access token, refresh token, expiry and identity (CD-028).
+    AuthClient.savePair(data);
     // Admins land on the dashboard (user administration); regular users on their
     // contacts. Falls back to the contacts page if the role is somehow absent.
     window.location.replace(data.role === 'ADMIN' ? 'dashboard.html' : 'index.html');

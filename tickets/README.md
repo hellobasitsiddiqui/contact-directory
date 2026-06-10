@@ -37,8 +37,8 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-024](CD-024-postgres-flyway.md) | Durable persistence (Postgres + Flyway) | Done (#44) |
 | [CD-025](CD-025-deploy-target.md) | Deploy target + optional deploy.yml | Open |
 | [CD-026](CD-026-mobile-api-findings.md) | Save mobile API readiness findings (docs/MOBILE-API-READINESS.md) | Done (#37) |
-| [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | Open |
-| [CD-028](CD-028-refresh-tokens.md) | Refresh tokens + server-side revocation + logout | Open |
+| [CD-027](CD-027-tls-hsts.md) | HTTPS/TLS + HSTS (mobile blocker) | Done (#53) |
+| [CD-028](CD-028-refresh-tokens.md) | Refresh tokens + server-side revocation + real logout | Done (#54) |
 | [CD-029](CD-029-users-pagination-api.md) | Server-side pagination/filter/sort for /api/v1/users | Open |
 | [CD-030](CD-030-upload-limits-photo-url.md) | Larger photo upload limit + absolute photoUrl | Open |
 | [CD-031](CD-031-rate-limiting.md) | Lockout/rate-limit feedback + API rate limiting | Open |
@@ -55,5 +55,9 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-042](CD-042-postgres-integration-test.md) | Postgres integration test (Testcontainers + Playwright) + tag-query Postgres fix | Done (#45) |
 | [CD-043](CD-043-photo-display-auth.md) | Contact photos don't display in the browser (img can't authenticate) | Done (#46) |
 | [CD-044](CD-044-admin-centric-ux.md) | Admin-centric UX — dashboard landing, de-couple admin from contacts, seed sample users | Done (#47) |
-| [CD-045](CD-045-doc-sweep.md) | Docs consistency sweep (post CD-024…CD-044) | In review |
-| [CD-046](CD-046-release-beta2.md) | Release prep — 1.0.0-beta.2 | In review |
+| [CD-045](CD-045-doc-sweep.md) | Docs consistency sweep (post CD-024…CD-044) | Done (#48) |
+| [CD-046](CD-046-release-beta2.md) | Release prep — 1.0.0-beta.2 | Done (#49) |
+| [CD-047](CD-047-refresh-screenshots.md) | Refresh screenshots for the admin-centric UI | Done (#51) |
+| [CD-048](CD-048-doc-sweep-beta2.md) | Docs consistency sweep (post-beta.2: ticket statuses + release/deploy plan) | Done (#52) |
+| [CD-049](CD-049-review-loop.md) | Post-CD-028 review loop (doc sweep + code/security review) | Done (#55) |
+| [CD-050](CD-050-release-beta3.md) | Release prep — 1.0.0-beta.3 | In review |
