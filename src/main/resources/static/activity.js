@@ -37,6 +37,8 @@ const AUDIT_ACTIONS = [
   'AUTH_REGISTER',
   'AUTH_LOGIN',
   'AUTH_PASSWORD_CHANGE',
+  'AUTH_LOGOUT',
+  'AUTH_TOKEN_REUSE',
 ];
 
 const auth = {

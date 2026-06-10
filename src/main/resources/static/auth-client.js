@@ -90,7 +90,14 @@
         body: JSON.stringify({ refreshToken }),
       });
       if (!response.ok) return false;
-      savePair(await response.json());
+      const data = await response.json();
+      // Storage may have changed during the round-trip. If it was cleared
+      // (a logout in another tab), DO NOT resurrect it. If another tab already
+      // rotated, a fresher token is in place — keep it, don't clobber.
+      const stored = localStorage.getItem(KEY_REFRESH);
+      if (stored === null) return false;
+      if (stored !== refreshToken) return true;
+      savePair(data);
       return true;
     } catch (_) {
       return false; // network error — caller falls back to logout via 401 path
@@ -99,19 +106,19 @@
 
   /**
    * Single refresh shared by every caller (and every tab, where the Web Locks
-   * API exists). Inside the lock the freshness is re-checked, so a tab that
-   * lost the race reuses the winner's brand-new token instead of refreshing
-   * again (which would burn the rotation grace window for nothing).
+   * API exists). The skip decision is by token IDENTITY, not the clock: if the
+   * access token a caller saw as stale/rejected has ALREADY changed in storage
+   * (another caller/tab refreshed it), reuse that instead of refreshing again.
+   * A server-rejected-but-locally-"fresh" token (the reactive-401 case) is NOT
+   * skipped — its identity is unchanged, so doRefresh actually runs.
+   *
+   * @param staleToken the access token the caller observed needing replacement
    */
-  function tryRefresh() {
+  function tryRefresh(staleToken) {
     if (inflightRefresh) return inflightRefresh;
     const run = async () => {
-      if (!isStale()) {
-        // Another tab refreshed while this one waited on the lock; the stored
-        // token is already fresh. (First-call staleness was checked by the
-        // caller — ensureFresh — or implied by a 401.)
-        const recheck = Number(localStorage.getItem(KEY_EXPIRES_AT));
-        if (recheck && Date.now() < recheck - EXPIRY_SLACK_MS) return true;
+      if (staleToken && token() !== staleToken) {
+        return true; // someone else already refreshed this token
       }
       return doRefresh();
     };
@@ -127,7 +134,7 @@
   /** Refreshes proactively when the access token is near expiry. */
   async function ensureFresh() {
     if (isStale() && localStorage.getItem(KEY_REFRESH)) {
-      await tryRefresh();
+      await tryRefresh(token());
     }
   }
 
@@ -139,18 +146,20 @@
    */
   async function authFetch(url, opts) {
     await ensureFresh();
-    const send = () => {
+    const send = (bearer) => {
       const options = { ...(opts || {}) };
-      const bearer = token();
       if (bearer) {
         options.headers = { ...(options.headers || {}), Authorization: `Bearer ${bearer}` };
       }
       return fetch(url, options);
     };
-    let response = await send();
+    const bearer = token();
+    let response = await send(bearer);
     if (response.status === 401 && localStorage.getItem(KEY_REFRESH)) {
-      if (await tryRefresh()) {
-        response = await send();
+      // Refresh keyed on the token that was actually rejected, then retry with
+      // whatever fresh token resulted (this tab's or another's).
+      if (await tryRefresh(bearer)) {
+        response = await send(token());
       }
     }
     return response;

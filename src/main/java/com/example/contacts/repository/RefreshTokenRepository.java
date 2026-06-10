@@ -21,12 +21,17 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     /**
-     * Atomically claims a token for rotation: marks it used only if it has not
-     * been used yet. Returns the number of rows updated — {@code 1} means the
-     * caller won the claim; {@code 0} means a concurrent request already used it.
+     * Atomically claims a token for rotation: marks it used only if it is still
+     * unused <em>and not revoked</em>. The {@code revokedAt} guard closes a race
+     * where a concurrent {@code revokeFamily}/{@code revokeAllForUser} commits
+     * between rotate()'s snapshot read and the claim — without it, the claim
+     * would succeed and mint a child that escapes the revocation. Returns the
+     * number of rows updated: {@code 1} = claim won; {@code 0} = the token was
+     * concurrently used or revoked (the caller re-reads to tell which).
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update RefreshToken t set t.usedAt = :now where t.id = :id and t.usedAt is null")
+    @Query("update RefreshToken t set t.usedAt = :now "
+            + "where t.id = :id and t.usedAt is null and t.revokedAt is null")
     int markUsed(@Param("id") Long id, @Param("now") Instant now);
 
     /** Revokes every not-yet-revoked token in a family (rotation lineage). */

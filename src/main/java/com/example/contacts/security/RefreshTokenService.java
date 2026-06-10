@@ -122,12 +122,18 @@ public class RefreshTokenService {
             return handleUsedToken(current, user, now);
         }
 
-        // Live token: claim it atomically. Losing the claim means a concurrent
-        // request rotated it microseconds ago — treat exactly like the benign
-        // within-grace retry below (mint a sibling) rather than failing the tab.
+        // Live token: claim it atomically (the WHERE also rejects a row revoked
+        // between the snapshot read above and now). Losing the claim is one of
+        // two races, distinguished by re-reading the now-cleared row:
         int claimed = repository.markUsed(current.getId(), now);
         if (claimed == 0) {
-            return mint(user, current.getFamilyId(), now);
+            RefreshToken reread = repository.findById(current.getId()).orElse(null);
+            // Revoked (or vanished) under us -> the session is dead; 401.
+            if (reread == null || reread.getRevokedAt() != null) {
+                throw new InvalidRefreshTokenException();
+            }
+            // Otherwise a concurrent request rotated it microseconds ago: benign
+            // (two tabs racing) -> mint a sibling rather than fail the tab.
         }
         return mint(user, current.getFamilyId(), now);
     }

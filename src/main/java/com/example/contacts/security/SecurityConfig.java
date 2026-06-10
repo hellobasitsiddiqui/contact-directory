@@ -85,7 +85,8 @@ public class SecurityConfig {
                         // must work for a half-dead session — both stay public.
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
                                 "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
+                                "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         // Health + info are public so orchestration probes can poll them
                         // unauthenticated; all other actuator endpoints (e.g. metrics)
