@@ -5,8 +5,8 @@
 A full-stack **contact manager** built with **Spring Boot 3.5.14**, **Java 21**, and **Maven** — a
 JSON REST API plus a framework-free browser UI. It features **JWT authentication**, **role-based
 access** (USER / ADMIN), **per-user contact ownership**, and account **self-service**, all backed by
-a persistent file-mode **H2** database and covered by **219 automated tests** (plus a browser
-end-to-end walkthrough).
+a persistent file-mode **H2** database and covered by **233 automated tests** (plus three browser
+end-to-end suites).
 
 ## Screenshots
 
@@ -272,16 +272,18 @@ All defaults are dev-friendly and overridable via environment variables:
 ./mvnw clean verify   # unit + integration + HTTP e2e, plus the JaCoCo coverage gate
 ```
 
-**219 tests** across 18 classes (unit + full-stack integration + HTTP end-to-end), including
-cross-user isolation, role enforcement, optimistic concurrency, account self-service, lockout and the
-Actuator health/metrics surface. A JaCoCo coverage report is written to
-`target/site/jacoco/index.html`.
+**233 tests** across 20 classes (unit + full-stack integration + HTTP end-to-end), including
+cross-user isolation, role enforcement, optimistic concurrency, account self-service, lockout, the
+refresh-token lifecycle, HSTS, and the Actuator health/metrics surface. A JaCoCo coverage report is
+written to `target/site/jacoco/index.html`.
 
-Two **browser end-to-end** suites drive the real web UI in headless Chromium via
+Three **browser end-to-end** suites drive the real web UI in headless Chromium via
 [Playwright](https://playwright.dev/java/): `PlaywrightE2eTest` walks login → dashboard → contacts →
-users → activity → profile on H2 (saving screenshots + a video to `target/playwright/`), and
+users → activity → profile on H2 (saving screenshots + a video to `target/playwright/`),
 `PlaywrightPostgresE2eTest` runs against a **Testcontainers PostgreSQL** to prove the real `postgres`
-profile (Flyway + the `bytea` photo round-trip) in a browser. Both are tagged `e2e` and
+profile (Flyway + the `bytea` photo round-trip) in a browser, and `PlaywrightSilentRefreshE2eTest`
+proves the **silent token refresh** (with a 3-second access token, the session survives expiry with no
+re-login, and logout is real). All are tagged `e2e` and
 **excluded from the default build**; they run only on `master`/`develop` (and on demand) via the
 [`e2e.yml`](.github/workflows/e2e.yml) workflow. See [CONTRIBUTING.md](CONTRIBUTING.md) to run them
 locally.
