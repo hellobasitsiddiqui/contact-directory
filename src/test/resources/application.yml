@@ -50,6 +50,12 @@ app:
   jwt:
     secret: test-only-jwt-signing-secret-at-least-32-bytes-long-1234567890
     expiration-ms: 3600000
+    # Refresh-token settings (CD-028). Individual test classes override the
+    # grace window (e.g. to 0) via @SpringBootTest properties to force the
+    # reuse/theft path deterministically.
+    refresh-expiration-ms: 1209600000
+    refresh-reuse-grace-seconds: 30
+    max-sessions-per-user: 10
   default-admin:
     username: admin
     password: admin123

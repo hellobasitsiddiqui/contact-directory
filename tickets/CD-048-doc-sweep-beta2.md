@@ -1,7 +1,7 @@
 # CD-048: Docs consistency sweep (post-beta.2)
 
 - **Type:** docs
-- **Status:** In review
+- **Status:** Done (#52)
 - **Branch:** `CD-048-doc-sweep-beta2`
 
 ## Summary

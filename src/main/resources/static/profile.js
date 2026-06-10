@@ -23,11 +23,9 @@ const auth = {
       return null;
     }
   },
-  /** Clear credentials and return to the login page. */
+  /** Revoke the refresh session server-side, clear credentials, go to login. */
   logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    window.location.replace('login.html');
+    AuthClient.logout();
   },
 };
 
@@ -35,20 +33,15 @@ function $(id) {
   return document.getElementById(id);
 }
 
-/** Fetch wrapper: attaches the bearer token, throws on non-2xx, redirects on 401. */
+/** Fetch wrapper: bearer token + silent refresh via AuthClient (CD-028). */
 async function request(url, options = {}) {
   const opts = { ...options };
   if (opts.body !== undefined && opts.body !== null && typeof opts.body !== 'string') {
     opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     opts.body = JSON.stringify(opts.body);
   }
-  const token = auth.token();
-  if (token) {
-    opts.headers = { ...(opts.headers || {}), Authorization: `Bearer ${token}` };
-  }
-
-  const response = await fetch(url, opts);
-  // An expired/invalid token (or being signed out server-side) -> back to login.
+  const response = await AuthClient.authFetch(url, opts);
+  // Still 401 after the silent refresh: the session is truly dead -> login.
   if (response.status === 401) {
     auth.logout();
     const err = new Error('Session expired — please sign in again.');
@@ -205,10 +198,13 @@ async function submitPassword(event) {
 
   setBusy(true);
   try {
-    await request(`${AUTH_BASE}/change-password`, {
+    const body = await request(`${AUTH_BASE}/change-password`, {
       method: 'POST',
       body: { currentPassword, newPassword },
     });
+    // The server revoked every session (all devices) and handed THIS session a
+    // fresh token pair — adopt it so the user stays signed in (CD-028).
+    AuthClient.savePair(body);
     $('password-form').reset();
     showMessage('Password updated.', 'success');
     toast('Password updated.', 'success');

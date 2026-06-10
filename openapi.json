@@ -31,7 +31,7 @@
         },
         {
             "name": "Authentication",
-            "description": "Register, login and current-user endpoints"
+            "description": "Register, login, refresh, logout and current-user endpoints"
         }
     ],
     "paths": {
@@ -674,7 +674,7 @@
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Register a new account and receive a JWT",
+                "summary": "Register a new account and receive an access + refresh token pair",
                 "operationId": "register",
                 "requestBody": {
                     "content": {
@@ -700,12 +700,66 @@
                 }
             }
         },
+        "/api/v1/auth/refresh": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Exchange a refresh token for a new access + refresh token pair (rotation)",
+                "operationId": "refresh",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RefreshRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Log out: revoke the refresh-token session server-side (idempotent)",
+                "operationId": "logout",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogoutRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Log in with username/password and receive a JWT",
+                "summary": "Log in with username/password and receive an access + refresh token pair",
                 "operationId": "login",
                 "requestBody": {
                     "content": {
@@ -736,7 +790,7 @@
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Change the current user's own password",
+                "summary": "Change the current user's own password (revokes every other session)",
                 "operationId": "changePassword",
                 "requestBody": {
                     "content": {
@@ -755,9 +809,7 @@
                             "*/*": {
                                 "schema": {
                                     "type": "object",
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
+                                    "additionalProperties": {}
                                 }
                             }
                         }
@@ -1070,7 +1122,9 @@
                                 "USER_DELETE",
                                 "AUTH_REGISTER",
                                 "AUTH_LOGIN",
-                                "AUTH_PASSWORD_CHANGE"
+                                "AUTH_PASSWORD_CHANGE",
+                                "AUTH_LOGOUT",
+                                "AUTH_TOKEN_REUSE"
                             ]
                         }
                     },
@@ -1443,6 +1497,33 @@
                     "expiresInMs": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "refreshToken": {
+                        "type": "string"
+                    },
+                    "refreshExpiresInMs": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "RefreshRequest": {
+                "type": "object",
+                "properties": {
+                    "refreshToken": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "refreshToken"
+                ]
+            },
+            "LogoutRequest": {
+                "type": "object",
+                "properties": {
+                    "refreshToken": {
+                        "type": "string"
                     }
                 }
             },
@@ -1556,6 +1637,19 @@
                         "type": "integer",
                         "format": "int32"
                     },
+                    "numberOfElements": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "first": {
+                        "type": "boolean"
+                    },
+                    "last": {
+                        "type": "boolean"
+                    },
+                    "pageable": {
+                        "$ref": "#/components/schemas/PageableObject"
+                    },
                     "size": {
                         "type": "integer",
                         "format": "int32"
@@ -1573,19 +1667,6 @@
                     "sort": {
                         "$ref": "#/components/schemas/SortObject"
                     },
-                    "numberOfElements": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "pageable": {
-                        "$ref": "#/components/schemas/PageableObject"
-                    },
-                    "first": {
-                        "type": "boolean"
-                    },
-                    "last": {
-                        "type": "boolean"
-                    },
                     "empty": {
                         "type": "boolean"
                     }
@@ -1594,13 +1675,6 @@
             "PageableObject": {
                 "type": "object",
                 "properties": {
-                    "offset": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "sort": {
-                        "$ref": "#/components/schemas/SortObject"
-                    },
                     "paged": {
                         "type": "boolean"
                     },
@@ -1614,19 +1688,26 @@
                     },
                     "unpaged": {
                         "type": "boolean"
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
                     }
                 }
             },
             "SortObject": {
                 "type": "object",
                 "properties": {
-                    "empty": {
-                        "type": "boolean"
-                    },
                     "sorted": {
                         "type": "boolean"
                     },
                     "unsorted": {
+                        "type": "boolean"
+                    },
+                    "empty": {
                         "type": "boolean"
                     }
                 }
@@ -1671,6 +1752,19 @@
                         "type": "integer",
                         "format": "int32"
                     },
+                    "numberOfElements": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "first": {
+                        "type": "boolean"
+                    },
+                    "last": {
+                        "type": "boolean"
+                    },
+                    "pageable": {
+                        "$ref": "#/components/schemas/PageableObject"
+                    },
                     "size": {
                         "type": "integer",
                         "format": "int32"
@@ -1687,19 +1781,6 @@
                     },
                     "sort": {
                         "$ref": "#/components/schemas/SortObject"
-                    },
-                    "numberOfElements": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
-                    "pageable": {
-                        "$ref": "#/components/schemas/PageableObject"
-                    },
-                    "first": {
-                        "type": "boolean"
-                    },
-                    "last": {
-                        "type": "boolean"
                     },
                     "empty": {
                         "type": "boolean"

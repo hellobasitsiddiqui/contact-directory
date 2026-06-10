@@ -82,8 +82,18 @@ app:
     # HS256 signing secret (>= 32 bytes). Override via APP_JWT_SECRET in any real
     # environment; this default is for local/dev use only.
     secret: ${APP_JWT_SECRET:change-me-local-dev-secret-please-override-32+bytes}
-    # Token lifetime in milliseconds (default 24h).
-    expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000}
+    # Access-token lifetime in milliseconds (default 15 minutes — CD-028; the
+    # SPA refreshes silently, so short tokens cost users nothing).
+    expiration-ms: ${APP_JWT_EXPIRATION_MS:900000}
+    # Refresh-token lifetime in milliseconds (default 14 days, sliding: each
+    # rotation issues a token with a fresh full lifetime).
+    refresh-expiration-ms: ${APP_JWT_REFRESH_EXPIRATION_MS:1209600000}
+    # Re-presenting an already-rotated refresh token within this many seconds is
+    # treated as a benign concurrent retry (two tabs racing); beyond it, as
+    # theft — the whole session family is revoked.
+    refresh-reuse-grace-seconds: ${APP_JWT_REFRESH_REUSE_GRACE_SECONDS:30}
+    # Max live refresh sessions (devices) per user; oldest are evicted first.
+    max-sessions-per-user: ${APP_JWT_MAX_SESSIONS_PER_USER:10}
   default-admin:
     # Seeded on first run when no users exist. Change before deploying.
     username: ${APP_DEFAULT_ADMIN_USERNAME:admin}

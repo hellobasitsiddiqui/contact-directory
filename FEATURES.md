@@ -42,6 +42,8 @@ Same screen in **dark mode** (toggle saved per browser):
 | Feature | Status |
 |---------|--------|
 | JWT login & registration — stateless bearer tokens; styled sign-in / create-account page | ✅ |
+| Refresh tokens — short-lived access JWT (15m) + opaque rotating refresh token (14d, hashed at rest); silent refresh in the UI | ✅ |
+| Real logout & revocation — server-side session kill on logout; reuse (theft) detection revokes the whole session family; password change/reset, disable & delete revoke sessions | ✅ |
 | Spring Security — protected REST API; JSON `401` / `403` responses | ✅ |
 | Brute-force lockout — repeated failed logins lock an account (`423 Locked`) | ✅ |
 

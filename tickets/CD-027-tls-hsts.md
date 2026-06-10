@@ -1,7 +1,7 @@
 # CD-027: HTTPS/TLS + HSTS
 
 - **Type:** infra / security
-- **Status:** In review
+- **Status:** Done (#53)
 - **Branch:** `CD-027-tls-hsts`
 
 ## Summary

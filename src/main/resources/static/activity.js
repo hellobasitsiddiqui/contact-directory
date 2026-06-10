@@ -37,6 +37,8 @@ const AUDIT_ACTIONS = [
   'AUTH_REGISTER',
   'AUTH_LOGIN',
   'AUTH_PASSWORD_CHANGE',
+  'AUTH_LOGOUT',
+  'AUTH_TOKEN_REUSE',
 ];
 
 const auth = {
@@ -51,9 +53,8 @@ const auth = {
     }
   },
   logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    window.location.replace('login.html');
+    // Revokes the refresh session server-side, clears storage, goes to login.
+    AuthClient.logout();
   },
 };
 
@@ -82,15 +83,11 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-/** Fetch wrapper: attaches the bearer token, throws on non-2xx, redirects on 401. */
+/** Fetch wrapper: bearer token + silent refresh via AuthClient (CD-028). */
 async function request(url, options = {}) {
   const opts = { ...options };
-  const token = auth.token();
-  if (token) {
-    opts.headers = { ...(opts.headers || {}), Authorization: `Bearer ${token}` };
-  }
-
-  const response = await fetch(url, opts);
+  const response = await AuthClient.authFetch(url, opts);
+  // Still 401 after the silent refresh: the session is truly dead.
   if (response.status === 401) {
     auth.logout();
     throw new Error('Session expired');

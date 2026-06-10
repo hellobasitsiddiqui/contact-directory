@@ -6,6 +6,7 @@ import com.example.contacts.exception.ResourceNotFoundException;
 import com.example.contacts.model.Role;
 import com.example.contacts.model.User;
 import com.example.contacts.repository.UserRepository;
+import com.example.contacts.security.RefreshTokenService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,9 @@ import java.util.List;
  * <p>Two integrity guards prevent an administrator from locking everyone out:
  * an admin cannot demote, disable or delete <em>their own</em> account, and the
  * <em>last remaining admin</em> cannot be demoted, disabled or deleted.
+ *
+ * <p>Lifecycle events that invalidate credentials also revoke the target's
+ * refresh-token sessions (CD-028): password reset, disable and delete.
  */
 @Service
 @Transactional
@@ -27,10 +31,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional(readOnly = true)
@@ -65,12 +72,18 @@ public class UserService {
             }
         }
         user.setEnabled(enabled);
+        if (!enabled) {
+            // A disabled account must not be able to mint new access tokens.
+            refreshTokenService.revokeAllForUser(user, RefreshTokenService.REASON_USER_DISABLED);
+        }
         return UserResponse.from(userRepository.save(user));
     }
 
     public UserResponse resetPassword(Long id, String newPassword) {
         User user = require(id);
         user.setPassword(passwordEncoder.encode(newPassword));
+        // The old credential is dead; so are all sessions minted with it.
+        refreshTokenService.revokeAllForUser(user, RefreshTokenService.REASON_ADMIN_RESET);
         return UserResponse.from(userRepository.save(user));
     }
 
@@ -82,6 +95,8 @@ public class UserService {
         if (user.getRole() == Role.ADMIN) {
             ensureNotLastAdmin(user, "delete");
         }
+        // Remove token rows first: H2 (dev/tests) has no FK cascade for them.
+        refreshTokenService.deleteAllForUser(user);
         userRepository.delete(user);
     }
 
