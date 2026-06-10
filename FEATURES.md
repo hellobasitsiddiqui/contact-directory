@@ -169,6 +169,8 @@ the DB split (shared vs per-service) is the hard part.*
 
 ## Possible next steps
 
+- ⬜ Status / uptime page — a public "is everything up?" page (operational / degraded / down per
+  component), driven by Actuator health via a curated public `/api/v1/status` endpoint (CD-051)
 - ⬜ Hibernate Envers — field-level revision history with one-click restore
 - ⬜ Forgot-password flow (needs SMTP wired)
 - ⬜ Richer contacts — multiple emails/phones/addresses, vCard import/export

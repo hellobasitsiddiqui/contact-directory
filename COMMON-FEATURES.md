@@ -60,6 +60,7 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Audit log (who did what) | Accountability | ✅ |
 | Health checks (readiness/liveness) | Orchestration | ✅ (Actuator `/actuator/health`, public) |
 | Metrics (Micrometer/Prometheus) | Monitoring | ✅ (Actuator `/actuator/metrics`, authed) |
+| Public status / uptime page | User-facing service health | ⬜ (planned — CD-051) |
 | Distributed tracing | Cross-service debugging | ⬜ |
 | Error monitoring (Sentry, etc.) | Catch prod errors | ⬜ |
 
