@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0-beta.3] - 2026-06-10
+
 ### Added
 - **Refresh tokens + real logout** (CD-028) — login/register now return a short-lived access JWT
   (15 min default, was 24 h) **plus** an opaque rotating refresh token (14 days, sliding; stored
@@ -21,6 +23,11 @@ All notable changes to this project are documented here. The format is based on
 ### Fixed
 - A still-valid access token belonging to a just-deleted user caused a `500` on any API call
   (uncaught lookup failure in the JWT filter); now a clean `401` (CD-028).
+
+### Docs
+- Refreshed UI screenshots for the admin-centric layout (CD-047) and two consistency sweeps keeping
+  the docs aligned with the shipped state — test counts, the three browser e2e suites, the TLS/refresh
+  notes (CD-048, CD-049).
 
 ## [1.0.0-beta.2] - 2026-06-09
 
