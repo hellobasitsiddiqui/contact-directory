@@ -60,4 +60,5 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-047](CD-047-refresh-screenshots.md) | Refresh screenshots for the admin-centric UI | Done (#51) |
 | [CD-048](CD-048-doc-sweep-beta2.md) | Docs consistency sweep (post-beta.2: ticket statuses + release/deploy plan) | Done (#52) |
 | [CD-049](CD-049-review-loop.md) | Post-CD-028 review loop (doc sweep + code/security review) | Done (#55) |
-| [CD-050](CD-050-release-beta3.md) | Release prep — 1.0.0-beta.3 | In review |
+| [CD-050](CD-050-release-beta3.md) | Release prep — 1.0.0-beta.3 | Done (#56) |
+| [CD-051](CD-051-status-page.md) | Public status / uptime page | Open |
