@@ -123,7 +123,7 @@ Use it as a starting template for new projects. The **This app** column tracks t
 | Feature | Why | This app |
 |---|---|:--:|
 | Environment-based config | 12-factor | ✅ |
-| Profiles (dev/test/prod) | Per-env behavior | ✅ (test profile) |
+| Profiles (dev/test/prod) | Per-env behavior | ✅ (test + postgres profiles) |
 | Feature flags | Safe rollout | ⬜ |
 | Graceful shutdown | No dropped requests | ➖ (framework default) |
 

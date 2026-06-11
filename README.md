@@ -28,6 +28,14 @@ end-to-end suites).
 
 > A step-by-step walkthrough with these screens lives in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md).
 
+## Clients
+
+Besides the bundled web UI, there is a companion Android repo —
+[hellobasitsiddiqui/contact-directory-android](https://github.com/hellobasitsiddiqui/contact-directory-android) —
+with a **native Kotlin/Compose app** (login, contacts with search/pagination, full CRUD, favourites,
+trash, profile, silent token refresh) and a thin **WebView wrapper**. Prebuilt APKs are attached to
+that repo's `latest` release, with Maestro UI tests and a screenshot gallery.
+
 ## Features
 
 ### Contacts
@@ -121,9 +129,9 @@ docker compose up --build   # starts app (postgres profile) + postgres + a persi
 ```
 
 The app runs under the `postgres` Spring profile (`SPRING_PROFILES_ACTIVE=postgres`): Flyway applies
-`src/main/resources/db/migration/V1__init.sql`, Hibernate only **validates** the schema, and data is
-stored in the `pgdata` volume so it **survives restarts**. H2 stays the default for local dev and
-tests.
+the versioned migrations in `src/main/resources/db/migration/` (`V1__init.sql`,
+`V2__refresh_tokens.sql`), Hibernate only **validates** the schema, and data is stored in the
+`pgdata` volume so it **survives restarts**. H2 stays the default for local dev and tests.
 
 ### Serve over HTTPS (TLS)
 
@@ -314,17 +322,19 @@ merged by the maintainer. Full details in [CONTRIBUTING.md](CONTRIBUTING.md).
 src/main/java/com/example/contacts
 ├── ContactDirectoryApplication.java   # Spring Boot entry point
 ├── config/        # OpenAPI config + DataInitializer (seeds admin & samples)
-├── controller/    # REST controllers (Contact, Auth, User)
-├── security/      # JWT service, filter, SecurityConfig, CurrentUserService
-├── service/       # Business logic (Contact, User, LoginAttempt, CsvSupport)
+├── controller/    # REST controllers (Contact, Auth, User, Audit)
+├── security/      # JWT service, filter, SecurityConfig, RefreshTokenService, user details
+├── service/       # Business logic (Contact, User, LoginAttempt, Audit, CsvSupport)
 ├── repository/    # Spring Data JPA repositories
 ├── model/         # JPA entities (Contact, User, Role)
 ├── dto/           # Request/response records
 └── exception/     # Custom exceptions + global handler
 src/main/resources
-├── application.yml # Config (H2 file mode, JPA, JWT, security, springdoc)
-├── data.sql        # Test-profile seed data
-└── static/         # Web UI: login, index, users, profile (HTML/CSS/JS)
+├── application.yml          # Config (H2 file mode, JPA, JWT, security, springdoc)
+├── application-postgres.yml # Postgres profile (docker compose)
+├── db/migration/            # Flyway migrations (postgres profile)
+├── data.sql                 # Test-profile seed data
+└── static/                  # Web UI: login, index, users, profile (HTML/CSS/JS)
 ```
 
 ## License
