@@ -1,8 +1,8 @@
 # Release & deployment plan
 
 > **Status: mostly implemented.** Release hygiene (CD-022) and durable Postgres + Flyway persistence
-> (CD-024) are **done and released**; two pre-releases (`v1.0.0-beta.1`, `v1.0.0-beta.2`) have been
-> cut. What remains is an operations **runbook** (CD-023) and a real **deploy target** + optional
+> (CD-024) are **done and released**; three pre-releases (`v1.0.0-beta.1`, `v1.0.0-beta.2`,
+> `v1.0.0-beta.3`) have been cut. What remains is an operations **runbook** (CD-023) and a real **deploy target** + optional
 > `deploy.yml` (CD-025). Tracked as tickets **CD-022 … CD-025** (see
 > [`../tickets/README.md`](../tickets/README.md)).
 
@@ -25,17 +25,17 @@
 Merging the release PR is necessary but not sufficient. A release others can trust and reproduce needs
 the following.
 
-> **Part 1 status: ✅ implemented (CD-022, CD-038, CD-039).** `pom.xml` is `1.0.0-beta.2`,
-> `CHANGELOG.md` has dated `## [1.0.0-beta.2]` / `## [1.0.0-beta.1]` sections, and
+> **Part 1 status: ✅ implemented (CD-022, CD-038, CD-039).** `pom.xml` is `1.0.0-beta.3`,
+> `CHANGELOG.md` has a dated section for each cut beta, and
 > `.github/workflows/release.yml` (idempotent, **pre-release-aware**) cuts the Release + JAR + versioned
-> GHCR image on a `v*` tag — from a CLI tag *or* the GitHub UI. Two pre-releases have been cut
-> (`v1.0.0-beta.1`, `v1.0.0-beta.2`). The remaining manual steps per release are the maintainer merge
-> of the `develop` → `master` PR and pushing the version tag. A stable **`v1.0.0` (GA)** is still to
-> come.
+> GHCR image on a `v*` tag — from a CLI tag *or* the GitHub UI. Three pre-releases have been cut
+> (`v1.0.0-beta.1`, `v1.0.0-beta.2`, `v1.0.0-beta.3`). The remaining manual steps per release are the
+> maintainer merge of the `develop` → `master` PR and pushing the version tag. A stable **`v1.0.0`
+> (GA)** is still to come.
 
 ### 1.1 Version bump
 
-- ✅ `pom.xml` is `1.0.0-beta.2` (was `0.0.1-SNAPSHOT`); the bump was done **on `develop`** so it flows
+- ✅ `pom.xml` is `1.0.0-beta.3` (was `0.0.1-SNAPSHOT`); each bump is done **on `develop`** so it flows
   into `master` via the release PR.
 - Follow [SemVer](https://semver.org/): `MAJOR.MINOR.PATCH`, with a `-beta.N` suffix for pre-releases.
   Dropping the suffix (plain `1.0.0`) is the GA.
@@ -168,11 +168,11 @@ you actually want a long-lived, data-retaining environment.
 - ✅ Health endpoint: `/actuator/health` public (CD-002) — ready to use as a probe.
 - ✅ `CHANGELOG.md` (Keep a Changelog) + `LICENSE` (CD-003).
 - ✅ Protected `master` with maintainer-only release merges; `develop` integration (CD-001/CD-004).
-- ✅ Test/coverage **gate** (`mvn verify`, browser e2e excluded) gating what reaches `master`; the two
-  Playwright browser e2e suites (H2 walkthrough + Testcontainers Postgres) run separately via
-  `e2e.yml` on `develop`/`master`.
+- ✅ Test/coverage **gate** (`mvn verify`, browser e2e excluded) gating what reaches `master`; the
+  three Playwright browser e2e suites (H2 walkthrough + Testcontainers Postgres + silent token
+  refresh) run separately via `e2e.yml` on `develop`/`master`.
 - ✅ Release plumbing (CD-022): version, dated CHANGELOG, **idempotent** `release.yml` (CD-038),
-  **pre-release-aware** (CD-039) — works from a CLI tag *or* the GitHub UI; two betas cut.
+  **pre-release-aware** (CD-039) — works from a CLI tag *or* the GitHub UI; three betas cut.
 - ✅ Durable persistence (CD-024): optional `postgres` profile (PostgreSQL + Flyway, `V1__init.sql`,
   `bytea` photos) + two-container `docker-compose.yml`.
 - ✅ TLS-ready (CD-027): app is proxy-aware (`forward-headers-strategy`) + emits HSTS; a Caddy

@@ -62,3 +62,4 @@ Plain-text issue tracker (no external system). One markdown file per ticket, cre
 | [CD-049](CD-049-review-loop.md) | Post-CD-028 review loop (doc sweep + code/security review) | Done (#55) |
 | [CD-050](CD-050-release-beta3.md) | Release prep — 1.0.0-beta.3 | Done (#56) |
 | [CD-051](CD-051-status-page.md) | Public status / uptime page | Open |
+| [CD-052](CD-052-doc-sweep-cross-repo.md) | Docs consistency sweep (post-beta.3 + Android repo sync) | Done |

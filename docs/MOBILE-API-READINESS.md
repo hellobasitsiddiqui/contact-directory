@@ -1,9 +1,15 @@
 # Mobile API readiness — findings & roadmap
 
-> **Status: saved findings, not implemented.** This records the audit of reusing the existing REST API
-> for a native mobile (iOS/Android) client, so the work can be picked up later. Actionable items are
-> tracked as tickets **CD-027 … CD-035** (see [`../tickets/README.md`](../tickets/README.md)).
-> Grounded in the codebase as of 1.0.0-beta.2.
+> **Status: Tier 1 implemented and released** — CD-027 (TLS-ready) and CD-028 (refresh tokens) shipped
+> in **1.0.0-beta.3**; the remaining items stay tracked as tickets **CD-029 … CD-035** (see
+> [`../tickets/README.md`](../tickets/README.md)). This records the original audit of reusing the
+> existing REST API for a native mobile (iOS/Android) client. Originally grounded in the codebase as
+> of 1.0.0-beta.2.
+>
+> **Update:** a native Android client (and a WebView wrapper) has since been **built and shipped** —
+> see [contact-directory-android](https://github.com/hellobasitsiddiqui/contact-directory-android):
+> login, contacts (search/pagination), full CRUD, favourites, trash, profile, and silent token
+> refresh, with CI-built APKs and Maestro UI tests.
 
 ## Big picture
 
@@ -80,6 +86,11 @@ re-auth for sensitive actions; absolute token-expiry timestamp in `/auth/me`.
 Tier 2–3 are incremental.
 
 ## Appendix — effort for a "very basic" native Android app
+
+> **Superseded:** the app was built (and went well beyond this scope — full CRUD, trash, favourites,
+> profile, silent refresh) at
+> [contact-directory-android](https://github.com/hellobasitsiddiqui/contact-directory-android).
+> The estimate below is kept for the record; it proved about right for the basic scope.
 
 Scope: **login screen** (POST `/api/v1/auth/login`, store token) + **contacts list** (GET
 `/api/v1/contacts` with bearer token, render names) — nothing else.
